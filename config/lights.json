@@ -1,0 +1,73 @@
+{
+ "_說明": "夜間燈光。match 為物件名稱的正規表示式。intensity 是夜晚全開時的強度，白天自動淡出。",
+ "glass": {
+  "_說明": "所有玻璃帷幕由內往外的暖黃光",
+  "color": "#ffb25c",
+  "intensity": 1.1,
+  "match": [
+   "Glass",
+   "^Door1F_.*_Glass",
+   "Fascia_Glass"
+  ],
+  "exclude": [
+   "^SK\\d+_Glass",
+   "Escalator"
+  ]
+ },
+ "skylights": {
+  "_說明": "天窗下方透出的淡暖光",
+  "color": "#ffc67a",
+  "intensity": 0.55,
+  "match": [
+   "^SK\\d+_Glass"
+  ]
+ },
+ "terraces": {
+  "_說明": "三個鏤空露臺：只亮輪廓",
+  "color": "#ffd79a",
+  "match": [
+   "^L3_Terrace$"
+  ],
+  "thresholdAngle": 35
+ },
+ "theaterSteps": {
+  "_說明": "戶外劇場每一階燈條",
+  "color": "#fff1cf",
+  "match": [
+   "^Theater_Seating$",
+   "^Theater_Seating_Upper$"
+  ],
+  "minLength_m": 1.2
+ },
+ "plaza": {
+  "_說明": "榕樹廣場天花的崁燈：天花上畫光點（不逐顆建燈），地面用一盞大面光源打出頂光",
+  "ceilingMatch": [
+   "^Plaza_Ceiling$"
+  ],
+  "dotSpacing_m": 3.2,
+  "dotRadius_m": 0.09,
+  "color": "#ffd9a0",
+  "area": {
+   "center_cm": [
+    13800,
+    15000,
+    900
+   ],
+   "size_cm": [
+    20000,
+    13000
+   ],
+   "intensity": 1.2
+  }
+ },
+ "roofSpots": {
+  "_說明": "屋頂投射燈（等 PDF 標示後補上）。每盞：pos_cm 燈位、aim_cm 照射點、angle_deg 光束角",
+  "max": 12,
+  "color": "#fff4e0",
+  "items": []
+ },
+ "vehicles": {
+  "headlight": "#fff6dd",
+  "taillight": "#ff3b2f"
+ }
+}

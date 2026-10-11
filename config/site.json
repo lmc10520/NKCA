@@ -1,0 +1,26 @@
+{
+ "_說明": "整體設定。model 換成新檔名時改這裡；座標一律用 Fusion 模型座標（cm）。",
+ "title": "衛武營國家藝術文化中心 3D 導覽",
+ "model": "model/nkca.glb",
+ "lat": 22.6236,
+ "lon": 120.3407,
+ "centerWorld": [
+  137,
+  0,
+  -153
+ ],
+ "startCamera": {
+  "pos_cm": [
+   2000,
+   -12000,
+   16000
+  ],
+  "target_cm": [
+   13700,
+   15300,
+   0
+  ]
+ },
+ "shadows": true,
+ "bloom": true
+}

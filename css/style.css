@@ -1,0 +1,88 @@
+:root{
+  --bg:#0f1214; --panel:rgba(22,26,30,.82); --panel-solid:#1a1f24; --line:rgba(255,255,255,.12);
+  --text:#eef1f3; --muted:#a8b0b7; --accent:#e9b65c; --accent-ink:#1b1408; --danger:#e07a5f;
+  --radius:12px; --shadow:0 6px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+#app,#view{position:fixed;inset:0;width:100%;height:100%}
+#view{touch-action:none;display:block}
+.ui{position:fixed;z-index:10}
+.hidden{display:none!important}
+.panel,.hud{background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+button{font:inherit;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:8px;
+  padding:.45em .8em;cursor:pointer;white-space:nowrap}
+button:hover{border-color:rgba(255,255,255,.35)}
+button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+#compass{top:16px;left:16px;width:64px;height:64px;padding:0;border-radius:50%;cursor:pointer}
+#compass svg{width:100%;height:100%}
+#compass .ring{fill:none;stroke:rgba(255,255,255,.25);stroke-width:2}
+#compass .n{fill:var(--danger)} #compass .s{fill:#cfd5da}
+#compass text{fill:var(--text);font-size:9px;font-weight:700}
+
+#clock{top:16px;right:16px;padding:10px 14px;text-align:right;min-width:120px}
+#clockTime{font-size:1.6rem;font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+#clockDate,#weather{font-size:.8rem;color:var(--muted)}
+
+#modeBar{right:16px;top:120px;display:flex;flex-direction:column;gap:8px}
+#modeBar button{background:var(--panel);backdrop-filter:blur(8px);padding:.6em 1em;text-align:left}
+#modeBar button.on{background:var(--accent)}
+
+#liftPanel{right:16px;top:50%;transform:translateY(-10%);padding:12px;width:118px}
+.liftTitle{font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:8px}
+.liftButtons{display:flex;flex-direction:column;gap:8px;align-items:center}
+.liftButtons button{width:62px;height:62px;border-radius:50%;font-size:1.05rem;font-weight:700;
+  border:2px solid rgba(255,255,255,.35);background:radial-gradient(circle at 35% 30%,#3a4148,#1d2227)}
+.liftButtons button.on{background:radial-gradient(circle at 35% 30%,#ffd88f,#d99a2b);color:var(--accent-ink);
+  box-shadow:0 0 14px rgba(233,182,92,.7)}
+
+#toolbar{left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;padding:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:calc(100% - 32px);overflow-x:auto}
+#timeSlider{left:50%;bottom:76px;transform:translateX(-50%);padding:10px 14px;display:flex;gap:10px;align-items:center;width:min(560px,calc(100% - 32px))}
+#timeSlider input{flex:1}
+#timeLabel{font-variant-numeric:tabular-nums;min-width:3.5em}
+
+#card{left:16px;bottom:84px;width:min(340px,calc(100% - 32px));padding:14px 16px}
+#card h3{margin:0 24px 6px 0;font-size:1.05rem}
+#cardBody{font-size:.9rem;color:var(--muted);line-height:1.6}
+#cardBody img{width:100%;border-radius:8px;margin-top:8px}
+.x{position:absolute;top:8px;right:8px;border:none;font-size:1.3rem;padding:0 .4em}
+
+#modal{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.modalInner{position:relative;background:var(--panel-solid);border-radius:var(--radius);padding:16px;max-width:min(1100px,100%);max-height:100%;overflow:auto}
+.modalInner h3{margin:0 32px 10px 0}
+#modalImg{max-width:100%;display:block;border-radius:6px}
+#modalNote{color:var(--muted);font-size:.9rem}
+
+#presBar{left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:8px 10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px}
+#presBar button{min-width:52px;font-size:1.05rem}
+#presIdx{min-width:4em;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted)}
+body.presenting #toolbar,body.presenting #modeBar,body.presenting #timeSlider{display:none!important}
+
+#toast{position:fixed;left:50%;top:20px;transform:translateX(-50%);z-index:40;background:var(--panel-solid);
+  border:1px solid var(--line);border-radius:10px;padding:10px 14px;max-width:min(680px,calc(100% - 32px));font-size:.9rem;word-break:break-all}
+
+#labels{position:fixed;inset:0;pointer-events:none;z-index:5}
+.lbl{position:absolute;left:0;top:0;color:#fff;font-size:13px;font-weight:500;padding:3px 8px;border-radius:999px;background:rgba(15,18,20,.72);
+  border:1px solid rgba(255,255,255,.2);white-space:nowrap;transform:translate(-50%,-120%)}
+
+#loading{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+#loading .bar{width:min(320px,70vw);height:6px;background:#2a3036;border-radius:3px;overflow:hidden}
+#loadBar{height:100%;width:0;background:var(--accent);transition:width .2s}
+#loadText{color:var(--muted);font-size:.9rem}
+
+@media (max-width:640px){
+  #compass{width:48px;height:48px;top:10px;left:10px}
+  #clock{top:10px;right:10px;padding:6px 10px;min-width:0}
+  #clockTime{font-size:1.2rem}
+  #modeBar{top:86px;right:10px}
+  #modeBar button{padding:.5em .7em;font-size:.85rem}
+  #liftPanel{right:10px;width:92px}
+  .liftButtons button{width:52px;height:52px}
+  #toolbar{bottom:10px}
+  #toolbar button{font-size:.8rem;padding:.4em .6em}
+}

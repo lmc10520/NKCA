@@ -1,0 +1,101 @@
+{
+ "_說明": "交通核：畫面中心（旋轉中心）落在 center 半徑 radius 內、且鏡頭距離小於 showWithin_cm 時，右側出現電梯按鈕。action: mode=切換模式, popup=彈出平面圖。位置請用 Shift+點擊 取座標後修正。",
+ "showWithin_cm": 25000,
+ "cores": [
+  {
+   "id": "SW",
+   "label": "西南交通核",
+   "center_cm": [
+    5280,
+    9950,
+    0
+   ],
+   "radius_cm": 2500,
+   "current": "1F",
+   "floors": [
+    {
+     "id": "3F",
+     "action": "mode",
+     "mode": "canopy"
+    },
+    {
+     "id": "1F",
+     "action": "mode",
+     "mode": "plaza"
+    },
+    {
+     "id": "B1",
+     "action": "popup",
+     "img": "img/parking_B1.png",
+     "title": "B1 地下停車場"
+    },
+    {
+     "id": "B2",
+     "action": "popup",
+     "img": "img/parking_B2.png",
+     "title": "B2 地下停車場"
+    }
+   ]
+  },
+  {
+   "id": "NE",
+   "label": "東北交通核",
+   "center_cm": [
+    18830,
+    17460,
+    0
+   ],
+   "radius_cm": 2500,
+   "current": "2F",
+   "floors": [
+    {
+     "id": "3F",
+     "action": "mode",
+     "mode": "canopy"
+    },
+    {
+     "id": "2F",
+     "action": "mode",
+     "mode": "plaza"
+    },
+    {
+     "id": "B2",
+     "action": "popup",
+     "img": "img/parking_B2.png",
+     "title": "B2 地下停車場"
+    }
+   ]
+  },
+  {
+   "id": "SE",
+   "label": "東南樓梯（尚未建模）",
+   "enabled": false,
+   "center_cm": [
+    22000,
+    9000,
+    0
+   ],
+   "radius_cm": 2000,
+   "current": "1F",
+   "floors": [
+    {
+     "id": "1F",
+     "action": "mode",
+     "mode": "plaza"
+    },
+    {
+     "id": "B1",
+     "action": "popup",
+     "img": "img/parking_B1.png",
+     "title": "B1 地下停車場"
+    },
+    {
+     "id": "B2",
+     "action": "popup",
+     "img": "img/parking_B2.png",
+     "title": "B2 地下停車場"
+    }
+   ]
+  }
+ ]
+}

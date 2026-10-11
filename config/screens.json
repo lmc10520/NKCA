@@ -1,0 +1,145 @@
+{
+ "_說明": "LED 廣告電視與舞台貼圖。把圖片放到 img/ 並用 file 指定的檔名上傳即可更新。corners_cm 依序為 左下、右下、右上、左上（從觀看方向看）。座標請用 Shift+點擊 量測後填入，enabled 改 true。",
+ "screens": [
+  {
+   "id": "led_se",
+   "label": "東南角落地玻璃 LED",
+   "file": "img/led_se.jpg",
+   "enabled": false,
+   "corners_cm": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "led_nw",
+   "label": "西北角落地玻璃 LED",
+   "file": "img/led_nw.jpg",
+   "enabled": false,
+   "corners_cm": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "led_oh_n",
+   "label": "歌劇院北側玻璃 LED",
+   "file": "img/led_oh_n.jpg",
+   "enabled": false,
+   "corners_cm": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "stage_oh",
+   "label": "歌劇院鏡框式舞台",
+   "file": "img/stage_oh.jpg",
+   "enabled": false,
+   "corners_cm": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "stage_ph",
+   "label": "戲劇院鏡框式舞台",
+   "file": "img/stage_ph.jpg",
+   "enabled": false,
+   "corners_cm": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ ]
+}

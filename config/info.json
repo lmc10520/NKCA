@@ -1,0 +1,47 @@
+{
+ "_說明": "資訊卡：點選物件時，依 match（名稱規則）顯示對應內容；沒有對應時顯示物件名稱。",
+ "items": [
+  {
+   "match": "^Hall_Opera|^Opera_",
+   "title": "歌劇院",
+   "text": "",
+   "img": ""
+  },
+  {
+   "match": "^Hall_Concert",
+   "title": "音樂廳",
+   "text": "",
+   "img": ""
+  },
+  {
+   "match": "^Hall_Recital|^RH2F_|^RH_",
+   "title": "表演廳",
+   "text": "",
+   "img": ""
+  },
+  {
+   "match": "^Hall_Play",
+   "title": "戲劇院",
+   "text": "",
+   "img": ""
+  },
+  {
+   "match": "^Theater_",
+   "title": "戶外劇場",
+   "text": "",
+   "img": ""
+  },
+  {
+   "match": "^Site_Dry_Fountain|^Site_Fountain",
+   "title": "旱地噴泉",
+   "text": "噴水頭含 LED 變色燈，整點演出。",
+   "img": ""
+  },
+  {
+   "match": "^BoxOffice_",
+   "title": "售票處",
+   "text": "",
+   "img": ""
+  }
+ ]
+}

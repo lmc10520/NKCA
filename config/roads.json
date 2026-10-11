@@ -1,0 +1,35 @@
+{
+ "_說明": "車輛路線（cm）。每條路線為折線，loop=true 會循環。type: car / scooter。目前為示意，請用 Shift+點擊 取路口座標後修正，並把 enabled 改 true。",
+ "enabled": false,
+ "routes": [
+  {
+   "id": "demo_loop",
+   "type": "car",
+   "count": 6,
+   "speed_kmh": 35,
+   "loop": true,
+   "pts_cm": [
+    [
+     -3000,
+     4000,
+     0
+    ],
+    [
+     29000,
+     4000,
+     0
+    ],
+    [
+     29000,
+     26000,
+     0
+    ],
+    [
+     -3000,
+     26000,
+     0
+    ]
+   ]
+  }
+ ]
+}
