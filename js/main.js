@@ -235,8 +235,10 @@ $('cardClose').onclick = () => showCard(null);
 // ---------- 高對比、線架構 ----------
 const whiteMat = new THREE.MeshLambertMaterial({ color: 0xf4f4f2, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
 const glassMat = new THREE.MeshLambertMaterial({ color: 0xbcd7e6, transparent: true, opacity: 0.35, depthWrite: false });
-const hiddenFaceMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0, depthWrite: true, colorWrite: false });
-const edgeMat = new THREE.LineBasicMaterial({ color: 0x22262a });
+// 線架構＝只顯示看得到的邊（wireframe with visible edges only）：面用不透明白色、往後推一點，
+// 先寫入深度，把後面的邊遮住；原本用透明材質，透明物件比線晚畫，結果所有被遮住的邊都露出來
+const hiddenFaceMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2, toneMapped: false });
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x22262a, toneMapped: false });
 let edgesBuilt = false;
 function buildEdges() {
   if (edgesBuilt) return; edgesBuilt = true;
@@ -250,7 +252,7 @@ function applyStyle() {
   if (style !== 'normal') buildEdges();
   for (const m of model.meshes) {
     m.material = style === 'normal' ? m.userData.origMaterial : style === 'contrast' ? (m.userData.isGlass ? glassMat : whiteMat) : hiddenFaceMat;
-    if (m.userData.edges) m.userData.edges.visible = style !== 'normal' && !m.userData.isGlass;
+    if (m.userData.edges) m.userData.edges.visible = style !== 'normal' && (style === 'wire' || !m.userData.isGlass);
   }
   night.group.visible = style === 'normal';
 }
@@ -398,6 +400,8 @@ renderer.setAnimationLoop(() => {
   if (camera.position.y < 1.2) camera.position.y = 1.2;
   env.update(dt);
   if (state.contrast || state.wire) { scene.background = new THREE.Color(0xffffff); env.sky.visible = env.dome.visible = env.stars.visible = false; scene.fog.density = 0; }
+  // 高對比／線架構不做色調映射，白就是純白（OutputPass 依 renderer.toneMapping 決定）
+  renderer.toneMapping = state.contrast || state.wire ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
   const n = state.contrast || state.wire ? 0 : env.night;
   // 建築燈光營運時間（config/lights.json 的 buildingHours）：23:00 熄燈，路燈、車燈、道路標線不受影響
   venueK += ((buildingOpen(env.now()) ? 1 : 0) - venueK) * Math.min(1, dt * 1.5);

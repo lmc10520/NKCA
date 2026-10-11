@@ -60,6 +60,13 @@ export async function loadModel(url, onProgress) {
     o.geometry = g;
     o.castShadow = false; o.receiveShadow = false;
   }
+  // 道路標線：Fusion 裡只比路面高 6 mm，壓縮（量化）後會掉到路面下面看不到；網頁往上抬 5 cm
+  for (const o of meshes) {
+    if (!/^Site_Marking/.test(o.userData.fname)) continue;
+    const w = o.getWorldPosition(new THREE.Vector3()); w.y += 0.05;
+    o.position.copy(o.parent.worldToLocal(w));
+    o.receiveShadow = true; o.castShadow = false;
+  }
   return { root, meshes, byName };
 }
 
