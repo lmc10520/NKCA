@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { cm2w, makeMatcher } from './util.js';
+import { cm2w, makeMatcher, isMobile } from './util.js';
 
 // 夜間燈光：玻璃、天窗、露臺輪廓、戶外劇場燈條、廣場天花崁燈、屋頂投射燈、草坪光環
 export class NightLights {
   constructor(scene, model, cfg, lawns) {
     this.scene = scene; this.cfg = cfg; this.items = [];
+    model.root.updateMatrixWorld(true);
     this.group = new THREE.Group(); this.group.name = 'NightLights';
     scene.add(this.group);
     const c = cfg;
@@ -91,13 +92,30 @@ export class NightLights {
       }
     }
 
-    // 4. 屋頂投射燈（有方向性）
+    // 4. 屋頂投射燈（有方向性）：貼在屋面上，低角度掠過屋頂凸顯起伏
     this.spots = [];
     const rs = c.roofSpots;
-    for (const it of (rs?.items || []).slice(0, rs.max ?? 12)) {
-      const s = new THREE.SpotLight(rs.color, 0, 120, THREE.MathUtils.degToRad(it.angle_deg ?? 25), 0.6, 1.2);
-      s.position.copy(cm2w(it.pos_cm)); s.target.position.copy(cm2w(it.aim_cm));
-      this.group.add(s, s.target); this.spots.push({ light: s, k: it.intensity ?? 400 });
+    if (rs?.items?.length) {
+      const roofM = model.meshes.filter((m) => /^Roof_|^Seam_Roof|^Plaza_Ground$/.test(m.userData.fname));
+      const ray = new THREE.Raycaster();
+      const surf = (x, z) => {
+        ray.set(new THREE.Vector3(x, 200, z), new THREE.Vector3(0, -1, 0));
+        const h = ray.intersectObjects(roofM, false)[0];
+        return h ? h.point.y : 15;
+      };
+      let list = rs.items;
+      const max = isMobile ? Math.ceil((rs.max ?? 12) / 2) : (rs.max ?? 12);
+      if (list.length > max) { const st = list.length / max; list = Array.from({ length: max }, (_, i) => list[Math.floor(i * st)]); }
+      for (const it of list) {
+        const p = cm2w([it.pos_cm[0], it.pos_cm[1], 0]);
+        p.y = it.pos_cm[2] != null ? it.pos_cm[2] / 100 : surf(p.x, p.z) + 0.6;
+        const a = THREE.MathUtils.degToRad(it.dir_deg ?? 0), reach = (it.reach_cm ?? 4500) / 100;
+        const t = new THREE.Vector3(p.x + Math.cos(a) * reach, 0, p.z - Math.sin(a) * reach);
+        t.y = surf(t.x, t.z);
+        const s = new THREE.SpotLight(rs.color, 0, reach * 1.6, THREE.MathUtils.degToRad(it.angle_deg ?? 22), 0.55, 1.1);
+        s.position.copy(p); s.target.position.copy(t);
+        this.group.add(s, s.target); this.spots.push({ light: s, k: rs.intensity ?? 900 });
+      }
     }
 
     // 5. 北側、東側圓形草坪的光環
@@ -119,8 +137,10 @@ export class NightLights {
     for (const g of this.glow) g.mat.emissiveIntensity = night * g.k;
     for (const l of this.lines) { l.material.opacity = night; l.visible = night > 0.02 && l.userData.owner.visible; }
     this.ceilUniform.value = night;
-    if (this.area) this.area.light.intensity = night * this.area.k;
-    for (const s of this.spots) s.light.intensity = night * s.k;
+    // 白天把燈關掉（visible=false），燈不進 shader，白天效能不受影響
+    const on = night > 0.05;
+    if (this.area) { this.area.light.visible = on; this.area.light.intensity = night * this.area.k; }
+    for (const s of this.spots) { s.light.visible = on; s.light.intensity = night * s.k; }
     if (this.ringMat) { this.ringMat.opacity = night; this.rings.forEach((r) => (r.visible = night > 0.02)); }
   }
 }

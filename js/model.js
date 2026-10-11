@@ -19,9 +19,13 @@ export async function loadModel(url, onProgress) {
     // GLTFLoader 會把名稱中的空白換成底線；原始 Fusion 名稱保留在 userData.fname
     const fname = o.userData?.fname || o.parent?.userData?.fname || o.name;
     o.userData.fname = fname;
-    const m = o.material;
-    const isGlass = /glass|玻璃/i.test(m.name || '') || /Glass/.test(fname);
+    let m = o.material;
+    const matGlass = /glass|玻璃/i.test(m.name || '');
+    const isGlass = matGlass || /Glass/.test(fname);
     o.userData.isGlass = isGlass;
+    // 只因物件名稱判定為玻璃時，材質可能和牆、地面共用，必須先複製再改成透明，
+    // 否則整片地面、天花會一起變透明（就是之前縮放時模型「破掉」的原因）
+    if (isGlass && !matGlass) { m = m.clone(); o.material = m; }
     if (isGlass) {
       m.transparent = true;
       m.opacity = Math.min(m.opacity ?? 1, 0.35);
@@ -41,6 +45,21 @@ export async function loadModel(url, onProgress) {
     if (!byName.has(fname)) byName.set(fname, []);
     byName.get(fname).push(o);
   });
+  // 屋頂直立縫（Seam_*）是很細的立鰭，暗面在遠處會鋸齒化成一排排黑點（屋頂看起來「破掉」）。
+  // 把法線全部改成朝上，讓它和屋面同樣受光，只呈現細緻的線條；並且不投/不收陰影。
+  root.updateMatrixWorld(true);
+  const up = new THREE.Vector3(), nm = new THREE.Matrix3();
+  for (const o of meshes) {
+    if (!/^Seam/.test(o.userData.fname)) continue;
+    const g = o.geometry.clone();
+    nm.getNormalMatrix(o.matrixWorld).invert();
+    up.set(0, 1, 0).applyMatrix3(nm).normalize();
+    const n = new Float32Array(g.attributes.position.count * 3);
+    for (let i = 0; i < n.length; i += 3) { n[i] = up.x; n[i + 1] = up.y; n[i + 2] = up.z; }
+    g.setAttribute('normal', new THREE.BufferAttribute(n, 3));
+    o.geometry = g;
+    o.castShadow = false; o.receiveShadow = false;
+  }
   return { root, meshes, byName };
 }
 

@@ -1,88 +1,110 @@
+/* Google 應用程式風格（Material 3 淺色）：白色浮動元件、圓角膠囊、柔和陰影 */
 :root{
-  --bg:#0f1214; --panel:rgba(22,26,30,.82); --panel-solid:#1a1f24; --line:rgba(255,255,255,.12);
-  --text:#eef1f3; --muted:#a8b0b7; --accent:#e9b65c; --accent-ink:#1b1408; --danger:#e07a5f;
-  --radius:12px; --shadow:0 6px 24px rgba(0,0,0,.35);
+  --surface:#ffffff; --surface-2:#f1f3f4; --on:#1f1f1f; --on-2:#5f6368; --outline:#dadce0;
+  --primary:#0b57d0; --on-primary:#ffffff; --tonal:#c2e7ff; --on-tonal:#001d35;
+  --elev1:0 1px 2px rgba(60,64,67,.3),0 1px 3px 1px rgba(60,64,67,.15);
+  --elev2:0 1px 2px rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15);
+  --font:Roboto,"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
-  font-family:"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#e8eaed;color:var(--on);font-family:var(--font);-webkit-tap-highlight-color:transparent}
 #app,#view{position:fixed;inset:0;width:100%;height:100%}
 #view{touch-action:none;display:block}
 .ui{position:fixed;z-index:10}
 .hidden{display:none!important}
-.panel,.hud{background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-button{font:inherit;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:8px;
-  padding:.45em .8em;cursor:pointer;white-space:nowrap}
-button:hover{border-color:rgba(255,255,255,.35)}
-button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button{font:inherit;color:inherit;border:none;background:none;cursor:pointer;-webkit-user-select:none;user-select:none}
+.ms{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:20px;line-height:1;
+  display:inline-block;width:1em;overflow:hidden;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:"liga";font-feature-settings:"liga";-webkit-font-smoothing:antialiased}
 
-#compass{top:16px;left:16px;width:64px;height:64px;padding:0;border-radius:50%;cursor:pointer}
-#compass svg{width:100%;height:100%}
-#compass .ring{fill:none;stroke:rgba(255,255,255,.25);stroke-width:2}
-#compass .n{fill:var(--danger)} #compass .s{fill:#cfd5da}
-#compass text{fill:var(--text);font-size:9px;font-weight:700}
+/* 浮動按鈕 */
+.fab{width:56px;height:56px;border-radius:16px;background:var(--surface);box-shadow:var(--elev2);
+  display:inline-flex;align-items:center;justify-content:center;color:var(--on-2);transition:box-shadow .15s,background .15s}
+.fab:hover{box-shadow:0 4px 8px 3px rgba(60,64,67,.15),0 1px 3px rgba(60,64,67,.3)}
+.fab .ms{font-size:24px}
+.fab.small{width:44px;height:44px;border-radius:50%}
+.fab.primary{background:var(--tonal);color:var(--on-tonal)}
+.fab.on{background:var(--tonal);color:var(--on-tonal)}
 
-#clock{top:16px;right:16px;padding:10px 14px;text-align:right;min-width:120px}
-#clockTime{font-size:1.6rem;font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums}
-#clockDate,#weather{font-size:.8rem;color:var(--muted)}
+#compass{top:16px;left:16px;padding:0}
+#compass svg{width:30px;height:30px}
+#compass .n{fill:#ea4335} #compass .s{fill:#9aa0a6}
 
-#modeBar{right:16px;top:120px;display:flex;flex-direction:column;gap:8px}
-#modeBar button{background:var(--panel);backdrop-filter:blur(8px);padding:.6em 1em;text-align:left}
-#modeBar button.on{background:var(--accent)}
+/* 模式：分段按鈕 */
+.seg{top:16px;left:50%;transform:translateX(-50%);display:flex;background:var(--surface);border-radius:999px;box-shadow:var(--elev2);padding:4px;gap:2px}
+.seg button{height:40px;padding:0 18px;border-radius:999px;color:var(--on-2);font-weight:500;font-size:14px;white-space:nowrap}
+.seg button:hover{background:var(--surface-2)}
+.seg button.on{background:var(--tonal);color:var(--on-tonal)}
 
-#liftPanel{right:16px;top:50%;transform:translateY(-10%);padding:12px;width:118px}
-.liftTitle{font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:8px}
-.liftButtons{display:flex;flex-direction:column;gap:8px;align-items:center}
-.liftButtons button{width:62px;height:62px;border-radius:50%;font-size:1.05rem;font-weight:700;
-  border:2px solid rgba(255,255,255,.35);background:radial-gradient(circle at 35% 30%,#3a4148,#1d2227)}
-.liftButtons button.on{background:radial-gradient(circle at 35% 30%,#ffd88f,#d99a2b);color:var(--accent-ink);
-  box-shadow:0 0 14px rgba(233,182,92,.7)}
+/* 時間：純文字，不做卡片 */
+#clock{top:14px;right:20px;text-align:right;color:#202124;text-shadow:0 0 6px #fff,0 0 2px #fff;pointer-events:none;transition:color .6s}
+body.night #clock{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#clockTime{font-size:30px;font-weight:400;letter-spacing:.5px;font-variant-numeric:tabular-nums;line-height:1.1}
+#clockDate,#weather{font-size:13px;font-weight:500;opacity:.95}
 
-#toolbar{left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;padding:8px;
-  background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:calc(100% - 32px);overflow-x:auto}
-#timeSlider{left:50%;bottom:76px;transform:translateX(-50%);padding:10px 14px;display:flex;gap:10px;align-items:center;width:min(560px,calc(100% - 32px))}
-#timeSlider input{flex:1}
-#timeLabel{font-variant-numeric:tabular-nums;min-width:3.5em}
+/* 樓層選擇（Google 地圖室內樓層樣式） */
+#liftPanel{right:16px;top:50%;transform:translateY(-50%);background:var(--surface);border-radius:24px;box-shadow:var(--elev2);
+  padding:8px 6px;width:64px;text-align:center}
+.liftTitle{font-size:11px;color:var(--on-2);line-height:1.2;margin:2px 0 6px;word-break:keep-all}
+.liftButtons{display:flex;flex-direction:column;gap:2px;align-items:center}
+.liftButtons button{width:48px;height:40px;border-radius:12px;font-weight:500;font-size:15px;color:var(--on)}
+.liftButtons button:hover{background:var(--surface-2)}
+.liftButtons button.on{background:var(--primary);color:var(--on-primary)}
 
-#card{left:16px;bottom:84px;width:min(340px,calc(100% - 32px));padding:14px 16px}
-#card h3{margin:0 24px 6px 0;font-size:1.05rem}
-#cardBody{font-size:.9rem;color:var(--muted);line-height:1.6}
-#cardBody img{width:100%;border-radius:8px;margin-top:8px}
-.x{position:absolute;top:8px;right:8px;border:none;font-size:1.3rem;padding:0 .4em}
+/* 篩選晶片 */
+.chips{left:16px;bottom:20px;display:flex;gap:8px;max-width:calc(100% - 260px);overflow-x:auto;padding:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{height:36px;padding:0 14px 0 10px;border-radius:999px;background:var(--surface);box-shadow:var(--elev1);
+  display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--on-2);white-space:nowrap}
+.chip .ms{font-size:18px}
+.chip.on{background:var(--tonal);color:var(--on-tonal)}
 
-#modal{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
-.modalInner{position:relative;background:var(--panel-solid);border-radius:var(--radius);padding:16px;max-width:min(1100px,100%);max-height:100%;overflow:auto}
-.modalInner h3{margin:0 32px 10px 0}
-#modalImg{max-width:100%;display:block;border-radius:6px}
-#modalNote{color:var(--muted);font-size:.9rem}
+#fabs{right:16px;bottom:20px;display:flex;gap:12px;align-items:flex-end}
 
-#presBar{left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:8px 10px;
-  background:var(--panel);border:1px solid var(--line);border-radius:14px}
-#presBar button{min-width:52px;font-size:1.05rem}
-#presIdx{min-width:4em;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted)}
-body.presenting #toolbar,body.presenting #modeBar,body.presenting #timeSlider{display:none!important}
+.sheet{background:var(--surface);border-radius:20px;box-shadow:var(--elev2)}
+#timeSlider{left:50%;bottom:84px;transform:translateX(-50%);padding:10px 16px;display:flex;gap:12px;align-items:center;width:min(560px,calc(100% - 32px));color:var(--on-2)}
+#timeSlider input{flex:1;accent-color:var(--primary)}
+#timeLabel{font-variant-numeric:tabular-nums;min-width:3em;color:var(--on)}
+button.text{color:var(--primary);font-weight:500;padding:8px 10px;border-radius:999px}
+button.text:hover{background:#e8f0fe}
 
-#toast{position:fixed;left:50%;top:20px;transform:translateX(-50%);z-index:40;background:var(--panel-solid);
-  border:1px solid var(--line);border-radius:10px;padding:10px 14px;max-width:min(680px,calc(100% - 32px));font-size:.9rem;word-break:break-all}
+#card{left:16px;bottom:72px;width:min(360px,calc(100% - 32px));padding:18px 20px}
+#card h3{margin:0 28px 6px 0;font-size:18px;font-weight:500}
+#cardBody{font-size:14px;color:var(--on-2);line-height:1.6}
+#cardBody img{width:100%;border-radius:12px;margin-top:8px}
+.x{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;color:var(--on-2)}
+.x:hover{background:var(--surface-2)}
+
+#modal{position:fixed;inset:0;z-index:30;background:rgba(32,33,36,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.modalInner{position:relative;background:var(--surface);border-radius:28px;padding:20px 24px;max-width:min(1100px,100%);max-height:100%;overflow:auto;box-shadow:var(--elev2)}
+.modalInner h3{margin:0 40px 12px 0;font-weight:500}
+#modalImg{max-width:100%;display:block;border-radius:12px}
+#modalNote{color:var(--on-2);font-size:14px}
+
+#presBar{left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:4px;align-items:center;padding:6px 10px;border-radius:999px}
+#presBar .icon{width:44px;height:44px;border-radius:50%;color:var(--on-2)}
+#presBar .icon:hover{background:var(--surface-2)}
+#presBar .ms{font-size:26px}
+#presIdx{min-width:4em;text-align:center;font-variant-numeric:tabular-nums;color:var(--on-2);font-weight:500}
+body.presenting #toolbar,body.presenting #fabs,body.presenting #modeBar,body.presenting #timeSlider{display:none!important}
+
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:40;background:#303030;color:#f2f2f2;
+  border-radius:4px;padding:12px 16px;max-width:min(640px,calc(100% - 32px));font-size:14px;word-break:break-all;box-shadow:var(--elev2)}
 
 #labels{position:fixed;inset:0;pointer-events:none;z-index:5}
-.lbl{position:absolute;left:0;top:0;color:#fff;font-size:13px;font-weight:500;padding:3px 8px;border-radius:999px;background:rgba(15,18,20,.72);
-  border:1px solid rgba(255,255,255,.2);white-space:nowrap;transform:translate(-50%,-120%)}
+.lbl{position:absolute;left:0;top:0;color:#202124;font-size:13px;font-weight:500;padding:4px 10px;border-radius:999px;background:#fff;
+  box-shadow:var(--elev1);white-space:nowrap}
 
-#loading{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
-#loading .bar{width:min(320px,70vw);height:6px;background:#2a3036;border-radius:3px;overflow:hidden}
-#loadBar{height:100%;width:0;background:var(--accent);transition:width .2s}
-#loadText{color:var(--muted);font-size:.9rem}
+#loading{position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+#loading .bar{width:min(280px,70vw);height:4px;background:#d3e3fd;border-radius:2px;overflow:hidden}
+#loadBar{height:100%;width:0;background:var(--primary);transition:width .2s}
+#loadText{color:var(--on-2);font-size:14px}
 
-@media (max-width:640px){
-  #compass{width:48px;height:48px;top:10px;left:10px}
-  #clock{top:10px;right:10px;padding:6px 10px;min-width:0}
-  #clockTime{font-size:1.2rem}
-  #modeBar{top:86px;right:10px}
-  #modeBar button{padding:.5em .7em;font-size:.85rem}
-  #liftPanel{right:10px;width:92px}
-  .liftButtons button{width:52px;height:52px}
-  #toolbar{bottom:10px}
-  #toolbar button{font-size:.8rem;padding:.4em .6em}
+@media (max-width:720px){
+  .seg{top:68px} .seg button{height:36px;padding:0 12px;font-size:13px}
+  #clock{top:12px;right:14px} #clockTime{font-size:24px}
+  .chips{bottom:88px;left:12px;max-width:calc(100% - 24px)}
+  #fabs{right:12px;bottom:16px;gap:10px}
+  .fab{width:48px;height:48px;border-radius:14px}
+  #liftPanel{right:10px}
+  #card{bottom:140px}
 }

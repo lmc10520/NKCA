@@ -2,8 +2,8 @@
  "_說明": "夜間燈光。match 為物件名稱的正規表示式。intensity 是夜晚全開時的強度，白天自動淡出。",
  "glass": {
   "_說明": "所有玻璃帷幕由內往外的暖黃光",
-  "color": "#ffb25c",
-  "intensity": 1.1,
+  "color": "#fff1dc",
+  "intensity": 0.9,
   "match": [
    "Glass",
    "^Door1F_.*_Glass",
@@ -16,15 +16,15 @@
  },
  "skylights": {
   "_說明": "天窗下方透出的淡暖光",
-  "color": "#ffc67a",
-  "intensity": 0.55,
+  "color": "#fff6e8",
+  "intensity": 0.5,
   "match": [
    "^SK\\d+_Glass"
   ]
  },
  "terraces": {
   "_說明": "三個鏤空露臺：只亮輪廓",
-  "color": "#ffd79a",
+  "color": "#fff8ec",
   "match": [
    "^L3_Terrace$"
   ],
@@ -32,7 +32,7 @@
  },
  "theaterSteps": {
   "_說明": "戶外劇場每一階燈條",
-  "color": "#fff1cf",
+  "color": "#fffaf0",
   "match": [
    "^Theater_Seating$",
    "^Theater_Seating_Upper$"
@@ -46,7 +46,7 @@
   ],
   "dotSpacing_m": 3.2,
   "dotRadius_m": 0.09,
-  "color": "#ffd9a0",
+  "color": "#fff6ea",
   "area": {
    "center_cm": [
     13800,
@@ -61,10 +61,287 @@
   }
  },
  "roofSpots": {
-  "_說明": "屋頂投射燈（等 PDF 標示後補上）。每盞：pos_cm 燈位、aim_cm 照射點、angle_deg 光束角",
-  "max": 12,
-  "color": "#fff4e0",
-  "items": []
+  "_說明": "屋頂投射燈（依 20261011_屋頂投射燈位置.pdf 的黃點自動換算）。pos_cm 的高度留 null 會自動貼在屋頂表面上方 60cm；dir_deg 為照射方向（0=東、90=北），燈會以低角度掠過屋面、凸顯起伏。max 為同時亮的上限，手機自動減半。",
+  "max": 25,
+  "color": "#fff6ea",
+  "intensity": 900,
+  "items": [
+   {
+    "id": "S01",
+    "pos_cm": [
+     3363,
+     22500,
+     null
+    ],
+    "dir_deg": -67,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S02",
+    "pos_cm": [
+     3778,
+     22500,
+     null
+    ],
+    "dir_deg": -66,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S03",
+    "pos_cm": [
+     7743,
+     22499,
+     null
+    ],
+    "dir_deg": -81,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S04",
+    "pos_cm": [
+     8158,
+     22499,
+     null
+    ],
+    "dir_deg": -47,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S05",
+    "pos_cm": [
+     8529,
+     22500,
+     null
+    ],
+    "dir_deg": -41,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S06",
+    "pos_cm": [
+     17698,
+     22500,
+     null
+    ],
+    "dir_deg": -57,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S07",
+    "pos_cm": [
+     18115,
+     22500,
+     null
+    ],
+    "dir_deg": -53,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S08",
+    "pos_cm": [
+     18484,
+     22500,
+     null
+    ],
+    "dir_deg": -62,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S09",
+    "pos_cm": [
+     23332,
+     22500,
+     null
+    ],
+    "dir_deg": -110,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S10",
+    "pos_cm": [
+     23748,
+     22500,
+     null
+    ],
+    "dir_deg": -105,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S11",
+    "pos_cm": [
+     24118,
+     22499,
+     null
+    ],
+    "dir_deg": -102,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S12",
+    "pos_cm": [
+     24118,
+     22115,
+     null
+    ],
+    "dir_deg": -92,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S13",
+    "pos_cm": [
+     3362,
+     22000,
+     null
+    ],
+    "dir_deg": -61,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S14",
+    "pos_cm": [
+     24118,
+     21677,
+     null
+    ],
+    "dir_deg": -79,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S15",
+    "pos_cm": [
+     3362,
+     9064,
+     null
+    ],
+    "dir_deg": 78,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S16",
+    "pos_cm": [
+     24118,
+     8714,
+     null
+    ],
+    "dir_deg": 107,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S17",
+    "pos_cm": [
+     3362,
+     8665,
+     null
+    ],
+    "dir_deg": 36,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S18",
+    "pos_cm": [
+     3362,
+     8276,
+     null
+    ],
+    "dir_deg": 40,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S19",
+    "pos_cm": [
+     3764,
+     8275,
+     null
+    ],
+    "dir_deg": 23,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S20",
+    "pos_cm": [
+     19163,
+     8276,
+     null
+    ],
+    "dir_deg": 86,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S21",
+    "pos_cm": [
+     4142,
+     8275,
+     null
+    ],
+    "dir_deg": 11,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S22",
+    "pos_cm": [
+     18382,
+     8275,
+     null
+    ],
+    "dir_deg": 55,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S23",
+    "pos_cm": [
+     18785,
+     8275,
+     null
+    ],
+    "dir_deg": 65,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S24",
+    "pos_cm": [
+     23738,
+     8275,
+     null
+    ],
+    "dir_deg": 134,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   },
+   {
+    "id": "S25",
+    "pos_cm": [
+     24118,
+     8275,
+     null
+    ],
+    "dir_deg": 115,
+    "reach_cm": 4500,
+    "angle_deg": 22
+   }
+  ]
  },
  "vehicles": {
   "headlight": "#fff6dd",

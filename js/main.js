@@ -9,15 +9,15 @@ import { loadModel } from './model.js';
 import { Environment } from './env.js';
 import { NightLights } from './lights.js';
 import { Fountain } from './fountain.js';
-import { Vehicles } from './vehicles.js';
+import { Vehicles, People } from './vehicles.js';
 import { buildScreens } from './screens.js';
 import { Labels } from './labels.js';
 
 const $ = (id) => document.getElementById(id);
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, infoCfg, roadsCfg, fountainCfg, lawnsCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'info', 'roads', 'fountain', 'lawns']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, infoCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'info', 'roads', 'fountain', 'lawns', 'people']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -60,6 +60,7 @@ for (const m of model.meshes) if (exclude(m.userData.fname)) { m.visible = false
 const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
 const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles);
+const people = new People(scene, peopleCfg, model);
 const screens = buildScreens(scene, screensCfg);
 const labels = new Labels(labelsCfg);
 $('loading').classList.add('hidden');
@@ -218,7 +219,7 @@ function applyStyle() {
 }
 
 // ---------- 工具列 ----------
-const tb = (k) => document.querySelector(`#toolbar [data-tool="${k}"]`);
+const tb = (k) => document.querySelector(`[data-tool="${k}"]`);
 function setToggle(k, v) {
   state[k] = v; tb(k)?.classList.toggle('on', v);
   if (k === 'labels') labels.visible = v;
@@ -227,7 +228,7 @@ function setToggle(k, v) {
   if (k === 'weather') env.weatherOn = v;
   if (k === 'contrast' || k === 'wire') applyStyle();
 }
-for (const b of document.querySelectorAll('#toolbar button')) {
+for (const b of document.querySelectorAll('[data-tool]')) {
   const k = b.dataset.tool;
   b.onclick = () => {
     if (['labels', 'cards', 'clock', 'weather', 'contrast', 'wire'].includes(k)) setToggle(k, !state[k]);
@@ -330,6 +331,7 @@ renderer.setAnimationLoop(() => {
   bloom.strength = n * 0.9;
   fountain?.update(t, env.now(), n);
   vehicles.update(dt, n);
+  people.update(dt);
   for (let i = lifts.length - 1; i >= 0; i--) {
     const L = lifts[i]; L.t = Math.min(1, L.t + dt / 1.2);
     const f = halls.flatMap((h) => h.floorsM).find((x) => x.showM(L.m.userData.fname));
@@ -351,8 +353,9 @@ renderer.setAnimationLoop(() => {
     const az = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
     $('compassRose').setAttribute('transform', `rotate(${THREE.MathUtils.radToDeg(az)} 32 32)`);
     renderLiftPanel(false);
+    document.body.classList.toggle('night', env.night > 0.5 && !state.contrast && !state.wire);
   }
 });
 
 // 開發者用：在主控台 window.nkca 可以查物件
-window.nkca = { scene, camera, controls, model, env, state, setMode, flyTo, fountain };
+window.nkca = { scene, camera, controls, model, env, state, setMode, flyTo, fountain, night, vehicles, people, renderer };

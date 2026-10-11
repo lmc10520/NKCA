@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>衛武營 3D 導覽</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400,0..1,0&display=block" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <script type="importmap">
 { "imports": {
@@ -19,57 +20,63 @@
   <canvas id="view"></canvas>
   <div id="labels"></div>
 
-  <!-- 左上：指北針 -->
-  <div id="compass" class="ui hud" title="點一下回正北">
-    <svg viewBox="0 0 64 64"><g id="compassRose"><circle cx="32" cy="32" r="29" class="ring"/><path d="M32 7 L39 32 L32 28 L25 32 Z" class="n"/><path d="M32 57 L25 32 L32 36 L39 32 Z" class="s"/><text x="32" y="20" text-anchor="middle">N</text></g></svg>
-  </div>
+  <!-- 左上：指北針（像 Google 地圖的羅盤） -->
+  <button id="compass" class="ui fab small" title="回正北">
+    <svg viewBox="0 0 48 48"><g id="compassRose"><path d="M24 7 L29.5 24 L18.5 24 Z" class="n"/><path d="M24 41 L18.5 24 L29.5 24 Z" class="s"/></g></svg>
+  </button>
 
-  <!-- 右上：時間與天氣 -->
-  <div id="clock" class="ui hud">
+  <!-- 上方：模式切換（分段按鈕） -->
+  <div id="modeBar" class="ui seg"></div>
+
+  <!-- 右上：時間與天氣（純文字） -->
+  <div id="clock" class="ui">
     <div id="clockTime">--:--</div>
     <div id="clockDate"></div>
     <div id="weather"></div>
   </div>
 
-  <!-- 右側：模式按鈕 -->
-  <div id="modeBar" class="ui"></div>
-
-  <!-- 右側：電梯 / 廳院樓層面板 -->
-  <div id="liftPanel" class="ui panel hidden">
+  <!-- 右側：樓層選擇（像 Google 地圖室內樓層） -->
+  <div id="liftPanel" class="ui hidden">
     <div class="liftTitle" id="liftTitle"></div>
     <div class="liftButtons" id="liftButtons"></div>
   </div>
 
-  <!-- 下方工具列 -->
-  <div id="toolbar" class="ui">
-    <button data-tool="labels" class="on" title="地點標籤">標籤</button>
-    <button data-tool="cards" class="on" title="點選物件時顯示資訊卡">資訊卡</button>
-    <button data-tool="clock" class="on" title="顯示時間">時間</button>
-    <button data-tool="weather" class="on" title="即時天氣（雲量、雨）">天氣</button>
-    <button data-tool="contrast" title="高對比：白模加輪廓線">高對比</button>
-    <button data-tool="wire" title="線架構">線架構</button>
-    <button data-tool="time" title="手動調整時間">調時間</button>
-    <button data-tool="snap" title="把目前畫面存成簡報代碼">簡報記憶</button>
-    <button data-tool="present" title="匯入代碼檔，逐一播放">簡報模式</button>
+  <!-- 下方左：篩選晶片 -->
+  <div id="toolbar" class="ui chips">
+    <button data-tool="labels" class="chip on"><span class="ms">label</span>標籤</button>
+    <button data-tool="cards" class="chip on"><span class="ms">info</span>資訊卡</button>
+    <button data-tool="clock" class="chip on"><span class="ms">schedule</span>時間</button>
+    <button data-tool="weather" class="chip on"><span class="ms">partly_cloudy_day</span>天氣</button>
+    <button data-tool="contrast" class="chip"><span class="ms">contrast</span>高對比</button>
+    <button data-tool="wire" class="chip"><span class="ms">deployed_code</span>線架構</button>
   </div>
-  <div id="timeSlider" class="ui panel hidden">
+
+  <!-- 下方右：動作按鈕 -->
+  <div id="fabs" class="ui">
+    <button data-tool="time" class="fab" title="調整時間"><span class="ms">tune</span></button>
+    <button data-tool="snap" class="fab" title="簡報記憶：複製目前畫面的代碼"><span class="ms">bookmark_add</span></button>
+    <button data-tool="present" class="fab primary" title="簡報模式：匯入代碼檔"><span class="ms">slideshow</span></button>
+  </div>
+
+  <div id="timeSlider" class="ui sheet hidden">
+    <span class="ms">wb_twilight</span>
     <input type="range" id="timeRange" min="0" max="1439" step="1">
     <span id="timeLabel"></span>
-    <button id="timeLive">回到現在</button>
+    <button id="timeLive" class="text">回到現在</button>
   </div>
 
   <!-- 資訊卡 -->
-  <div id="card" class="ui panel hidden"><button class="x" id="cardClose">×</button><h3 id="cardTitle"></h3><div id="cardBody"></div></div>
+  <div id="card" class="ui sheet hidden"><button class="x ms" id="cardClose">close</button><h3 id="cardTitle"></h3><div id="cardBody"></div></div>
 
   <!-- 彈出視窗（地下停車場平面圖等） -->
-  <div id="modal" class="hidden"><div class="modalInner"><button class="x" id="modalClose">×</button><h3 id="modalTitle"></h3><img id="modalImg" alt=""><p id="modalNote"></p></div></div>
+  <div id="modal" class="hidden"><div class="modalInner"><button class="x ms" id="modalClose">close</button><h3 id="modalTitle"></h3><img id="modalImg" alt=""><p id="modalNote"></p></div></div>
 
   <!-- 簡報模式控制 -->
-  <div id="presBar" class="ui hidden">
-    <button id="presPrev" title="上一個">|&larr;</button>
+  <div id="presBar" class="ui sheet hidden">
+    <button id="presPrev" class="icon" title="上一個"><span class="ms">skip_previous</span></button>
     <span id="presIdx">0/0</span>
-    <button id="presNext" title="下一個">&rarr;|</button>
-    <button id="presExit" title="結束簡報">✕</button>
+    <button id="presNext" class="icon" title="下一個"><span class="ms">skip_next</span></button>
+    <button id="presExit" class="icon" title="結束簡報"><span class="ms">close</span></button>
   </div>
   <input type="file" id="presFile" accept=".txt,text/plain" hidden>
 

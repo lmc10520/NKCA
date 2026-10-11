@@ -2,7 +2,7 @@ import adsk.core, adsk.fusion, json, struct, array, time, os
 def run(_c):
     app=adsk.core.Application.get(); D=app.activeProduct; r=D.rootComponent; A=D.attributes
     t0=time.time(); OUT=r'C:\Users\chihw\Documents\WWY_data'
-    SKIP=('Print_Model','Plaza_Shell_Original','tmp_')
+    SKIP=('Print_Model','Plaza_Shell_Original','tmp_','Body62')
     bodies=[b for b in r.bRepBodies if not b.name.startswith(SKIP)]
     buf=bytearray(); views=[]; acc=[]; meshes=[]; nodes=[]; mats=[]; mi={}; man=[]
     def col(ap):
@@ -70,4 +70,12 @@ def run(_c):
         f.write(struct.pack('<II',len(js),0x4E4F534A)); f.write(js)
         f.write(struct.pack('<II',len(buf),0x004E4942)); f.write(buf)
     with open(os.path.join(OUT,'nkca_manifest.json'),'w',encoding='utf8') as f: json.dump(man,f,ensure_ascii=False)
+    sets={}
+    for s in D.selectionSets:
+        nm=[]
+        for e in s.entities:
+            try: nm.append(e.name)
+            except: pass
+        sets[s.name]=sorted(set(nm))
+    with open(os.path.join(OUT,'nkca_sets.json'),'w',encoding='utf8') as f: json.dump(sets,f,ensure_ascii=False)
     A.add('v6','log','glb done %d bodies tris %d size %.1fMB %ds'%(n,tri,len(buf)/1e6,time.time()-t0))
