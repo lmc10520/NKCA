@@ -132,7 +132,7 @@ export class People {
     }
     for (const m of [this.body, this.head]) { m.castShadow = true; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._p = new THREE.Vector3(); this._s = new THREE.Vector3(1, 1, 1);
-    this._up = new THREE.Vector3(0, 1, 0);
+    this._up = new THREE.Vector3(0, 1, 0); this._e = new THREE.Euler();
   }
   next(p) {
     // 傾向直走，偶爾轉彎；盡量不走回頭路
@@ -144,7 +144,28 @@ export class People {
       if (s > bs) { bs = s; best = j; }
     }
     p.a = p.b; p.b = best; p.t = 0;
-    if (Math.random() < 0.03) p.wait = 3 + Math.random() * 12;   // 停下來看看
+    if (!(p.run > 0) && Math.random() < 0.03) p.wait = 3 + Math.random() * 12;   // 停下來看看
+  }
+  // 手指／滑鼠點到行人：他（和旁邊 4 m 內的人）會跑起來幾秒
+  tap(cx, cy, camera, rect) {
+    if (!this.body) return false;
+    const v = new THREE.Vector3(), base = isMobile ? 40 : 26; let best = -1, bd = Infinity;
+    this.list.forEach((p, i) => {
+      v.copy(this.P[p.a]).lerp(this.P[p.b], Math.min(p.t, 1)); v.y += 0.9;
+      const dist = v.distanceTo(camera.position);
+      v.project(camera);
+      if (v.z > 1) return;
+      const x = rect.left + (v.x + 1) / 2 * rect.width, y = rect.top + (1 - v.y) / 2 * rect.height;
+      const r = Math.max(base, 300 / dist);          // 近的時候點人身上任何地方都算
+      const d = Math.hypot(x - cx, y - cy);
+      if (d < r && d < bd) { best = i; bd = d; }
+    });
+    if (best < 0) return false;
+    const c = this.P[this.list[best].a];
+    this.list.forEach((p) => {
+      if (p === this.list[best] || this.P[p.a].distanceTo(c) < 4) { p.run = 4 + Math.random() * 3; p.wait = 0; }
+    });
+    return true;
   }
   update(dt) {
     if (!this.body) return;
@@ -153,15 +174,17 @@ export class People {
     this.list.forEach((p, i) => {
       const A = this.P[p.a], B = this.P[p.b];
       const L = Math.max(0.01, A.distanceTo(B));
+      const run = p.run > 0; if (run) p.run -= dt;
       if (p.wait > 0) p.wait -= dt;
-      else { p.t += (p.v * dt) / L; p.ph += dt * 9; if (p.t >= 1) this.next(p); }
+      else { p.t += ((run ? 4.8 : p.v) * dt) / L; p.ph += dt * (run ? 17 : 9); if (p.t >= 1) this.next(p); }
       const A2 = this.P[p.a], B2 = this.P[p.b];
       pos.copy(A2).lerp(B2, Math.min(p.t, 1));
-      if (p.wait <= 0) pos.y += Math.abs(Math.sin(p.ph)) * 0.04;
+      if (p.wait <= 0) pos.y += Math.abs(Math.sin(p.ph)) * (run ? 0.12 : 0.04);
       const want = Math.atan2(B2.x - A2.x, B2.z - A2.z);
       let d = want - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
-      p.yaw += d * Math.min(1, dt * 5);
-      this._q.setFromAxisAngle(this._up, p.yaw);
+      p.yaw += d * Math.min(1, dt * (run ? 10 : 5));
+      p.lean = (p.lean || 0) + ((run ? 0.28 : 0) - (p.lean || 0)) * Math.min(1, dt * 6);   // 跑步時身體前傾
+      this._e.set(p.lean, p.yaw, 0, 'YXZ'); this._q.setFromEuler(this._e);
       m.compose(pos, this._q, this._s);
       this.body.setMatrixAt(i, m); this.head.setMatrixAt(i, m);
     });

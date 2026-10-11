@@ -65,3 +65,29 @@ json.dump({'_說明': '行人可走區域（20261008_車流.pdf 人流圖層）�
            'enabled': True, 'spacing_cm': S, 'count': 160, 'nodes': out_nodes, 'adj': out_adj},
           open(os.path.join(root, 'config/walk.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
 print('walk nodes', len(out_nodes), 'of', len(nodes), 'comps', len(comps))
+
+# ---- 路燈（模型沒畫，網頁自動補）：沿人行區與車道交界，每 28 m 一盞，往人行側內縮 1.2 m ----
+from shapely.ops import unary_union
+lines = unary_union([LineString(r['pts_cm']) for r in routes])
+full = Polygon(w[0], w[1:]).buffer(0)
+rings = [full.exterior] + list(full.interiors)
+lamps = []
+for ring in rings:
+    L = ring.length; n = int(L // 2800)
+    for i in range(n):
+        pt = ring.interpolate(i * 2800)
+        if pt.distance(lines) > 1100: continue
+        # 往多邊形內側推 1.2 m
+        a = ring.interpolate(max(0, i * 2800 - 50)); b = ring.interpolate(min(L, i * 2800 + 50))
+        dx, dy = b.x - a.x, b.y - a.y; d = math.hypot(dx, dy) or 1
+        for sgn in (1, -1):
+            q = Point(pt.x - sgn * dy / d * 120, pt.y + sgn * dx / d * 120)
+            if full.contains(q):
+                # 燈頭朝向道路
+                near = lines.interpolate(lines.project(q)); ang = math.degrees(math.atan2(near.y - q.y, near.x - q.x))
+                lamps.append([round(q.x), round(q.y), 0, round(ang)]); break
+json.dump({'_說明': '路燈：模型沒有畫，網頁自動補上簡單燈桿＋燈頭＋地面光暈（不是真的光源，效能負擔很小）。'
+           '[x_cm, y_cm, z_cm, 燈頭朝向角度]；由 tools/traffic_to_config.py 沿人行區與車道交界自動產生，可手動增刪。',
+           'enabled': True, 'height_m': 8, 'color': '#fff3e0', 'pool_radius_m': 7, 'lamps': lamps},
+          open(os.path.join(root, 'config/streetlights.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
+print('lamps', len(lamps))

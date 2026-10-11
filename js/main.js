@@ -16,8 +16,8 @@ import { Labels } from './labels.js';
 const $ = (id) => document.getElementById(id);
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, infoCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'info', 'roads', 'fountain', 'lawns', 'walk']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, infoCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'info', 'roads', 'fountain', 'lawns', 'walk', 'streetlights']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -58,6 +58,7 @@ const exclude = makeMatcher(modesCfg.exclude, modesCfg.groups);
 for (const m of model.meshes) if (exclude(m.userData.fname)) { m.visible = false; m.userData.excluded = true; }
 
 const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
+night.addStreetLights(streetCfg);
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
 const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles);
 const people = new People(scene, peopleCfg);
@@ -173,6 +174,7 @@ canvas.addEventListener('pointerdown', (e) => (downAt = [e.clientX, e.clientY]))
 canvas.addEventListener('pointerup', (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
   const r = canvas.getBoundingClientRect();
+  if (!e.shiftKey && !e.altKey && people.tap(e.clientX, e.clientY, camera, r)) return;
   ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
   const objs = [...model.meshes.filter((m) => m.visible), ...screens.children];
   const hit = ray.intersectObjects(objs, false)[0];

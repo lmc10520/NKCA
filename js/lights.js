@@ -3,6 +3,13 @@ import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUnifo
 import { cm2w, makeMatcher, isMobile } from './util.js';
 
 // 夜間燈光：玻璃、天窗、露臺輪廓、戶外劇場燈條、廣場天花崁燈、屋頂投射燈、草坪光環
+function radial() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.5, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv);
+}
+
 export class NightLights {
   constructor(scene, model, cfg, lawns) {
     this.scene = scene; this.cfg = cfg; this.items = [];
@@ -18,7 +25,9 @@ export class NightLights {
     for (const m of model.meshes) {
       const n = m.userData.fname;
       let col = null, k = 0;
-      if (sm(n)) { col = c.skylights.color; k = c.skylights.intensity; }
+      const mk = (c.markings || []).find((x) => new RegExp(x.match).test(n));
+      if (mk) { col = mk.color; k = mk.intensity; }
+      else if (sm(n)) { col = c.skylights.color; k = c.skylights.intensity; }
       else if ((m.userData.isGlass || gm(n)) && !gx(n)) { col = c.glass.color; k = c.glass.intensity; }
       if (!col) continue;
       // 每個 mesh 用自己的材質，避免同材質的物件互相影響
@@ -37,6 +46,7 @@ export class NightLights {
         const eg = new THREE.EdgesGeometry(m.geometry, spec.thresholdAngle ?? 40);
         const g = filter ? filter(eg, m) : eg;
         const mat = new THREE.LineBasicMaterial({ color: spec.color, transparent: true, opacity: 0, toneMapped: false });
+        mat.userData.k = spec.intensity ?? 1;
         const ls = new THREE.LineSegments(g, mat);
         ls.matrixAutoUpdate = false;
         m.updateWorldMatrix(true, false);
@@ -133,9 +143,38 @@ export class NightLights {
     }
   }
 
+  // 路燈：模型沒有畫，這裡用 InstancedMesh 補簡單燈桿＋燈頭＋地面光暈（不是真的光源，效能負擔小）
+  addStreetLights(cfg) {
+    if (!cfg?.enabled || !cfg.lamps?.length) return;
+    const n = cfg.lamps.length, H = cfg.height_m ?? 8, R = cfg.pool_radius_m ?? 7;
+    const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.1, H, 6).translate(0, H / 2, 0),
+      new THREE.MeshStandardMaterial({ color: 0x4a4f55, roughness: 0.6, metalness: 0.4 }), n);
+    const arm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.6, 0.08, 0.08).translate(0.8, H, 0),
+      pole.material, n);
+    const headMat = new THREE.MeshBasicMaterial({ color: cfg.color, toneMapped: false });
+    const head = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.12, 0.28).translate(1.45, H - 0.08, 0), headMat, n);
+    const poolMat = new THREE.MeshBasicMaterial({ map: radial(), color: cfg.color, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    const pool = new THREE.InstancedMesh(new THREE.PlaneGeometry(2 * R, 2 * R).rotateX(-Math.PI / 2).translate(1.4, 0.06, 0), poolMat, n);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
+    cfg.lamps.forEach((l, i) => {
+      // 燈頭朝向角度：0 = 東（+x），90 = 北（-z）
+      q.setFromAxisAngle(up, THREE.MathUtils.degToRad(l[3] ?? 0));
+      m.compose(cm2w([l[0], l[1], l[2] ?? 0]), q, one);
+      for (const im of [pole, arm, head, pool]) im.setMatrixAt(i, m);
+    });
+    pole.castShadow = arm.castShadow = true;
+    this.group.add(pole, arm, head, pool);
+    this.street = { headMat, poolMat, base: new THREE.Color(cfg.color), pool };
+  }
+
   update(night) {
+    if (this.street) {
+      this.street.headMat.color.copy(this.street.base).multiplyScalar(0.25 + night * 2.2);
+      this.street.poolMat.opacity = night * 0.32; this.street.pool.visible = night > 0.02;
+    }
     for (const g of this.glow) g.mat.emissiveIntensity = night * g.k;
-    for (const l of this.lines) { l.material.opacity = night; l.visible = night > 0.02 && l.userData.owner.visible; }
+    for (const l of this.lines) { l.material.opacity = night * l.material.userData.k; l.visible = night > 0.02 && l.userData.owner.visible; }
     this.ceilUniform.value = night;
     // 白天把燈關掉（visible=false），燈不進 shader，白天效能不受影響
     const on = night > 0.05;

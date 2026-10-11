@@ -31,4 +31,9 @@ W = json.load(open(os.path.join(root, 'config/walk.json')))
 h = heights(ped, [p[:2] for p in W['nodes']], 8.0)
 W['nodes'] = [[p[0], p[1], round(z * 100)] for p, z in zip(W['nodes'], h)]
 json.dump(W, open(os.path.join(root, 'config/walk.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
+SL = os.path.join(root, 'config/streetlights.json')
+if os.path.exists(SL):
+    S = json.load(open(SL)); h = heights(ped, [p[:2] for p in S['lamps']], 8.0)
+    S['lamps'] = [[p[0], p[1], round(z * 100), p[3]] for p, z in zip(S['lamps'], h)]
+    json.dump(S, open(SL, 'w'), ensure_ascii=False, separators=(',', ':'))
 print('ok', sum(len(r['pts_cm']) for r in R['routes']), len(W['nodes']))

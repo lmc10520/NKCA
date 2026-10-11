@@ -28,16 +28,18 @@
   "match": [
    "^L3_Terrace$"
   ],
-  "thresholdAngle": 35
+  "thresholdAngle": 35,
+  "intensity": 0.8
  },
  "theaterSteps": {
   "_說明": "戶外劇場每一階燈條",
-  "color": "#fffaf0",
+  "color": "#f4ede0",
   "match": [
    "^Theater_Seating$",
    "^Theater_Seating_Upper$"
   ],
-  "minLength_m": 1.2
+  "minLength_m": 1.2,
+  "intensity": 0.6
  },
  "plaza": {
   "_說明": "榕樹廣場天花的崁燈：天花上畫光點（不逐顆建燈），地面用一盞大面光源打出頂光",
@@ -48,23 +50,24 @@
   "dotRadius_m": 0.09,
   "color": "#fff6ea",
   "area": {
+   "_說明": "頂光範圍避開南側戶外劇場（座位會頂到天花附近，會被打成一片白）",
    "center_cm": [
     13800,
-    15000,
+    16500,
     900
    ],
    "size_cm": [
-    20000,
-    13000
+    19000,
+    10000
    ],
-   "intensity": 1.2
+   "intensity": 0.7
   }
  },
  "roofSpots": {
   "_說明": "屋頂投射燈（依 20261011_屋頂投射燈位置.pdf 的黃點自動換算）。pos_cm 的高度留 null 會自動貼在屋頂表面上方 60cm；dir_deg 為照射方向（0=東、90=北），燈會以低角度掠過屋面、凸顯起伏。max 為同時亮的上限，手機自動減半。",
   "max": 25,
   "color": "#fff6ea",
-  "intensity": 900,
+  "intensity": 320,
   "items": [
    {
     "id": "S01",
@@ -346,5 +349,18 @@
  "vehicles": {
   "headlight": "#fff6dd",
   "taillight": "#ff3b2f"
- }
+ },
+ "markings": [
+  {
+   "_說明": "道路標線夜間自發光（白線、黃線）",
+   "match": "^Site_Marking_White",
+   "color": "#e8eef5",
+   "intensity": 0.88
+  },
+  {
+   "match": "^Site_Marking_Yellow",
+   "color": "#ffc94a",
+   "intensity": 0.96
+  }
+ ]
 }
