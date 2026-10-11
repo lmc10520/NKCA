@@ -1,7 +1,7 @@
 import adsk.core, adsk.fusion, json, struct, array, time, os
 def run(_c):
     app=adsk.core.Application.get(); D=app.activeProduct; r=D.rootComponent; A=D.attributes
-    t0=time.time(); OUT=r'C:\Users\chihw\Documents\WWY_data'
+    t0=time.time(); OUT=os.path.join(os.path.expanduser('~'),'Documents','NKCA_data'); os.makedirs(OUT,exist_ok=True)
     SKIP=('Print_Model','Plaza_Shell_Original','tmp_','Body62')
     bodies=[b for b in r.bRepBodies if not b.name.startswith(SKIP)]
     buf=bytearray(); views=[]; acc=[]; meshes=[]; nodes=[]; mats=[]; mi={}; man=[]

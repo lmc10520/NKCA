@@ -1,6 +1,6 @@
 {
  "_說明": "整體設定。model 換成新檔名時改這裡；座標一律用 Fusion 模型座標（cm）。",
- "title": "衛武營國家藝術文化中心 3D 導覽",
+ "title": "NKCA 3D",
  "model": "model/nkca.glb",
  "lat": 22.6236,
  "lon": 120.3407,
@@ -22,5 +22,18 @@
   ]
  },
  "shadows": true,
- "bloom": true
+ "bloom": true,
+ "materialFrom": {
+  "_說明": "名稱規則 → 參照物件：符合規則的物件改用參照物件的材質。南側屋頂和幾片屋頂補片在 Fusion 用了灰色 Steel - Satin，這裡統一成屋頂白鋁。",
+  "^Roof_(South|Main_B13|Main_B14|Main_M15|Main_M16)$": "Roof_Main"
+ },
+ "night": {
+  "_說明": "夜間環境：月光方向與強度、夜空漸層顏色（天頂／天空／地平線）。不模擬周邊街區燈光。",
+  "moonAz_deg": 145,
+  "moonAlt_deg": 52,
+  "moonlight": 0.9,
+  "zenith": "#0b1834",
+  "sky": "#1e3260",
+  "horizon": "#4a5d86"
+ }
 }

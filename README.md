@@ -1,5 +1,7 @@
 # NKCA 3D 導覽
 
+> 非官方模型，僅供教育訓練使用，與場館官方無關。
+
 這是用 Three.js 做的靜態網頁，可以直接放在 GitHub Pages 上，不需要任何建置步驟。
 
 ## 檔案結構
@@ -16,7 +18,7 @@ tools/              模型匯出與壓縮工具
 
 ## 更新模型（抽換檔案即可）
 
-1. 在 Fusion 360 執行 `tools/fusion_export_glb.py`。它會把整個設計匯出成 `WWY_data/nkca.glb`，物件名稱維持 Fusion 裡的 body 名稱。
+1. 在 Fusion 360 執行 `tools/fusion_export_glb.py`。它會把整個設計匯出成 `文件/NKCA_data/nkca.glb`，物件名稱維持 Fusion 裡的 body 名稱。
 2. 用 `tools/build_model.sh 路徑/nkca.glb` 壓縮。約 240 MB 會壓到 9 MB 左右，壓縮後的檔案輸出到 `model/nkca.glb`。
 3. 上傳覆蓋 `model/nkca.glb`。
 
@@ -26,7 +28,7 @@ tools/              模型匯出與壓縮工具
 
 | 動作 | 電腦 | 手機／平板 |
 |---|---|---|
-| 平移 | 左鍵拖曳 | 單指拖曳 |
+| 平移 | 左鍵或中鍵拖曳 | 單指拖曳 |
 | 旋轉、傾斜 | 右鍵拖曳，或 Ctrl＋左鍵 | 雙指旋轉 |
 | 縮放 | 滾輪 | 雙指捏合 |
 | 取座標 | Shift＋點擊（座標會複製到剪貼簿，單位 cm、Fusion 座標） | — |

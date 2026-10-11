@@ -40,6 +40,35 @@ export class Environment {
     scene.add(this.sky);
     this.sunDir = new THREE.Vector3();
 
+    // 夜空：藍調時刻的漸層天幕＋星星，取代全黑背景（周邊街區是工地，不模擬城市燈光）
+    const nightCfg = site.night || {};
+    // 月光方向（固定在東南方高空，畫面最好看）；方位角由北順時針（北 = -Z、東 = +X）
+    this.moonDir = new THREE.Vector3();
+    { const a = THREE.MathUtils.degToRad(nightCfg.moonAz_deg ?? 145), e = THREE.MathUtils.degToRad(nightCfg.moonAlt_deg ?? 52);
+      this.moonDir.set(Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)); }
+    this.moonI = nightCfg.moonlight ?? 1.1;
+    this.domeMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, transparent: true, depthWrite: false, fog: false,
+      uniforms: { uOp: { value: 0 }, uTop: { value: new THREE.Color(nightCfg.zenith || '#0b1834') },
+        uMid: { value: new THREE.Color(nightCfg.sky || '#1e3260') }, uHor: { value: new THREE.Color(nightCfg.horizon || '#4a5d86') } },
+      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+      fragmentShader: `varying vec3 vD; uniform float uOp; uniform vec3 uTop, uMid, uHor;
+        void main(){ float h = clamp(vD.y, -0.2, 1.0);
+          vec3 c = h < 0.12 ? mix(uHor, uMid, smoothstep(-0.05, 0.12, h)) : mix(uMid, uTop, smoothstep(0.12, 0.75, h));
+          gl_FragColor = vec4(c, uOp); }`,
+    });
+    this.dome = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 16), this.domeMat);
+    this.dome.renderOrder = -1; this.dome.frustumCulled = false;
+    const sp = [], N = 1800;
+    for (let i = 0; i < N; i++) {
+      const y = 0.08 + Math.random() * 0.92, t = Math.random() * Math.PI * 2, r = Math.sqrt(1 - y * y);
+      sp.push(Math.cos(t) * r * 3900, y * 3900, Math.sin(t) * r * 3900);
+    }
+    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+    this.starMat = new THREE.PointsMaterial({ color: 0xdfe8ff, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false });
+    this.stars = new THREE.Points(sg, this.starMat); this.stars.frustumCulled = false;
+    scene.add(this.dome, this.stars);
+
     this.hemi = new THREE.HemisphereLight(0xdfe9f2, 0x4a4438, 0.9);
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xfff3e0, 3);
@@ -102,18 +131,25 @@ export class Environment {
     u.mieDirectionalG.value = 0.8;
     this.sky.visible = night < 0.98;
 
-    const bgNight = new THREE.Color('#0a1020');
-    this.scene.background = night > 0.02 ? bgNight.clone().multiplyScalar(night) : null;
+    this.scene.background = null;
+    this.domeMat.uniforms.uOp.value = night;
+    this.dome.visible = night > 0.01;
+    this.starMat.opacity = Math.max(0, night - 0.3) * (1 - cloud) * 1.1;
+    this.stars.visible = this.starMat.opacity > 0.01;
 
-    this.sun.position.copy(this.center).addScaledVector(dir, 400);
-    this.sun.intensity = (1 - night) * (3.0 - cloud * 1.6);
-    this.sun.color.setHSL(0.09, 0.6, 0.5 + 0.45 * Math.min(1, Math.max(0, alt * 3)));
-    this.hemi.intensity = 0.25 + (1 - night) * (0.65 + cloud * 0.4);
-    this.hemi.color.set(night > 0.5 ? 0x6a7ca8 : 0xdfe9f2);
-    this.renderer.toneMappingExposure = 0.55 + (1 - night) * 0.45;
+    // 白天是太陽；入夜後同一盞平行光改當月光（冷白、較弱，仍有柔和陰影）
+    const moon = night > 0.5;
+    this.sun.position.copy(this.center).addScaledVector(moon ? this.moonDir : dir, 400);
+    this.sun.intensity = moon ? night * this.moonI * (1 - cloud * 0.6) : (1 - night) * (3.0 - cloud * 1.6);
+    if (moon) this.sun.color.set(0xaec0e6);
+    else this.sun.color.setHSL(0.09, 0.6, 0.5 + 0.45 * Math.min(1, Math.max(0, alt * 3)));
+    this.hemi.intensity = 0.48 + (1 - night) * (0.42 + cloud * 0.4);
+    this.hemi.color.lerpColors(new THREE.Color(0xdfe9f2), new THREE.Color(0x8296c4), night);
+    this.hemi.groundColor.lerpColors(new THREE.Color(0x4a4438), new THREE.Color(0x30364a), night);
+    this.renderer.toneMappingExposure = 0.8 + (1 - night) * 0.2;
 
     this.fog.density = this.weatherOn ? (rainy ? 0.0022 : cloud * 0.0006) : 0;
-    this.fog.color.set(night > 0.5 ? 0x10141c : 0xbfc8cf);
+    this.fog.color.lerpColors(new THREE.Color(0xbfc8cf), new THREE.Color(0x1e2a48), night);
     this.updateRain(rainy, dt);
   }
 

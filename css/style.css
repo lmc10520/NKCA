@@ -108,6 +108,7 @@ body.presenting #toolbar,body.presenting #fabs,body.presenting #modeBar,body.pre
 #loading{position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 #loading .bar{width:min(280px,70vw);height:4px;background:#d3e3fd;border-radius:2px;overflow:hidden}
 #loadBar{height:100%;width:0;background:var(--primary);transition:width .2s}
+#loadNote{color:var(--on-2);font-size:12px;opacity:.7}
 #loadText{color:var(--on-2);font-size:14px}
 
 @media (max-width:720px){

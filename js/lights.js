@@ -34,7 +34,7 @@ export class NightLights {
       m.material = m.material.clone();
       m.userData.origMaterial = m.material;
       m.material.emissive = new THREE.Color(col);
-      this.glow.push({ mat: m.material, k });
+      this.glow.push({ mat: m.material, k, city: !!mk });
     }
 
     // 2. 露臺輪廓、戶外劇場燈條：用線段 + bloom
@@ -168,18 +168,19 @@ export class NightLights {
     this.street = { headMat, poolMat, base: new THREE.Color(cfg.color), pool };
   }
 
-  update(night) {
+  // night：天色（0 白天 → 1 夜晚）；venue：建築燈光（night × 營運時間，熄燈後為 0）
+  update(night, venue = night) {
     if (this.street) {
       this.street.headMat.color.copy(this.street.base).multiplyScalar(0.25 + night * 2.2);
       this.street.poolMat.opacity = night * 0.32; this.street.pool.visible = night > 0.02;
     }
-    for (const g of this.glow) g.mat.emissiveIntensity = night * g.k;
-    for (const l of this.lines) { l.material.opacity = night * l.material.userData.k; l.visible = night > 0.02 && l.userData.owner.visible; }
-    this.ceilUniform.value = night;
+    for (const g of this.glow) g.mat.emissiveIntensity = (g.city ? night : venue) * g.k;
+    for (const l of this.lines) { l.material.opacity = venue * l.material.userData.k; l.visible = venue > 0.02 && l.userData.owner.visible; }
+    this.ceilUniform.value = venue;
     // 白天把燈關掉（visible=false），燈不進 shader，白天效能不受影響
-    const on = night > 0.05;
-    if (this.area) { this.area.light.visible = on; this.area.light.intensity = night * this.area.k; }
-    for (const s of this.spots) { s.light.visible = on; s.light.intensity = night * s.k; }
-    if (this.ringMat) { this.ringMat.opacity = night; this.rings.forEach((r) => (r.visible = night > 0.02)); }
+    const on = venue > 0.05;
+    if (this.area) { this.area.light.visible = on; this.area.light.intensity = venue * this.area.k; }
+    for (const s of this.spots) { s.light.visible = on; s.light.intensity = venue * s.k; }
+    if (this.ringMat) { this.ringMat.opacity = venue; this.rings.forEach((r) => (r.visible = venue > 0.02)); }
   }
 }

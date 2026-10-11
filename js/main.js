@@ -36,6 +36,8 @@ controls.enableDamping = true; controls.dampingFactor = 0.08;
 controls.maxPolarAngle = THREE.MathUtils.degToRad(84);   // 不讓鏡頭鑽到地面下
 controls.minDistance = 4; controls.maxDistance = 1600;
 controls.screenSpacePanning = false;
+// 中鍵也用來平移（原本的中鍵縮放有同樣的 DPR 除以 0 問題，會瞬間跳到最大／最小）
+controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
 // 滑鼠滾輪縮放自己處理：three r160 內建的滾輪縮放用 (devicePixelRatio | 0) 當分母，
 // 瀏覽器縮放 < 100%（或 Windows 顯示比例造成 DPR < 1）時會變成除以 0，一滾就跳到最近／最遠，模型像「破掉」。
 canvas.addEventListener('wheel', (e) => {
@@ -81,6 +83,15 @@ scene.add(model.root);
 const exclude = makeMatcher(modesCfg.exclude, modesCfg.groups);
 for (const m of model.meshes) if (exclude(m.userData.fname)) { m.visible = false; m.userData.excluded = true; }
 
+// 材質統一：Fusion 裡少數屋頂片用了別的外觀（例如南側屋頂是灰色 Steel - Satin），
+// 在 config/site.json 的 materialFrom 指定「名稱規則 → 參照物件」，網頁直接套用參照物件的材質
+for (const [pat, ref] of Object.entries(site.materialFrom || {})) {
+  if (pat.startsWith('_')) continue;
+  const src = model.meshes.find((m) => m.userData.fname === ref);
+  if (!src) continue;
+  const re = new RegExp(pat);
+  for (const m of model.meshes) if (m !== src && re.test(m.userData.fname)) { m.material = src.material; m.userData.origMaterial = src.material; }
+}
 const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
 night.addStreetLights(streetCfg);
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
@@ -366,6 +377,15 @@ function resize() {
 addEventListener('resize', resize); resize();
 
 const clock = new THREE.Clock();
+const hm = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const BH = lightsCfg.buildingHours || {};
+function buildingOpen(d) {
+  if (!BH.off) return true;
+  const tp = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Taipei' })), m = tp.getHours() * 60 + tp.getMinutes();
+  const on = hm(BH.on ?? '05:00'), off = hm(BH.off);
+  return on < off ? m >= on && m < off : m >= on || m < off;
+}
+let venueK = 1;
 let lastUI = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), t = clock.elapsedTime;
@@ -377,9 +397,11 @@ renderer.setAnimationLoop(() => {
   controls.update();
   if (camera.position.y < 1.2) camera.position.y = 1.2;
   env.update(dt);
-  if (state.contrast || state.wire) { scene.background = new THREE.Color(0xffffff); env.sky.visible = false; scene.fog.density = 0; }
+  if (state.contrast || state.wire) { scene.background = new THREE.Color(0xffffff); env.sky.visible = env.dome.visible = env.stars.visible = false; scene.fog.density = 0; }
   const n = state.contrast || state.wire ? 0 : env.night;
-  night.update(n);
+  // 建築燈光營運時間（config/lights.json 的 buildingHours）：23:00 熄燈，路燈、車燈、道路標線不受影響
+  venueK += ((buildingOpen(env.now()) ? 1 : 0) - venueK) * Math.min(1, dt * 1.5);
+  night.update(n, n * venueK);
   bloom.strength = n * 0.9;
   fountain?.update(t, env.now(), n);
   vehicles.update(dt, n);
