@@ -58,11 +58,16 @@
     <button data-tool="present" class="fab primary" title="簡報模式：匯入代碼檔"><span class="ms">slideshow</span></button>
   </div>
 
+  <!-- 時間選擇（24 小時制，時、分分開滾選） -->
   <div id="timeSlider" class="ui sheet hidden">
-    <span class="ms">wb_twilight</span>
-    <input type="range" id="timeRange" min="0" max="1439" step="1">
-    <span id="timeLabel"></span>
-    <button id="timeLive" class="text">回到現在</button>
+    <div class="tpHead"><span class="ms">schedule</span><span>選擇時間</span><span id="timeLabel" class="tpState"></span></div>
+    <div class="tp">
+      <div class="tpCol" id="tpH"></div>
+      <div class="tpColon">:</div>
+      <div class="tpCol" id="tpM"></div>
+      <div class="tpBand"></div>
+    </div>
+    <div class="tpActions"><button id="timeLive" class="text">回到現在</button><button id="timeDone" class="text">完成</button></div>
   </div>
 
   <!-- 資訊卡 -->

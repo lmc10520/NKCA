@@ -36,6 +36,30 @@ controls.enableDamping = true; controls.dampingFactor = 0.08;
 controls.maxPolarAngle = THREE.MathUtils.degToRad(84);   // 不讓鏡頭鑽到地面下
 controls.minDistance = 4; controls.maxDistance = 1600;
 controls.screenSpacePanning = false;
+// 滑鼠滾輪縮放自己處理：three r160 內建的滾輪縮放用 (devicePixelRatio | 0) 當分母，
+// 瀏覽器縮放 < 100%（或 Windows 顯示比例造成 DPR < 1）時會變成除以 0，一滾就跳到最近／最遠，模型像「破掉」。
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (fly) return;
+  let dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 600 : 1);
+  dy = THREE.MathUtils.clamp(dy, -300, 300);
+  const k = Math.pow(0.95, Math.abs(dy) / 100);
+  const off = camera.position.clone().sub(controls.target);
+  const d0 = off.length(), d1 = THREE.MathUtils.clamp(dy < 0 ? d0 * k : d0 / k, controls.minDistance, controls.maxDistance);
+  // 往游標方向拉近（像 Google 地圖）：目標點朝游標落點移動一部分
+  if (dy < 0) {
+    const r = canvas.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -controls.target.y), hit = new THREE.Vector3();
+    if (ray.ray.intersectPlane(plane, hit) && hit.distanceTo(controls.target) < d0 * 3) {
+      const f = 1 - d1 / d0;
+      const shift = hit.sub(controls.target).multiplyScalar(f);
+      controls.target.add(shift); camera.position.add(shift);
+    }
+  }
+  camera.position.copy(controls.target).add(off.setLength(d1));
+  controls.update();
+}, { passive: false, capture: true });
 // Google 地圖式：左鍵平移、右鍵（或 Ctrl＋左鍵）旋轉傾斜；手機雙指旋轉縮放
 addEventListener('keydown', (e) => { if (e.key === 'Control') controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE; });
 addEventListener('keyup', (e) => { if (e.key === 'Control') controls.mouseButtons.LEFT = THREE.MOUSE.PAN; });
@@ -234,13 +258,39 @@ for (const b of document.querySelectorAll('[data-tool]')) {
   const k = b.dataset.tool;
   b.onclick = () => {
     if (['labels', 'cards', 'clock', 'weather', 'contrast', 'wire'].includes(k)) setToggle(k, !state[k]);
-    else if (k === 'time') { $('timeSlider').classList.toggle('hidden'); b.classList.toggle('on'); }
+    else if (k === 'time') { $('timeSlider').classList.toggle('hidden'); b.classList.toggle('on'); if (!$('timeSlider').classList.contains('hidden')) syncPicker(); }
     else if (k === 'snap') snapshot();
     else if (k === 'present') $('presFile').click();
   };
 }
-$('timeRange').oninput = (e) => { env.override = +e.target.value; };
-$('timeLive').onclick = () => { env.override = null; };
+// 時間選擇：時、分兩欄滾輪（24 小時制），停下來的那一格就是選到的值
+const tpH = $('tpH'), tpM = $('tpM'), ROW = 40;
+function buildCol(el, n) {
+  el.innerHTML = '<div class="pad"></div>' + Array.from({ length: n }, (_, i) => `<div data-v="${i}">${String(i).padStart(2, '0')}</div>`).join('') + '<div class="pad"></div>';
+  let tm = null;
+  el.addEventListener('scroll', () => {
+    const v = Math.max(0, Math.min(n - 1, Math.round(el.scrollTop / ROW)));
+    el.querySelectorAll('.sel').forEach((x) => x.classList.remove('sel'));
+    el.children[v + 1]?.classList.add('sel');
+    clearTimeout(tm); tm = setTimeout(applyPicker, 120);
+  });
+  el.addEventListener('click', (e) => { const v = e.target.dataset?.v; if (v != null) el.scrollTo({ top: +v * ROW, behavior: 'smooth' }); });
+}
+buildCol(tpH, 24); buildCol(tpM, 60);
+let pickerSync = false;
+function applyPicker() {
+  if (pickerSync) return;
+  const h = Math.round(tpH.scrollTop / ROW), m = Math.round(tpM.scrollTop / ROW);
+  env.override = Math.min(23, h) * 60 + Math.min(59, m);
+}
+function syncPicker() {
+  const d = env.now(), tp = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  pickerSync = true;
+  tpH.scrollTop = tp.getHours() * ROW; tpM.scrollTop = tp.getMinutes() * ROW;
+  setTimeout(() => (pickerSync = false), 200);
+}
+$('timeLive').onclick = () => { env.override = null; syncPicker(); };
+$('timeDone').onclick = () => { $('timeSlider').classList.add('hidden'); document.querySelector('[data-tool="time"]')?.classList.remove('on'); };
 
 // ---------- 指北針 ----------
 $('compass').onclick = () => {
@@ -350,8 +400,7 @@ renderer.setAnimationLoop(() => {
     $('clockDate').textContent = state.clock ? d.toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', month: 'long', day: 'numeric', weekday: 'short' }) : '';
     $('weather').textContent = state.weather ? env.weatherText() : '';
     $('clock').classList.toggle('hidden', !state.clock && !state.weather);
-    if (env.override != null) { $('timeRange').value = env.override; $('timeLabel').textContent = tp; }
-    else $('timeLabel').textContent = '即時';
+    $('timeLabel').textContent = env.override != null ? '手動 ' + tp : '即時';
     const az = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
     $('compassRose').setAttribute('transform', `rotate(${THREE.MathUtils.radToDeg(az)} 32 32)`);
     renderLiftPanel(false);

@@ -61,9 +61,20 @@ body.night #clock{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #fabs{right:16px;bottom:20px;display:flex;gap:12px;align-items:flex-end}
 
 .sheet{background:var(--surface);border-radius:20px;box-shadow:var(--elev2)}
-#timeSlider{left:50%;bottom:84px;transform:translateX(-50%);padding:10px 16px;display:flex;gap:12px;align-items:center;width:min(560px,calc(100% - 32px));color:var(--on-2)}
-#timeSlider input{flex:1;accent-color:var(--primary)}
-#timeLabel{font-variant-numeric:tabular-nums;min-width:3em;color:var(--on)}
+#timeSlider{right:16px;bottom:88px;width:236px;padding:14px 16px 8px;color:var(--on-2)}
+.tpHead{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:var(--on);margin-bottom:6px}
+.tpHead .ms{color:var(--on-2)}
+.tpState{margin-left:auto;font-size:12px;color:var(--primary);font-weight:500}
+.tp{position:relative;display:flex;justify-content:center;align-items:center;height:200px}
+.tpCol{width:76px;height:200px;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  position:relative;z-index:1;mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);-webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
+.tpCol::-webkit-scrollbar{display:none}
+.tpCol div{height:40px;line-height:40px;text-align:center;font-size:22px;font-variant-numeric:tabular-nums;color:var(--on-2);scroll-snap-align:center;cursor:pointer;user-select:none}
+.tpCol div.sel{color:var(--on);font-weight:500;font-size:26px}
+.tpCol .pad{height:80px;scroll-snap-align:none;cursor:default}
+.tpColon{font-size:26px;color:var(--on);width:16px;text-align:center;z-index:1}
+.tpBand{position:absolute;left:0;right:0;top:80px;height:40px;background:var(--tonal);opacity:.55;border-radius:12px;pointer-events:none}
+.tpActions{display:flex;justify-content:space-between;margin-top:4px}
 button.text{color:var(--primary);font-weight:500;padding:8px 10px;border-radius:999px}
 button.text:hover{background:#e8f0fe}
 
@@ -107,4 +118,5 @@ body.presenting #toolbar,body.presenting #fabs,body.presenting #modeBar,body.pre
   .fab{width:48px;height:48px;border-radius:14px}
   #liftPanel{right:10px}
   #card{bottom:140px}
+  #timeSlider{right:12px;bottom:76px}
 }

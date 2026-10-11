@@ -68,7 +68,8 @@ print('walk nodes', len(out_nodes), 'of', len(nodes), 'comps', len(comps))
 
 # ---- 路燈（模型沒畫，網頁自動補）：沿人行區與車道交界，每 28 m 一盞，往人行側內縮 1.2 m ----
 from shapely.ops import unary_union
-lines = unary_union([LineString(r['pts_cm']) for r in routes])
+# 只沿外圍公共道路（汽車 road 路線）放；園區內、建築旁（環道、落客區、機車停車）不放
+lines = unary_union([LineString(r['pts_cm']) for r in routes if r['type'] == 'car' and r['kind'] == 'road'])
 full = Polygon(w[0], w[1:]).buffer(0)
 rings = [full.exterior] + list(full.interiors)
 lamps = []
@@ -76,7 +77,8 @@ for ring in rings:
     L = ring.length; n = int(L // 2800)
     for i in range(n):
         pt = ring.interpolate(i * 2800)
-        if pt.distance(lines) > 1100: continue
+        if pt.distance(lines) > 900: continue
+        if pt.y < 22500 and -5500 < pt.x < 33000: continue   # 西側、東側落客環道（建築旁）不放
         # 往多邊形內側推 1.2 m
         a = ring.interpolate(max(0, i * 2800 - 50)); b = ring.interpolate(min(L, i * 2800 + 50))
         dx, dy = b.x - a.x, b.y - a.y; d = math.hypot(dx, dy) or 1
@@ -86,7 +88,7 @@ for ring in rings:
                 # 燈頭朝向道路
                 near = lines.interpolate(lines.project(q)); ang = math.degrees(math.atan2(near.y - q.y, near.x - q.x))
                 lamps.append([round(q.x), round(q.y), 0, round(ang)]); break
-json.dump({'_說明': '路燈：模型沒有畫，網頁自動補上簡單燈桿＋燈頭＋地面光暈（不是真的光源，效能負擔很小）。'
+json.dump({'_說明': '路燈（只在外圍道路旁）：模型沒有畫，網頁自動補上簡單燈桿＋燈頭＋地面光暈（不是真的光源，效能負擔很小）。'
            '[x_cm, y_cm, z_cm, 燈頭朝向角度]；由 tools/traffic_to_config.py 沿人行區與車道交界自動產生，可手動增刪。',
            'enabled': True, 'height_m': 8, 'color': '#fff3e0', 'pool_radius_m': 7, 'lamps': lamps},
           open(os.path.join(root, 'config/streetlights.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
