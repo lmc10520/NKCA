@@ -1,4 +1,4 @@
-# 衛武營 3D 導覽（NKCA）
+# NKCA 3D 導覽
 
 這是用 Three.js 做的靜態網頁，可以直接放在 GitHub Pages 上，不需要任何建置步驟。
 
