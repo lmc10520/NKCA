@@ -746,7 +746,9 @@
   "duration_min": 10
  },
  "jet": {
-  "height_cm": 260,
-  "radius_cm": 3
+  "_說明": "水柱最高高度與粗細（cm）；min_ratio 是最低時的比例",
+  "height_cm": 650,
+  "radius_cm": 5,
+  "min_ratio": 0.3
  }
 }

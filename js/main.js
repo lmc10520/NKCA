@@ -17,7 +17,7 @@ const $ = (id) => document.getElementById(id);
 
 // ---------- 設定 ----------
 const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, infoCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'info', 'roads', 'fountain', 'lawns', 'people']
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'info', 'roads', 'fountain', 'lawns', 'walk']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -60,7 +60,7 @@ for (const m of model.meshes) if (exclude(m.userData.fname)) { m.visible = false
 const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
 const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles);
-const people = new People(scene, peopleCfg, model);
+const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
 const labels = new Labels(labelsCfg);
 $('loading').classList.add('hidden');

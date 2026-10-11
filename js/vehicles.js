@@ -1,100 +1,170 @@
 import * as THREE from 'three';
-import { cm2w } from './util.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { cm2w, isMobile } from './util.js';
 
-// 車輛：沿 config/roads.json 的路線移動，夜間開頭燈、尾燈
+// 車輛：依 config/roads.json（20261008_車流.pdf 的汽車／機車／遊覽車路線）行駛，方向照圖上箭頭。
+// 同類車輛用 InstancedMesh 一次畫完；夜間開頭燈、尾燈，地面有車燈光暈。
+const box = (w, h, l, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, l).translate(x, y, z);
+const ball = (r, x, y, z) => new THREE.SphereGeometry(r, 8, 6).translate(x, y, z);
+const TYPES = {
+  car: {
+    body: () => mergeGeometries([box(1.8, 0.75, 4.4, 0, 0.55, 0), box(1.6, 0.6, 2.3, 0, 1.2, 0.2)]),
+    head: () => mergeGeometries([ball(0.11, -0.62, 0.7, -2.2), ball(0.11, 0.62, 0.7, -2.2)]),
+    tail: () => mergeGeometries([ball(0.09, -0.65, 0.75, 2.2), ball(0.09, 0.65, 0.75, 2.2)]),
+    glow: [5, -4.6], colors: ['#f4f4f2', '#1d1f22', '#b9bdc2', '#6d7278', '#26364f', '#8e1f22', '#e7e2d6'],
+  },
+  scooter: {
+    body: () => mergeGeometries([box(0.45, 0.6, 1.8, 0, 0.5, 0), box(0.4, 0.75, 0.4, 0, 1.15, 0.2), ball(0.16, 0, 1.68, 0.15)]),
+    head: () => ball(0.08, 0, 1.0, -0.92),
+    tail: () => ball(0.06, 0, 0.85, 0.92),
+    glow: [2.6, -2.2], colors: ['#2b2d30', '#3c4a63', '#7a2a2a', '#c9c6be', '#4e5a3a', '#1f1f1f'],
+  },
+  bus: {
+    body: () => mergeGeometries([box(2.5, 3.1, 12, 0, 1.85, 0)]),
+    head: () => mergeGeometries([ball(0.15, -1.0, 0.75, -6.0), ball(0.15, 1.0, 0.75, -6.0)]),
+    tail: () => mergeGeometries([ball(0.12, -1.05, 0.9, 6.0), ball(0.12, 1.05, 0.9, 6.0)]),
+    glow: [7, -9], colors: ['#f2f2ee', '#e9eef4', '#2f5e9e'],
+  },
+};
+
 export class Vehicles {
   constructor(scene, cfg, lightCfg) {
-    this.list = [];
+    this.list = []; this.groups = {};
     if (!cfg?.enabled) return;
-    const head = new THREE.MeshBasicMaterial({ color: lightCfg?.headlight || '#fff6dd', toneMapped: false });
-    const tail = new THREE.MeshBasicMaterial({ color: lightCfg?.taillight || '#ff3b2f', toneMapped: false });
-    this.lampMats = [head, tail];
-    const glowTex = makeGlow();
+    const k = isMobile ? 0.5 : 1;
+    const byType = {};
     for (const r of cfg.routes || []) {
-      const pts = r.pts_cm.map((p) => cm2w(p).setY(0.02));
-      const curve = new THREE.CatmullRomCurve3(pts, !!r.loop, 'catmullrom', 0.01);
+      const pts = r.pts_cm.map((p) => cm2w([p[0], p[1], p[2] ?? 0]).add(new THREE.Vector3(0, 0.02, 0)));
+      if (pts.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(pts, !!r.loop, 'centripetal');
       const len = curve.getLength();
-      const car = r.type === 'scooter';
-      for (let i = 0; i < (r.count || 4); i++) {
-        const g = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(car ? 0.7 : 1.8, car ? 1.1 : 1.4, car ? 1.8 : 4.4),
-          new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.2, 0.25 + Math.random() * 0.5), roughness: 0.4 }));
-        body.position.y = car ? 0.55 : 0.7;
-        g.add(body);
-        const zf = car ? -0.95 : -2.25, zb = -zf;
-        for (const x of car ? [0] : [-0.6, 0.6]) {
-          const h = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), head); h.position.set(x, 0.7, zf); g.add(h);
-          const t = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), tail); t.position.set(x, 0.75, zb); g.add(t);
-        }
-        const beam = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff1cc, transparent: true, depthWrite: false, opacity: 0 }));
-        beam.scale.set(car ? 3 : 6, car ? 3 : 6, 1); beam.position.set(0, 0.4, zf - (car ? 1.2 : 2.5));
-        g.add(beam);
-        scene.add(g);
-        this.list.push({ g, beam, curve, len, u: i / (r.count || 4), v: (r.speed_kmh || 30) / 3.6 });
+      curve.arcLengthDivisions = Math.max(200, Math.round(len / 2));
+      curve.updateArcLengths();
+      const n = Math.max(1, Math.round((r.count || 1) * k));
+      for (let i = 0; i < n; i++) {
+        const v = { type: r.type, curve, len, loop: !!r.loop, park: r.kind !== 'road',
+          u: (i + Math.random() * 0.6) / n, speed: ((r.speed_kmh || 30) / 3.6) * (0.85 + Math.random() * 0.3), wait: 0 };
+        if (v.park) { v.u = Math.random() * 0.3; v.wait = Math.random() * 20; }
+        (byType[r.type] ||= []).push(v); this.list.push(v);
       }
     }
+    const headMat = new THREE.MeshBasicMaterial({ color: lightCfg?.headlight || '#fff6dd', toneMapped: false });
+    const tailMat = new THREE.MeshBasicMaterial({ color: lightCfg?.taillight || '#ff3b2f', toneMapped: false });
+    const glowMat = new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xfff4dc, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    this.headMat = headMat; this.tailMat = tailMat; this.glowMat = glowMat;
+    this.headBase = headMat.color.clone(); this.tailBase = tailMat.color.clone();
+    for (const [t, vs] of Object.entries(byType)) {
+      const T = TYPES[t] || TYPES.car, n = vs.length;
+      const body = new THREE.InstancedMesh(T.body(), new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0.2 }), n);
+      body.castShadow = true; body.receiveShadow = true;
+      const c = new THREE.Color();
+      vs.forEach((v, i) => body.setColorAt(i, c.set(T.colors[(Math.random() * T.colors.length) | 0])));
+      const head = new THREE.InstancedMesh(T.head(), headMat, n);
+      const tail = new THREE.InstancedMesh(T.tail(), tailMat, n);
+      const [gs, gz] = T.glow;
+      const glow = new THREE.InstancedMesh(new THREE.PlaneGeometry(gs * 0.8, gs * 1.4).rotateX(-Math.PI / 2).translate(0, 0.05, gz), glowMat, n);
+      for (const m of [body, head, tail, glow]) { m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
+      this.groups[t] = { vs, meshes: [body, head, tail, glow] };
+    }
+    this._m = new THREE.Matrix4(); this._p = new THREE.Vector3(); this._q = new THREE.Vector3();
+    this._up = new THREE.Vector3(0, 1, 0); this._zero = new THREE.Matrix4().makeScale(0, 0, 0);
   }
   update(dt, night) {
-    for (const c of this.list) {
-      c.u = (c.u + (c.v * dt) / c.len) % 1;
-      const p = c.curve.getPointAt(c.u), p2 = c.curve.getPointAt((c.u + 0.001) % 1);
-      c.g.position.copy(p);
-      c.g.lookAt(p.clone().multiplyScalar(2).sub(p2));
-      c.beam.material.opacity = night * 0.8;
+    if (!this.headMat) return;
+    dt = Math.min(dt, 0.1);
+    this.headMat.color.copy(this.headBase).multiplyScalar(0.35 + night * 2.5);
+    this.tailMat.color.copy(this.tailBase).multiplyScalar(0.5 + night * 2.0);
+    this.glowMat.opacity = night * 0.55;
+    const m = this._m, p = this._p, q = this._q;
+    for (const g of Object.values(this.groups)) {
+      g.vs.forEach((v, i) => {
+        let hidden = false;
+        if (v.wait > 0) { v.wait -= dt; hidden = true; }
+        else {
+          v.u += (v.speed * dt) / v.len;
+          if (v.u >= 1) {
+            if (v.loop) v.u -= 1;
+            else { v.u = 0; v.wait = v.park ? 15 + Math.random() * 40 : Math.random() * 4; hidden = true; }
+          }
+        }
+        if (hidden) { for (const mesh of g.meshes) mesh.setMatrixAt(i, this._zero); return; }
+        v.curve.getPointAt(v.u, p);
+        v.curve.getPointAt(Math.min(1, v.u + 1 / v.len), q);
+        if (q.distanceToSquared(p) < 1e-6) q.set(p.x, p.y, p.z - 0.01);
+        m.lookAt(p, q, this._up); m.setPosition(p);
+        for (const mesh of g.meshes) mesh.setMatrixAt(i, m);
+      });
+      for (const mesh of g.meshes) mesh.instanceMatrix.needsUpdate = true;
     }
   }
 }
 
-function makeGlow() {
+function glowTex() {
   const cv = document.createElement('canvas'); cv.width = cv.height = 64;
   const x = cv.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
   return new THREE.CanvasTexture(cv);
 }
 
-// 行人：在 config/people.json 的區域內隨機散步，高度貼齊地面
+// 行人：在 config/walk.json（20261008_車流.pdf 的人流圖層，可走區域的網格）上漫步，
+// 只走相鄰節點，不會穿過草坪、廳院或車道；高度已預先烘焙在節點的 z。
 export class People {
-  constructor(scene, cfg, model) {
+  constructor(scene, cfg) {
     this.list = [];
-    if (!cfg?.enabled) return;
-    this.ground = model.meshes.filter((m) => /^Plaza_Ground|^Site_|^Plaza_Wall_Patch|^Theater_Seating$/.test(m.userData.fname));
-    this.ray = new THREE.Raycaster();
-    const body = new THREE.CapsuleGeometry(0.2, 0.9, 3, 8); body.translate(0, 0.65, 0);
-    const head = new THREE.SphereGeometry(0.13, 10, 8); head.translate(0, 1.42, 0);
-    const skin = new THREE.MeshStandardMaterial({ color: 0xd8b49a, roughness: 0.8 });
-    const palette = ['#2f4a6d', '#8a3b3b', '#3f6b4a', '#c9a227', '#555b63', '#e8e4dc', '#6b4f8a', '#1f1f1f'];
-    for (const z of cfg.zones || []) {
-      const [x0, y0, x1, y1] = z.rect_cm;
-      for (let i = 0; i < (z.count || 10); i++) {
-        const g = new THREE.Group();
-        g.add(new THREE.Mesh(body, new THREE.MeshStandardMaterial({ color: palette[(Math.random() * palette.length) | 0], roughness: 0.9 })));
-        g.add(new THREE.Mesh(head, skin));
-        g.traverse((o) => (o.castShadow = true));
-        const pick = () => cm2w([x0 + Math.random() * (x1 - x0), y0 + Math.random() * (y1 - y0), 0]);
-        const p = { g, pick, pos: pick(), tgt: null, v: 1.0 + Math.random() * 0.6, wait: Math.random() * 3, ph: Math.random() * 6 };
-        p.pos.y = this.h(p.pos); p.tgt = pick(); p.tgt.y = this.h(p.tgt);
-        g.position.copy(p.pos); scene.add(g); this.list.push(p);
-      }
+    if (!cfg?.enabled || !cfg.nodes?.length) return;
+    this.P = cfg.nodes.map((p) => cm2w([p[0], p[1], p[2] ?? 0]));
+    this.adj = cfg.adj;
+    const n = Math.round((cfg.count || 150) * (isMobile ? 0.5 : 1));
+    const bodyG = new THREE.CapsuleGeometry(0.2, 0.9, 3, 8).translate(0, 0.65, 0);
+    const headG = new THREE.SphereGeometry(0.13, 10, 8).translate(0, 1.42, 0);
+    this.body = new THREE.InstancedMesh(bodyG, new THREE.MeshStandardMaterial({ roughness: 0.9 }), n);
+    this.head = new THREE.InstancedMesh(headG, new THREE.MeshStandardMaterial({ color: 0xd8b49a, roughness: 0.8 }), n);
+    const palette = ['#2f4a6d', '#8a3b3b', '#3f6b4a', '#c9a227', '#555b63', '#e8e4dc', '#6b4f8a', '#1f1f1f', '#d9d4c7', '#3a5f7a'];
+    const c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      this.body.setColorAt(i, c.set(palette[(Math.random() * palette.length) | 0]));
+      const a = (Math.random() * this.P.length) | 0;
+      const b = this.adj[a][(Math.random() * this.adj[a].length) | 0] ?? a;
+      this.list.push({ a, b, t: Math.random(), v: 1.0 + Math.random() * 0.5, wait: Math.random() < 0.25 ? Math.random() * 20 : 0,
+        ph: Math.random() * 6, dir: new THREE.Vector3(), yaw: 0 });
     }
+    for (const m of [this.body, this.head]) { m.castShadow = true; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
+    this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._p = new THREE.Vector3(); this._s = new THREE.Vector3(1, 1, 1);
+    this._up = new THREE.Vector3(0, 1, 0);
   }
-  h(v) {
-    this.ray.set(new THREE.Vector3(v.x, 60, v.z), new THREE.Vector3(0, -1, 0));
-    const hit = this.ray.intersectObjects(this.ground, false)[0];
-    return hit ? hit.point.y : 0;
+  next(p) {
+    // 傾向直走，偶爾轉彎；盡量不走回頭路
+    const from = this.P[p.b], d0 = this.P[p.b].clone().sub(this.P[p.a]).normalize();
+    let best = p.a, bs = -Infinity;
+    for (const j of this.adj[p.b]) {
+      const d = this.P[j].clone().sub(from).normalize();
+      const s = d.dot(d0) * 1.2 + Math.random() * 1.4 - (j === p.a ? 3 : 0);
+      if (s > bs) { bs = s; best = j; }
+    }
+    p.a = p.b; p.b = best; p.t = 0;
+    if (Math.random() < 0.03) p.wait = 3 + Math.random() * 12;   // 停下來看看
   }
   update(dt) {
-    for (const p of this.list) {
-      if (p.wait > 0) { p.wait -= dt; continue; }
-      const d = p.tgt.clone().sub(p.g.position); d.y = 0;
-      const L = d.length();
-      if (L < 0.3) { p.tgt = p.pick(); p.tgt.y = this.h(p.tgt); p.wait = Math.random() * 4; continue; }
-      const step = Math.min(L, p.v * dt);
-      p.g.position.addScaledVector(d.normalize(), step);
-      p.ph += dt * 9;
-      const k = 1 - L / Math.max(L, 0.01);
-      p.g.position.y += ((p.tgt.y - p.g.position.y) * Math.min(1, step / Math.max(L, 0.01))) + Math.sin(p.ph) * 0.004;
-      p.g.rotation.y = Math.atan2(d.x, d.z);
-    }
+    if (!this.body) return;
+    dt = Math.min(dt, 0.1);
+    const m = this._m, pos = this._p;
+    this.list.forEach((p, i) => {
+      const A = this.P[p.a], B = this.P[p.b];
+      const L = Math.max(0.01, A.distanceTo(B));
+      if (p.wait > 0) p.wait -= dt;
+      else { p.t += (p.v * dt) / L; p.ph += dt * 9; if (p.t >= 1) this.next(p); }
+      const A2 = this.P[p.a], B2 = this.P[p.b];
+      pos.copy(A2).lerp(B2, Math.min(p.t, 1));
+      if (p.wait <= 0) pos.y += Math.abs(Math.sin(p.ph)) * 0.04;
+      const want = Math.atan2(B2.x - A2.x, B2.z - A2.z);
+      let d = want - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+      p.yaw += d * Math.min(1, dt * 5);
+      this._q.setFromAxisAngle(this._up, p.yaw);
+      m.compose(pos, this._q, this._s);
+      this.body.setMatrixAt(i, m); this.head.setMatrixAt(i, m);
+    });
+    this.body.instanceMatrix.needsUpdate = true; this.head.instanceMatrix.needsUpdate = true;
   }
 }
