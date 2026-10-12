@@ -52,7 +52,9 @@ export class Labels {
 
   // 在背景慢慢替大型物件建 BVH（每次最多約 25 ms），不卡畫面
   buildBVH() {
-    const queue = this.model.meshes.filter((m) => !m.geometry.boundsTree).sort((a, b) => b.geometry.index?.count - a.geometry.index?.count);
+    // 超大的物件（榕樹廣場天花、地面，上百萬面）跳過：建 BVH 會卡住畫面 1–2 秒，而且幾乎不會擋住標籤
+    const big = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 > 800000;
+    const queue = this.model.meshes.filter((m) => !m.geometry.boundsTree && !big(m)).sort((a, b) => a.geometry.attributes.position.count - b.geometry.attributes.position.count);
     const step = () => {
       const t0 = performance.now();
       while (queue.length && performance.now() - t0 < 25) {

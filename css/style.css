@@ -74,8 +74,12 @@ button.text:hover{background:#e8f0fe}
 #modal{position:fixed;inset:0;z-index:30;background:rgba(32,33,36,.6);display:flex;align-items:center;justify-content:center;padding:16px}
 .modalInner{position:relative;background:var(--surface);border-radius:28px;padding:20px 24px;width:min(1400px,96vw);max-height:96vh;overflow:auto;box-shadow:var(--elev2)}
 .modalInner h3{margin:0 40px 12px 0;font-weight:500}
-#modalImg{width:100%;height:auto;max-height:calc(96vh - 90px);object-fit:contain;display:block;border-radius:12px;cursor:zoom-in;background:#fff}
-#modalImg.zoom{max-height:none;width:200%;cursor:zoom-out}
+#mapView{position:relative;width:100%;height:calc(96vh - 110px);overflow:hidden;border-radius:12px;background:#fff;touch-action:none;cursor:grab}
+#mapView:active{cursor:grabbing}
+#modalImg{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;user-select:none;-webkit-user-drag:none}
+#mapZoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+#mapZoom button{width:40px;height:40px;border-radius:12px;background:var(--surface);box-shadow:var(--elev1);color:var(--on-2);font-size:22px}
+#mapZoom button:hover{background:var(--tonal)}
 #modalNote{color:var(--on-2);font-size:14px}
 
 #presBar{left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:4px;align-items:center;padding:6px 10px;border-radius:999px}
@@ -203,4 +207,7 @@ body.presenting #settingsBtn,body.presenting #settings,body.presenting #modeBar,
   #navTL{top:12px;left:12px}
   #presText{left:12px;bottom:80px}
   #presText h1{font-size:22px}
+  #modal{padding:0}
+  .modalInner{width:100vw;max-height:100vh;height:100%;border-radius:0;padding:14px 12px}
+  #mapView{height:calc(100vh - 80px)}
 }

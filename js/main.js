@@ -235,10 +235,56 @@ function openModal(title, img) {
   $('modalTitle').textContent = title; $('modalNote').textContent = '';
   const im = $('modalImg'); im.style.display = '';
   im.onerror = () => { im.style.display = 'none'; $('modalNote').textContent = `尚未放入平面圖：請把圖片上傳為 ${img}`; };
-  im.classList.remove('zoom'); im.src = img; $('modal').classList.remove('hidden');
+  $('modal').classList.remove('hidden');
+  im.onload = () => mapZ.fit(); im.src = img; if (im.complete && im.naturalWidth) mapZ.fit();
 }
 $('modalClose').onclick = () => $('modal').classList.add('hidden');
-$('modalImg').onclick = (e) => e.target.classList.toggle('zoom');   // 點地圖放大兩倍，可捲動查看
+// 停車場地圖：拖曳平移、雙指縮放、滾輪縮放、雙擊放大，右下角 ＋／－／符合畫面
+const mapZ = (() => {
+  const view = $('mapView'), img = $('modalImg');
+  let s = 1, x = 0, y = 0, fitS = 1;
+  const pts = new Map(); let last = null, lastTap = 0;
+  const apply = () => { img.style.transform = `translate(${x}px,${y}px) scale(${s})`; };
+  const W = () => img.naturalWidth || 1600, H = () => img.naturalHeight || 1130;
+  function fit() {
+    // SVG 沒有固定像素大小時，以 1600 寬為基準
+    if (!img.naturalWidth) { img.style.width = '1600px'; }
+    const vw = view.clientWidth, vh = view.clientHeight;
+    fitS = Math.min(vw / W(), vh / H()); s = fitS;
+    x = (vw - W() * s) / 2; y = (vh - H() * s) / 2; apply();
+  }
+  function zoomAt(k, cx, cy) {
+    const ns = Math.min(fitS * 8, Math.max(fitS, s * k));
+    x = cx - (cx - x) * (ns / s); y = cy - (cy - y) * (ns / s); s = ns; apply();
+  }
+  const local = (e) => { const r = view.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  view.addEventListener('wheel', (e) => { e.preventDefault(); const [cx, cy] = local(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, cx, cy); }, { passive: false });
+  view.addEventListener('pointerdown', (e) => {
+    view.setPointerCapture(e.pointerId); pts.set(e.pointerId, local(e)); last = null;
+    const now = performance.now();
+    if (pts.size === 1 && now - lastTap < 300) { const [cx, cy] = local(e); zoomAt(s > fitS * 1.5 ? fitS / s : 2.5, cx, cy); }
+    lastTap = now;
+  });
+  view.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return;
+    const prev = pts.get(e.pointerId), cur = local(e); pts.set(e.pointerId, cur);
+    if (pts.size === 1) { x += cur[0] - prev[0]; y += cur[1] - prev[1]; apply(); }
+    else if (pts.size === 2) {
+      const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (last) { zoomAt(d / last.d, c[0], c[1]); x += c[0] - last.c[0]; y += c[1] - last.c[1]; apply(); }
+      last = { d, c };
+    }
+  });
+  const up = (e) => { pts.delete(e.pointerId); last = null; };
+  view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
+  const mid = () => [view.clientWidth / 2, view.clientHeight / 2];
+  $('zIn').onclick = (e) => { e.stopPropagation(); zoomAt(1.5, ...mid()); };
+  $('zOut').onclick = (e) => { e.stopPropagation(); zoomAt(1 / 1.5, ...mid()); };
+  $('zFit').onclick = (e) => { e.stopPropagation(); fit(); };
+  $('mapZoom').addEventListener('pointerdown', (e) => e.stopPropagation());
+  addEventListener('resize', () => { if (!$('modal').classList.contains('hidden')) fit(); });
+  return { fit };
+})();
 $('modal').onclick = (e) => { if (e.target.id === 'modal') $('modal').classList.add('hidden'); };
 
 // ---------- 點選：行人、Shift＋點擊取座標；點空白處收起標籤資料卡 ----------

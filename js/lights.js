@@ -10,6 +10,9 @@ function radial() {
   x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv);
 }
 
+// 先替要打射線的物件建 BVH（加速結構），否則上千條射線逐一比對三角形會讓載入多花好幾秒
+const bvh = (list) => { for (const m of list) if (!m.geometry.boundsTree) m.geometry.computeBoundsTree?.(); };
+
 export class NightLights {
   constructor(scene, model, cfg, lawns) {
     this.scene = scene; this.cfg = cfg; this.items = [];
@@ -106,7 +109,8 @@ export class NightLights {
     this.spots = [];
     const rs = c.roofSpots;
     if (rs?.items?.length) {
-      const roofM = model.meshes.filter((m) => /^Roof_|^Seam_Roof|^Plaza_Ground$/.test(m.userData.fname));
+      const roofM = model.meshes.filter((m) => /^Roof_|^Seam_Roof/.test(m.userData.fname));
+      bvh(roofM);
       const ray = new THREE.Raycaster();
       const surf = (x, z) => {
         ray.set(new THREE.Vector3(x, 200, z), new THREE.Vector3(0, -1, 0));
@@ -134,6 +138,7 @@ export class NightLights {
       const mat = new THREE.MeshBasicMaterial({ color: lawns.color, transparent: true, opacity: 0, toneMapped: false });
       // 光環貼著地面走：每隔約 0.8 m 往下打射線找地面（草坪、鋪面、土丘），再往上抬 height_cm
       const groundM = model.meshes.filter((m) => /^Site_(Grass|Campus_Paving|Park_Paving|North_Mound|Sidewalk)/.test(m.userData.fname));
+      bvh(groundM);
       const ray = new THREE.Raycaster(), up = (lawns.height_cm ?? 8) / 100;
       const down = new THREE.Vector3(0, -1, 0);
       for (const l of lawns.lawns) {

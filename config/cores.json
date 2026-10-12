@@ -68,14 +68,13 @@
   },
   {
    "id": "SE",
-   "label": "東南樓梯（尚未建模）",
-   "enabled": false,
+   "label": "東南交通核",
    "center_cm": [
-    22000,
-    9000,
+    22120,
+    7700,
     0
    ],
-   "radius_cm": 2000,
+   "radius_cm": 1800,
    "current": "1F",
    "floors": [
     {
@@ -95,7 +94,8 @@
      "img": "img/parking_B2.svg",
      "title": "B2 地下停車場"
     }
-   ]
+   ],
+   "_說明": "南側玻璃門 Door1F_D36（1F），可前往 B1、B2"
   }
  ]
 }
