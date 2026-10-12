@@ -133,3 +133,67 @@ export class Labels {
     }
   }
 }
+
+// ---------- 室內標示（pois.json）：小圖示或地點文字，立在樓面上（細桿＋圖示），只在指定模式／廳院樓層出現 ----------
+export class Pois {
+  constructor(cfg, model, labels) {
+    this.model = model; this.labels = labels;     // 借用 Labels 的 BVH 與遮擋判斷
+    this.root = document.getElementById('labels');
+    this.ray = new THREE.Raycaster(); this.ray.firstHitOnly = true;
+    this.icons = cfg?.icons || {};
+    this.pole = cfg?.pole_m ?? 3;
+    this.within = cfg?.showWithin_m ?? 220;
+    this.items = (cfg?.items || []).filter((p) => p.show !== false && p.pos_cm).map((p) => {
+      const el = document.createElement('div'); el.className = 'poi gone';
+      const src = p.icon && (this.icons[p.icon] || `img/icons/${p.icon}.svg`);
+      el.innerHTML = '<div class="poiPole"></div>' + (src
+        ? `<div class="poiTile" title="${esc(p.text || p.icon)}"><img src="${esc(src)}" alt="${esc(p.text || p.icon)}"></div>`
+        : `<div class="poiText">${esc(p.text)}</div>`);
+      this.root.appendChild(el);
+      const a = cm2w(p.pos_cm);
+      return { cfg: p, el, a, b: a.clone().add(new THREE.Vector3(0, p.pole_m ?? this.pole, 0)), on: false, seen: true };
+    });
+    this.on = true; this.lastTest = 0;
+  }
+  set visible(v) { this.on = v; for (const it of this.items) it.el.style.display = v ? '' : 'none'; }
+  // 依模式與廳院樓層決定哪些標示出現
+  setContext(state) {
+    for (const it of this.items) {
+      const c = it.cfg;
+      let on = !c.modes || c.modes.includes(state.mode);
+      if (c.hall) on = on && state.halls?.[c.hall] === (c.floor ?? state.halls?.[c.hall]);
+      it.on = on;
+    }
+    this.lastTest = 0;
+  }
+  update(camera, w, h) {
+    if (!this.on) return;
+    const cp = new THREE.Vector3(); camera.getWorldPosition(cp);
+    const now = performance.now();
+    if (this.labels.ready && now - this.lastTest > 200) {
+      this.lastTest = now;
+      const occ = this.labels.occluders();
+      for (const it of this.items) {
+        if (!it.on) continue;
+        const dir = it.b.clone().sub(cp), d = dir.length();
+        this.ray.set(cp, dir.normalize()); this.ray.far = Math.max(0, d - 0.5);
+        it.seen = !this.ray.intersectObjects(occ, false)[0];
+      }
+      this.ray.far = Infinity;
+    }
+    const A = new THREE.Vector3(), B = new THREE.Vector3();
+    for (const it of this.items) {
+      const near = camera.isOrthographicCamera ? (camera.top - camera.bottom) < this.within : it.b.distanceTo(cp) < this.within;
+      A.copy(it.a).project(camera); B.copy(it.b).project(camera);
+      const inView = B.z < 1 && B.z > -1 && Math.abs(B.x) < 1.05 && Math.abs(B.y) < 1.05;
+      const show = it.on && near && inView && it.seen;
+      it.el.classList.toggle('gone', !show);
+      if (!show) continue;
+      const bx = (B.x * 0.5 + 0.5) * w, by = (-B.y * 0.5 + 0.5) * h, ax = (A.x * 0.5 + 0.5) * w, ay = (-A.y * 0.5 + 0.5) * h;
+      it.el.style.transform = `translate(${bx}px,${by}px)`;
+      const pole = it.el.firstChild, L = Math.hypot(ax - bx, ay - by);
+      pole.style.height = L + 'px';
+      pole.style.transform = `rotate(${Math.atan2(-(ax - bx), ay - by)}rad)`;
+    }
+  }
+}

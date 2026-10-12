@@ -14,13 +14,13 @@ import { NightLights } from './lights.js';
 import { Fountain } from './fountain.js';
 import { Vehicles, People } from './vehicles.js';
 import { buildScreens } from './screens.js';
-import { Labels } from './labels.js';
+import { Labels, Pois } from './labels.js';
 
 const $ = (id) => document.getElementById(id);
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -95,6 +95,15 @@ for (const [pat, ref] of Object.entries(site.materialFrom || {})) {
   const re = new RegExp(pat);
   for (const m of model.meshes) if (m !== src && re.test(m.userData.fname)) { m.material = src.material; m.userData.origMaterial = src.material; }
 }
+// 幾乎重疊的地面圖層上下錯開，避免閃爍（site.json 的 lift_cm）
+for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
+  if (pat.startsWith('_')) continue;
+  const re = new RegExp(pat);
+  for (const m of model.meshes) if (re.test(m.userData.fname)) {
+    const w = m.getWorldPosition(new THREE.Vector3()); w.y += cm / 100;
+    m.position.copy(m.parent.worldToLocal(w)); m.updateMatrixWorld(true);
+  }
+}
 // 地坪與周邊環境（高對比時淡化）；其他視為建築
 const groundRe = new RegExp(site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
 for (const m of model.meshes) m.userData.isGround = groundRe.test(m.userData.fname);
@@ -106,6 +115,7 @@ const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles);
 const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
 const labels = new Labels(labelsCfg, model);
+const pois = new Pois(poisCfg, model, labels);
 $('loading').classList.add('hidden');
 
 // ---------- 可見性：模式 + 廳院樓層 ----------
@@ -131,7 +141,9 @@ function applyVisibility() {
     }
     m.visible = v;
   }
+  night.roofOn = !!model.byName.get('Roof_Main')?.some((m) => m.visible);
   labels.reanchor();
+  pois.setContext(state);
 }
 function setMode(id, quiet) {
   state.mode = id;
@@ -227,8 +239,11 @@ canvas.addEventListener('pointerup', (e) => {
   const hit = ray.intersectObjects([...model.meshes.filter((m) => m.visible), ...screens.children], false)[0];
   if (!hit) return;
   const c = w2cm(hit.point), txt = `[${c.join(',')}]`;
-  navigator.clipboard?.writeText(txt);
-  toast(`座標（cm）${txt}　${hit.object.userData.fname}　已複製`, 5000);
+  // 複製一行可直接貼進 config/pois.json 的設定（含目前模式；榕樹廣場模式附上附近廳院的樓層）
+  const n = nearest(), hallPart = state.mode === 'plaza' && n?.type === 'hall' ? `, "hall": "${n.c.id}", "floor": "${state.halls[n.c.id]}"` : '';
+  const line = `{ "icon": "", "text": "", "pos_cm": ${txt}, "modes": ["${state.mode}"]${hallPart} }`;
+  navigator.clipboard?.writeText(line);
+  toast(`已複製（${hit.object.userData.fname}）：\n${line}`, 6000);
 });
 
 // ---------- 模型樣式：一般／高對比／線架構 ----------
@@ -297,15 +312,14 @@ function syncOrtho() {
 // ---------- 人車 ----------
 function applyTraffic() {
   const on = state.traffic && state.style === 'normal';
-  for (const g of Object.values(vehicles.groups || {})) g.meshes.forEach((m) => (m.visible = on));
-  if (people.body) people.body.visible = people.head.visible = on;
+  vehicles.setVisible(on); people.setVisible(on);
 }
 
 // ---------- 設定選單（左下） ----------
 function setToggle(k, v) {
   state[k] = v;
   const cb = document.querySelector(`[data-tg="${k}"]`); if (cb) cb.checked = v;
-  if (k === 'labels') labels.visible = v;
+  if (k === 'labels') { labels.visible = v; pois.visible = v; }
   if (k === 'clock') $('clock').classList.toggle('hidden', !v && !state.weather);
   if (k === 'weather') env.weatherOn = v;
   if (k === 'traffic') applyTraffic();
@@ -316,6 +330,11 @@ $('settingsClose').onclick = () => $('settings').classList.add('hidden');
 $('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setStyle(s); };
 $('projSeg').onclick = (e) => { const p = e.target.dataset.proj; if (p) setProj(p); };
 $('lineW').oninput = (e) => setLineW(e.target.value);
+$('wxSeg').onclick = (e) => {
+  const w = e.target.dataset.wx; if (!w) return;
+  env.wxOverride = w === 'live' ? null : w;
+  [...$('wxSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.wx === w));
+};
 $('snapBtn').onclick = snapshot;
 $('presBtn').onclick = () => $('presFile').click();
 $('openTime').onclick = () => { $('settings').classList.add('hidden'); $('timeSlider').classList.remove('hidden'); syncPicker(); };
@@ -371,10 +390,9 @@ function viewFromModelDir(X, Y, Z, ms = 1000) {
   flyTo(t.clone().addScaledVector(dir.normalize(), d), t, ms);
 }
 const VIEWS = { top: [0, 0, 1], front: [0, -1, 0], back: [0, 1, 0], left: [-1, 0, 0], right: [1, 0, 0] };
-document.querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => viewFromModelDir(...VIEWS[b.dataset.view])));
 
 // CSS 3D 視角方塊：面＝俯視／四向立面，上方四個角＝等角視角
-const cubeCam = $('cubeCam'), S = 40;
+const cubeCam = $('cubeCam'), S = 46;
 function cssM(m) { const e = m.elements; return 'translate(-50%,-50%) matrix3d(' + [e[0], e[1], e[2], e[3], -e[4], -e[5], -e[6], -e[7], e[8], e[9], e[10], e[11], e[12], e[13], e[14], e[15]].join(',') + ')'; }
 function addCubePart(el, pos, lookN, onClick) {
   const o = new THREE.Object3D(); o.position.copy(pos);
@@ -399,10 +417,24 @@ for (const [X, Y] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
   const p = new THREE.Vector3(X, 1, -Y).multiplyScalar(S / 2 + 1);
   addCubePart(el, p, p.clone().normalize(), () => viewFromModelDir(X, Y, 1));
 }
+// 底下四個角也可點（從下方看的等角視角不實用，這裡只做上方四角）
+// 座標軸（建築 X 紅、Y 綠、Z 藍），從方塊左前下角伸出
+const axesSvg = $('cubeAxes');
+const AX = [['X', new THREE.Vector3(1, 0, 0), '#d93025'], ['Y', new THREE.Vector3(0, 0, -1), '#188038'], ['Z', new THREE.Vector3(0, 1, 0), '#1a73e8']];
 function updateCube(cam) {
   const m = new THREE.Matrix4().extractRotation(cam.matrixWorldInverse), e = m.elements;
   cubeCam.style.transform = 'matrix3d(' + [e[0], -e[1], e[2], e[3], e[4], -e[5], e[6], e[7], e[8], -e[9], e[10], e[11], 0, 0, 0, 1].join(',') + ')';
+  // 把世界向量投影到方塊畫面（與 CSS 3D 相同的正交投影）
+  const pr = (v) => { const w = v.clone().applyMatrix4(m); return [w.x, -w.y]; };
+  const o = new THREE.Vector3(-S / 2, -S / 2, S / 2), [ox, oy] = pr(o);
+  let h = '';
+  for (const [n, d, c] of AX) {
+    const [x, y] = pr(o.clone().addScaledVector(d, S + 8)), [lx, ly] = pr(o.clone().addScaledVector(d, S + 16));
+    h += `<line x1="${ox}" y1="${oy}" x2="${x}" y2="${y}" stroke="${c}" stroke-width="2" stroke-linecap="round"/><text x="${lx}" y="${ly}" fill="${c}">${n}</text>`;
+  }
+  axesSvg.innerHTML = h;
 }
+$('cubeHome').onclick = () => flyTo(cm2w(sc.pos_cm || [2000, -12000, 16000]), cm2w(sc.target_cm || [13700, 15300, 0]), 1200);
 
 // ---------- 鏡頭動畫 ----------
 let fly = null;
@@ -448,14 +480,28 @@ function parseDeck(txt) {
 const pres = { cues: [], i: 0 };
 $('presFile').onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;
-  pres.cues = parseDeck(await f.text());
   e.target.value = '';
+  startDeck(await f.text());
+};
+// 教學代碼：輸入「newbie」→ 讀取 GitHub 上的 lessons/newbie.txt 並開始播放
+$('lessonForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const code = $('lessonCode').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  if (!code) return;
+  try {
+    const r = await fetch(`lessons/${code}.txt`, { cache: 'no-cache' });
+    if (!r.ok) throw new Error(r.status);
+    startDeck(await r.text());
+  } catch { toast(`找不到教學代碼「${code}」`); }
+};
+function startDeck(txt) {
+  pres.cues = parseDeck(txt);
   if (!pres.cues.length) { toast('檔案中沒有可用的簡報代碼'); return; }
   $('settings').classList.add('hidden');
   state.presenting = true; document.body.classList.add('presenting');
   $('presBar').classList.remove('hidden'); renderLiftPanel(true);
   goCue(0);
-};
+}
 function showPresText(s) {
   const box = $('presText'), has = s.h1 || s.h2 || s.p.length;
   box.classList.add('fade');
@@ -530,6 +576,7 @@ renderer.setAnimationLoop(() => {
   camera.updateMatrixWorld();
   if (state.ortho) syncOrtho();
   const cam = viewCam();
+  env.focus = camera.position;
   env.update(dt);
   const plain = state.contrast || state.wire;
   if (plain) { scene.background = new THREE.Color(0xffffff); env.sky.visible = env.dome.visible = env.stars.visible = false; scene.fog.density = 0; }
@@ -551,6 +598,7 @@ renderer.setAnimationLoop(() => {
   }
   composer.render();
   labels.update(cam, innerWidth, innerHeight);
+  pois.update(cam, innerWidth, innerHeight);
   updateCube(camera);
   if (t - lastUI > 0.2) {
     lastUI = t;

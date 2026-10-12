@@ -26,13 +26,10 @@
     <button id="compass" class="fab small" title="真北（點一下轉成北朝上）">
       <svg viewBox="0 0 48 48"><g id="compassRose"><path d="M24 6 L29.5 24 L18.5 24 Z" class="n"/><path d="M24 42 L18.5 24 L29.5 24 Z" class="s"/><text x="24" y="17.5" class="nt">N</text></g></svg>
     </button>
-    <div id="viewCube" title="點角落：等角視角；點面：俯視／立面">
+    <div id="viewCube" title="點面：俯視／立面；點角：等角視角">
       <div id="cubeCam"></div>
-    </div>
-    <div id="viewPad" class="pad3">
-      <span></span><button data-view="back" title="北立面（+Y）">北</button><span></span>
-      <button data-view="left" title="西立面（−X）">西</button><button data-view="top" title="俯視" class="mid">俯</button><button data-view="right" title="東立面（+X）">東</button>
-      <span></span><button data-view="front" title="南立面（−Y）">南</button><span></span>
+      <svg id="cubeAxes" viewBox="-50 -50 100 100"></svg>
+      <button id="cubeHome" class="ms" title="回到起始視角">home</button>
     </div>
   </div>
 
@@ -62,15 +59,19 @@
     <div class="setRow"><span class="ms">partly_cloudy_day</span>天氣<label class="sw"><input type="checkbox" data-tg="weather" checked><i></i></label></div>
     <div class="setRow"><span class="ms">directions_car</span>人車<label class="sw"><input type="checkbox" data-tg="traffic" checked><i></i></label></div>
     <div class="setRow"><span class="ms">wb_twilight</span>指定時間<button class="text" id="openTime">調整</button></div>
+    <div class="setSec">天氣預覽</div>
+    <div class="seg2" id="wxSeg"><button data-wx="live" class="on">即時</button><button data-wx="clear">晴</button><button data-wx="cloudy">陰</button><button data-wx="rain">雨</button><button data-wx="snow">雪</button></div>
     <div class="setSec">模型樣式</div>
     <div class="seg2" id="styleSeg"><button data-style="normal" class="on">一般</button><button data-style="contrast">高對比</button><button data-style="wire">線架構</button></div>
     <div class="setRow" id="lineRow"><span class="ms">line_weight</span>線條粗細<input type="range" id="lineW" min="1" max="6" step="0.5" value="2"><b id="lineWv">2</b></div>
     <div class="setSec">投影</div>
     <div class="seg2" id="projSeg"><button data-proj="persp" class="on">透視</button><button data-proj="ortho">等角（平行）</button></div>
     <div class="setSec">簡報</div>
-    <div class="setRow"><span class="ms">bookmark_add</span>記住目前畫面<button class="text" id="snapBtn">複製代碼</button></div>
-    <div class="setRow"><span class="ms">slideshow</span>簡報模式<button class="text" id="presBtn">匯入 txt</button></div>
-    <div class="setNote">txt 格式：每頁一行代碼，下方可寫 <code># 標題</code>、<code>## 副標</code>、一般文字為內文；<code>//</code> 開頭為註記不顯示。<a href="docs/簡報範例.txt" download>下載範例</a></div>
+    <div class="presRow">
+      <button class="iconBtn" id="snapBtn" title="記住目前畫面（複製代碼）"><span class="ms">bookmark_add</span></button>
+      <button class="iconBtn" id="presBtn" title="簡報模式（匯入 txt）"><span class="ms">slideshow</span></button>
+      <form id="lessonForm" class="lessonBox"><input id="lessonCode" placeholder="教學代碼" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="ms" title="開啟教學">search</button></form>
+    </div>
   </div>
 
   <!-- 時間選擇（24 小時制，時、分分開滾選） -->

@@ -180,7 +180,8 @@ export class NightLights {
     // 白天把燈關掉（visible=false），燈不進 shader，白天效能不受影響
     const on = venue > 0.05;
     if (this.area) { this.area.light.visible = on; this.area.light.intensity = venue * this.area.k; }
-    for (const s of this.spots) { s.light.visible = on; s.light.intensity = venue * s.k; }
+    // 屋頂隱藏（樹冠大廳、榕樹廣場模式）時投射燈一起關掉，不然光會照進室內
+    for (const s of this.spots) { s.light.visible = on && this.roofOn !== false; s.light.intensity = venue * s.k; }
     if (this.ringMat) { this.ringMat.opacity = venue; this.rings.forEach((r) => (r.visible = venue > 0.02)); }
   }
 }

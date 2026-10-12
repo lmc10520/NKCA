@@ -26,13 +26,13 @@
     {
      "id": "B1",
      "action": "popup",
-     "img": "img/parking_B1.png",
+     "img": "img/parking_B1.svg",
      "title": "B1 地下停車場"
     },
     {
      "id": "B2",
      "action": "popup",
-     "img": "img/parking_B2.png",
+     "img": "img/parking_B2.svg",
      "title": "B2 地下停車場"
     }
    ]
@@ -61,7 +61,7 @@
     {
      "id": "B2",
      "action": "popup",
-     "img": "img/parking_B2.png",
+     "img": "img/parking_B2.svg",
      "title": "B2 地下停車場"
     }
    ]
@@ -86,13 +86,13 @@
     {
      "id": "B1",
      "action": "popup",
-     "img": "img/parking_B1.png",
+     "img": "img/parking_B1.svg",
      "title": "B1 地下停車場"
     },
     {
      "id": "B2",
      "action": "popup",
-     "img": "img/parking_B2.png",
+     "img": "img/parking_B2.svg",
      "title": "B2 地下停車場"
     }
    ]

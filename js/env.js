@@ -108,6 +108,7 @@ export class Environment {
   }
 
   weatherText() {
+    if (this.wxOverride) return '預覽：' + { clear: '晴', cloudy: '陰', rain: '雨', snow: '雪' }[this.wxOverride];
     const w = this.weather;
     if (!w) return '';
     return `${WMO[w.weather_code] ?? ''} ${Math.round(w.temperature_2m)}°C`;
@@ -120,8 +121,13 @@ export class Environment {
     this.sunDir.copy(dir);
     const night = smooth(0.10, -0.10, alt);      // 太陽仰角 +6° → -6° 由日轉夜
     this.night = night;
-    const cloud = this.weatherOn && this.weather ? this.weather.cloud_cover / 100 : 0.1;
-    const rainy = this.weatherOn && this.weather && this.weather.precipitation > 0;
+    // 天氣：即時（open-meteo）或預覽（設定中的 晴／陰／雨／雪）
+    const W = this.wxOverride;
+    let cloud = this.weatherOn && this.weather ? this.weather.cloud_cover / 100 : 0.1;
+    let rainy = this.weatherOn && this.weather && this.weather.precipitation > 0;
+    let snowy = false;
+    if (W) { cloud = { clear: 0.05, cloudy: 0.9, rain: 1, snow: 0.95 }[W]; rainy = W === 'rain'; snowy = W === 'snow'; }
+    const wxOn = this.weatherOn || !!W;
 
     const u = this.sky.material.uniforms;
     u.sunPosition.value.copy(dir);
@@ -148,25 +154,57 @@ export class Environment {
     this.hemi.groundColor.lerpColors(new THREE.Color(0x4a4438), new THREE.Color(0x30364a), night);
     this.renderer.toneMappingExposure = 0.8 + (1 - night) * 0.2;
 
-    this.fog.density = this.weatherOn ? (rainy ? 0.0022 : cloud * 0.0006) : 0;
-    this.fog.color.lerpColors(new THREE.Color(0xbfc8cf), new THREE.Color(0x1e2a48), night);
-    this.updateRain(rainy, dt);
+    this.fog.density = wxOn ? (rainy ? 0.0022 : snowy ? 0.0028 : cloud * 0.0006) : 0;
+    this.fog.color.lerpColors(new THREE.Color(snowy ? 0xe4e8ec : 0xbfc8cf), new THREE.Color(0x1e2a48), night);
+    this.updatePrecip(rainy ? 'rain' : snowy ? 'snow' : null, dt);
   }
 
-  updateRain(on, dt) {
-    if (on && !this.rain) {
-      const n = 6000, g = new THREE.BufferGeometry(), p = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) { p[i * 3] = (Math.random() - .5) * 400; p[i * 3 + 1] = Math.random() * 120; p[i * 3 + 2] = (Math.random() - .5) * 400; }
-      g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-      this.rain = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xaab8c8, size: 0.15, transparent: true, opacity: 0.6 }));
-      this.rain.position.copy(this.center);
-      this.scene.add(this.rain);
+  // 降雨：細長雨絲（線段）；降雪：會飄的圓形雪花。範圍是園區上空 420 m 見方
+  updatePrecip(kind, dt) {
+    const R = 140, H = 60;
+    if (kind === 'rain' && !this.rain) {
+      const n = 12000, p = new Float32Array(n * 6);
+      for (let i = 0; i < n; i++) {
+        const x = (Math.random() - 0.5) * R, y = Math.random() * H, z = (Math.random() - 0.5) * R;
+        p.set([x, y, z, x + 0.04, y + 1.1, z], i * 6);
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+      this.rain = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xdfe8f2, transparent: true, opacity: 0.6 }));
+      this.rain.position.copy(this.center); this.rain.frustumCulled = false; this.scene.add(this.rain);
     }
+    if (kind === 'snow' && !this.snow) {
+      const n = 12000, p = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) p.set([(Math.random() - 0.5) * R, Math.random() * H, (Math.random() - 0.5) * R], i * 3);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+      const cv = document.createElement('canvas'); cv.width = cv.height = 32;
+      const x = cv.getContext('2d'), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.6, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 32, 32);
+      this.snow = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.45, map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, color: 0xffffff }));
+      this.snow.position.copy(this.center); this.snow.frustumCulled = false; this.scene.add(this.snow);
+    }
+    // 跟著鏡頭：粒子只在鏡頭附近 140 m 的範圍內，密度才夠
+    const f = this.focus || this.center;
+    for (const o of [this.rain, this.snow]) if (o) o.position.set(Math.round(f.x / 20) * 20, Math.max(0, f.y - H / 2), Math.round(f.z / 20) * 20);
     if (this.rain) {
-      this.rain.visible = on;
-      if (on) {
-        const a = this.rain.geometry.attributes.position;
-        for (let i = 0; i < a.count; i++) { let y = a.getY(i) - 60 * dt; if (y < 0) y += 120; a.setY(i, y); }
+      this.rain.visible = kind === 'rain';
+      if (this.rain.visible) {
+        const a = this.rain.geometry.attributes.position, arr = a.array;
+        for (let i = 0; i < arr.length; i += 6) {
+          let y = arr[i + 1] - 22 * dt; if (y < 0) y += H;
+          arr[i + 1] = y; arr[i + 4] = y + 1.1;
+        }
+        a.needsUpdate = true;
+      }
+    }
+    if (this.snow) {
+      this.snow.visible = kind === 'snow';
+      if (this.snow.visible) {
+        const a = this.snow.geometry.attributes.position, arr = a.array, t = performance.now() / 1000;
+        for (let i = 0; i < arr.length; i += 3) {
+          let y = arr[i + 1] - 1.1 * dt; if (y < 0) y += H;
+          arr[i + 1] = y; arr[i] += Math.sin(t * 0.7 + i) * 0.25 * dt; arr[i + 2] += Math.cos(t * 0.5 + i * 0.3) * 0.2 * dt;
+        }
         a.needsUpdate = true;
       }
     }

@@ -1,0 +1,20 @@
+// 範例教材：在設定的「教學代碼」輸入 demo 即可播放
+// 規則：NKCA1:… 一行是一頁；# 大標題、## 副標題、其他文字為內文；// 開頭為註記不顯示
+
+// ===== 第 1 頁：全區 =====
+NKCA1:eyJ2IjoyLCJjIjpbMjAwMCwtMTIwMDAsMTYwMDBdLCJ0IjpbMTM3MDAsMTUzMDAsMF0sIm0iOiJleHRlcmlvciIsImgiOnsiUkgiOiIxRiIsIlBIIjoiMUYifSwidWkiOnsibGFiZWxzIjp0cnVlLCJjbG9jayI6ZmFsc2UsIndlYXRoZXIiOmZhbHNlLCJ0cmFmZmljIjp0cnVlfSwic3R5bGUiOiJub3JtYWwiLCJsdyI6MiwicHJvaiI6InBlcnNwIiwidG9kIjo5MDAsImNhcmQiOm51bGx9
+# 歡迎來到 NKCA
+## 全區配置
+四個廳院共用一個連續的大屋頂，屋頂下方是開放的榕樹廣場。
+
+// ===== 第 2 頁：榕泉 =====
+NKCA1:eyJ2IjoyLCJjIjpbMTUwMDAsMzEwMDAsMzUwMF0sInQiOlsxNzE1MCwyNjE0NiwwXSwibSI6ImV4dGVyaW9yIiwiaCI6eyJSSCI6IjFGIiwiUEgiOiIxRiJ9LCJ1aSI6eyJsYWJlbHMiOnRydWUsImNsb2NrIjpmYWxzZSwid2VhdGhlciI6ZmFsc2UsInRyYWZmaWMiOnRydWV9LCJzdHlsZSI6Im5vcm1hbCIsImx3IjoyLCJwcm9qIjoicGVyc3AiLCJ0b2QiOjY2NSwiY2FyZCI6ImZvdW50YWluIn0=
+# 榕泉
+## 北側廣場旱地噴泉
+每日 11:00 至 21:00，每小時整點啟動一次，每次 15 分鐘。
+
+// ===== 第 3 頁：樹冠大廳 =====
+NKCA1:eyJ2IjoyLCJjIjpbMTY1MDAsMTIwMDAsOTAwMF0sInQiOlsxOTMwMCwxOTAwMCwxNDcwXSwibSI6ImNhbm9weSIsImgiOnsiUkgiOiIxRiIsIlBIIjoiMUYifSwidWkiOnsibGFiZWxzIjp0cnVlLCJjbG9jayI6ZmFsc2UsIndlYXRoZXIiOmZhbHNlLCJ0cmFmZmljIjp0cnVlfSwic3R5bGUiOiJub3JtYWwiLCJsdyI6MiwicHJvaiI6InBlcnNwIiwidG9kIjo5MDAsImNhcmQiOm51bGx9
+# 樹冠大廳
+## 3F 公共空間
+從表演廳旁的電扶梯可以下到表演廳 2F。

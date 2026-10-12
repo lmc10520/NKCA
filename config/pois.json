@@ -1,0 +1,14 @@
+{
+ "_說明": "室內標示（只在建築物裡面：四個廳院的樓面、3F 樹冠大廳）。每一項可以是圖示（icon）或地點文字（text）。pos_cm 是樓地板上的點（Fusion 座標，cm）；圖示會立在它上方 pole_m 公尺的細桿頂端。modes 指定在哪些模式出現（exterior 外觀／canopy 樹冠大廳／plaza 榕樹廣場）；hall＋floor 指定廳院樓層（例如表演廳 RH 的 2F）。取得座標：在網頁按住 Shift 點樓面，會複製一行可以直接貼進來的設定。",
+ "icons": {
+  "restroom": "img/icons/restroom.svg", "men": "img/icons/men.svg", "women": "img/icons/women.svg",
+  "accessible": "img/icons/accessible.svg", "nursing": "img/icons/nursing.svg", "elevator": "img/icons/elevator.svg",
+  "escalator": "img/icons/escalator.svg", "info": "img/icons/info.svg", "tickets": "img/icons/tickets.svg",
+  "locker": "img/icons/locker.svg", "water": "img/icons/water.svg"
+ },
+ "pole_m": 3,
+ "showWithin_m": 220,
+ "items": [
+  { "icon": "escalator", "text": "電扶梯（往表演廳 2F）", "pos_cm": [19240, 18560, 1470], "modes": ["canopy"] }
+ ]
+}
