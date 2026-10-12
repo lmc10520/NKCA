@@ -132,10 +132,20 @@ export class NightLights {
     this.rings = [];
     if (lawns?.lawns?.length) {
       const mat = new THREE.MeshBasicMaterial({ color: lawns.color, transparent: true, opacity: 0, toneMapped: false });
+      // 光環貼著地面走：每隔約 0.8 m 往下打射線找地面（草坪、鋪面、土丘），再往上抬 height_cm
+      const groundM = model.meshes.filter((m) => /^Site_(Grass|Campus_Paving|Park_Paving|North_Mound|Sidewalk)/.test(m.userData.fname));
+      const ray = new THREE.Raycaster(), up = (lawns.height_cm ?? 8) / 100;
+      const down = new THREE.Vector3(0, -1, 0);
       for (const l of lawns.lawns) {
-        const pts = l.pts.map((p) => cm2w([p[0], p[1], lawns.height_cm ?? 8]));
+        const base = new THREE.CatmullRomCurve3(l.pts.map((p) => cm2w([p[0], p[1], 0])), true, 'centripetal');
+        const n = Math.max(48, Math.round(base.getLength() / 0.8));
+        const pts = base.getSpacedPoints(n).slice(0, n).map((p) => {
+          ray.set(new THREE.Vector3(p.x, 60, p.z), down);
+          const h = ray.intersectObjects(groundM, false)[0];
+          return p.setY((h ? h.point.y : 0) + up);
+        });
         const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
-        const g = new THREE.TubeGeometry(curve, Math.max(60, pts.length * 3), 0.06, 6, true);
+        const g = new THREE.TubeGeometry(curve, n * 2, 0.06, 6, true);
         const mesh = new THREE.Mesh(g, mat);
         this.group.add(mesh); this.rings.push(mesh);
       }

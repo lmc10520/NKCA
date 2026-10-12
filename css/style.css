@@ -72,9 +72,10 @@ button.text:hover{background:#e8f0fe}
 .x:hover{background:var(--surface-2)}
 
 #modal{position:fixed;inset:0;z-index:30;background:rgba(32,33,36,.6);display:flex;align-items:center;justify-content:center;padding:16px}
-.modalInner{position:relative;background:var(--surface);border-radius:28px;padding:20px 24px;max-width:min(1100px,100%);max-height:100%;overflow:auto;box-shadow:var(--elev2)}
+.modalInner{position:relative;background:var(--surface);border-radius:28px;padding:20px 24px;width:min(1400px,96vw);max-height:96vh;overflow:auto;box-shadow:var(--elev2)}
 .modalInner h3{margin:0 40px 12px 0;font-weight:500}
-#modalImg{max-width:100%;display:block;border-radius:12px}
+#modalImg{width:100%;height:auto;max-height:calc(96vh - 90px);object-fit:contain;display:block;border-radius:12px;cursor:zoom-in;background:#fff}
+#modalImg.zoom{max-height:none;width:200%;cursor:zoom-out}
 #modalNote{color:var(--on-2);font-size:14px}
 
 #presBar{left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:4px;align-items:center;padding:6px 10px;border-radius:999px}
@@ -125,6 +126,10 @@ body.presenting #settingsBtn,body.presenting #settings,body.presenting #modeBar,
   background:#fff;box-shadow:var(--elev1);white-space:nowrap}
 .lbl.clickable .lblText{pointer-events:auto;cursor:pointer;padding-right:24px}
 .lbl.clickable .lblText::after{content:"";position:absolute;right:10px;top:50%;width:6px;height:6px;border-right:2px solid var(--on-2);border-bottom:2px solid var(--on-2);transform:translateY(-70%) rotate(45deg);transition:transform .2s}
+.lbl.liftable .lblText{pointer-events:auto;cursor:pointer;padding-left:26px}
+.lbl.liftable .lblText::before{content:"";position:absolute;left:9px;top:50%;width:11px;height:13px;transform:translateY(-50%);
+  background:linear-gradient(var(--on-2),var(--on-2)) 50% 2px/2px 4px no-repeat,linear-gradient(var(--on-2),var(--on-2)) 50% 7px/2px 4px no-repeat;
+  border:1.5px solid var(--on-2);border-radius:2px;box-sizing:border-box}
 .lbl.open .lblText{background:var(--primary);color:#fff}
 .lbl.open .lblText::after{border-color:#fff;transform:translateY(-25%) rotate(-135deg)}
 .lblCard{position:absolute;left:0;top:4px;transform:translateX(-50%);width:min(320px,calc(100vw - 32px));pointer-events:auto;

@@ -34,9 +34,14 @@ export class Labels {
       const el = document.createElement('div'); el.className = 'lbl';
       el.innerHTML = `<span class="lblText">${esc(l.text)}</span>`;
       const it = { id: l.id || 'L' + i, cfg: l, el, base: cm2w(l.pos_cm), p: cm2w(l.pos_cm), seen: true, open: false };
-      if (l.card) {
-        el.classList.add('clickable');
-        el.querySelector('.lblText').onclick = (e) => { e.stopPropagation(); this.toggle(it); };
+      // card：展開資料卡；lift：顯示樓層選單（"core:SW"、"hall:RH"）
+      if (l.card || l.lift) {
+        el.classList.add(l.card ? 'clickable' : 'liftable');
+        el.querySelector('.lblText').onclick = (e) => {
+          e.stopPropagation();
+          if (l.lift) this.onLift?.(l.lift);
+          if (l.card) this.toggle(it);
+        };
       }
       this.root.appendChild(el);
       return it;

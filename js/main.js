@@ -172,8 +172,26 @@ function setHallFloor(h, fid) {
 }
 
 // ---------- 電梯／樓層面板 ----------
-let liftCtx = null;
+let liftCtx = null, liftPin = null;
+// 點標籤：指定要顯示哪個交通核／廳院的樓層選單，並把鏡頭帶過去
+labels.onLift = (ref) => {
+  const [type, id] = ref.split(':');
+  const c = type === 'hall' ? halls.find((h) => h.id === id) : (coresCfg.cores || []).find((x) => x.id === id);
+  if (!c) return;
+  if (type === 'hall' && c.modes && !c.modes.includes(state.mode)) setMode(c.modes[0]);
+  liftPin = { type, c };
+  const p = cm2w(c.center_cm), t = controls.target, off = camera.position.clone().sub(t);
+  const d = Math.min(off.length(), 140);
+  flyTo(p.clone().add(off.setLength(d)), p, 1200);
+  renderLiftPanel(true);
+};
 function nearest() {
+  if (liftPin) {
+    // 鏡頭離開該處（目標點移出兩倍範圍）就取消固定
+    const p = cm2w(liftPin.c.center_cm), t = fly ? fly.t1 : controls.target;
+    if (Math.hypot(p.x - t.x, p.z - t.z) < (liftPin.c.radius_cm / 100) * 2 && !(liftPin.c.modes && !liftPin.c.modes.includes(state.mode))) return liftPin;
+    liftPin = null;
+  }
   const t = controls.target, d = camera.position.distanceTo(t);
   if (d > (coresCfg.showWithin_cm ?? 25000) / 100) return null;   // 鏡頭要拉近到這個距離內才顯示
   let best = null;
@@ -217,9 +235,10 @@ function openModal(title, img) {
   $('modalTitle').textContent = title; $('modalNote').textContent = '';
   const im = $('modalImg'); im.style.display = '';
   im.onerror = () => { im.style.display = 'none'; $('modalNote').textContent = `尚未放入平面圖：請把圖片上傳為 ${img}`; };
-  im.src = img; $('modal').classList.remove('hidden');
+  im.classList.remove('zoom'); im.src = img; $('modal').classList.remove('hidden');
 }
 $('modalClose').onclick = () => $('modal').classList.add('hidden');
+$('modalImg').onclick = (e) => e.target.classList.toggle('zoom');   // 點地圖放大兩倍，可捲動查看
 $('modal').onclick = (e) => { if (e.target.id === 'modal') $('modal').classList.add('hidden'); };
 
 // ---------- 點選：行人、Shift＋點擊取座標；點空白處收起標籤資料卡 ----------

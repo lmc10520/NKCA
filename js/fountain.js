@@ -43,7 +43,7 @@ export class Fountain {
     const tp = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
     const now = tp.getHours() * 60 + tp.getMinutes();
     const start = tp.getHours() * 60 + (s.minute ?? 0);          // 這一小時的啟動時間
-    if (start < hm(s.open, '00:00') || start >= hm(s.close, '24:00')) return false;
+    if (start < hm(s.first ?? s.open, '00:00') || start > hm(s.last, '23:59')) return false;   // 最後一場也要演
     return now >= start && now < start + (s.duration_min ?? 15);
   }
 
