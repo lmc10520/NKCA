@@ -741,9 +741,11 @@
   }
  ],
  "schedule": {
-  "_說明": "整點演出：每小時 minute 分開始，持續 duration_min 分鐘",
+  "_說明": "營業時間內每小時整點啟動，每次運轉 duration_min 分鐘；open ≤ 啟動時間 < close（11:00–21:00 → 11:00 到 20:00 共 10 場）",
+  "open": "11:00",
+  "close": "21:00",
   "minute": 0,
-  "duration_min": 10
+  "duration_min": 15
  },
  "jet": {
   "_說明": "水柱最高高度與粗細（cm）；min_ratio 是最低時的比例",

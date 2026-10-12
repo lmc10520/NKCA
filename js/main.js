@@ -4,6 +4,9 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { loadJSON, cm2w, w2cm, makeMatcher, toast, ease, isMobile } from './util.js';
 import { loadModel } from './model.js';
 import { Environment } from './env.js';
@@ -16,8 +19,8 @@ import { Labels } from './labels.js';
 const $ = (id) => document.getElementById(id);
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, infoCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'info', 'roads', 'fountain', 'lawns', 'walk', 'streetlights']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -30,16 +33,18 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = !!site.shadows && !isMobile;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
+// camera：透視鏡頭，也是操控的主體；orthoCam：等角（平行投影）時跟著 camera 的方向與距離換算畫面大小
 const camera = new THREE.PerspectiveCamera(45, 1, 0.3, 6000);
+const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 14000);
+const viewCam = () => (state.ortho ? orthoCam : camera);
 const controls = new MapControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.08;
-controls.maxPolarAngle = THREE.MathUtils.degToRad(84);   // 不讓鏡頭鑽到地面下
+controls.maxPolarAngle = THREE.MathUtils.degToRad(89.5);   // 立面視角需要接近水平；鏡頭高度另外限制不鑽到地面下
 controls.minDistance = 4; controls.maxDistance = 1600;
 controls.screenSpacePanning = false;
-// 中鍵也用來平移（原本的中鍵縮放有同樣的 DPR 除以 0 問題，會瞬間跳到最大／最小）
+// 中鍵也用來平移（原本的中鍵縮放有 DPR 除以 0 的問題，會瞬間跳到最大／最小）
 controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
-// 滑鼠滾輪縮放自己處理：three r160 內建的滾輪縮放用 (devicePixelRatio | 0) 當分母，
-// 瀏覽器縮放 < 100%（或 Windows 顯示比例造成 DPR < 1）時會變成除以 0，一滾就跳到最近／最遠，模型像「破掉」。
+// 滑鼠滾輪縮放自己處理：three r160 內建的滾輪縮放用 (devicePixelRatio | 0) 當分母，DPR < 1 時會除以 0
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault(); e.stopImmediatePropagation();
   if (fly) return;
@@ -48,14 +53,12 @@ canvas.addEventListener('wheel', (e) => {
   const k = Math.pow(0.95, Math.abs(dy) / 100);
   const off = camera.position.clone().sub(controls.target);
   const d0 = off.length(), d1 = THREE.MathUtils.clamp(dy < 0 ? d0 * k : d0 / k, controls.minDistance, controls.maxDistance);
-  // 往游標方向拉近（像 Google 地圖）：目標點朝游標落點移動一部分
+  // 往游標方向拉近（像 Google 地圖）
   if (dy < 0) {
-    const r = canvas.getBoundingClientRect();
-    ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    ray.setFromCamera(ndc(e), viewCam());
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -controls.target.y), hit = new THREE.Vector3();
     if (ray.ray.intersectPlane(plane, hit) && hit.distanceTo(controls.target) < d0 * 3) {
-      const f = 1 - d1 / d0;
-      const shift = hit.sub(controls.target).multiplyScalar(f);
+      const shift = hit.sub(controls.target).multiplyScalar(1 - d1 / d0);
       controls.target.add(shift); camera.position.add(shift);
     }
   }
@@ -70,7 +73,8 @@ camera.position.copy(cm2w(sc.pos_cm || [2000, -12000, 16000]));
 controls.target.copy(cm2w(sc.target_cm || [13700, 15300, 0]));
 
 const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.0, 0.5, 0.85);
 if (site.bloom !== false) composer.addPass(bloom);
 composer.addPass(new OutputPass());
@@ -83,8 +87,7 @@ scene.add(model.root);
 const exclude = makeMatcher(modesCfg.exclude, modesCfg.groups);
 for (const m of model.meshes) if (exclude(m.userData.fname)) { m.visible = false; m.userData.excluded = true; }
 
-// 材質統一：Fusion 裡少數屋頂片用了別的外觀（例如南側屋頂是灰色 Steel - Satin），
-// 在 config/site.json 的 materialFrom 指定「名稱規則 → 參照物件」，網頁直接套用參照物件的材質
+// 材質統一：config/site.json 的 materialFrom 指定「名稱規則 → 參照物件」，網頁直接套用參照物件的材質
 for (const [pat, ref] of Object.entries(site.materialFrom || {})) {
   if (pat.startsWith('_')) continue;
   const src = model.meshes.find((m) => m.userData.fname === ref);
@@ -92,22 +95,28 @@ for (const [pat, ref] of Object.entries(site.materialFrom || {})) {
   const re = new RegExp(pat);
   for (const m of model.meshes) if (m !== src && re.test(m.userData.fname)) { m.material = src.material; m.userData.origMaterial = src.material; }
 }
+// 地坪與周邊環境（高對比時淡化）；其他視為建築
+const groundRe = new RegExp(site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
+for (const m of model.meshes) m.userData.isGround = groundRe.test(m.userData.fname);
+
 const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
 night.addStreetLights(streetCfg);
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
 const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles);
 const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
-const labels = new Labels(labelsCfg);
+const labels = new Labels(labelsCfg, model);
 $('loading').classList.add('hidden');
 
 // ---------- 可見性：模式 + 廳院樓層 ----------
-const state = { mode: modesCfg.default || 'exterior', halls: {}, cards: true, clock: true, weather: true, contrast: false, wire: false, labels: true };
+const state = {
+  mode: modesCfg.default || 'exterior', halls: {}, clock: true, weather: true, labels: true, traffic: true,
+  style: 'normal', contrast: false, wire: false, ortho: false, lineW: 2,
+};
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
 const halls = (hallsCfg.halls || []).map((h) => ({ ...h, floorsM: h.floors.map((f) => ({ ...f, hideM: makeMatcher(f.hide), showM: makeMatcher(f.show) })) }));
 halls.forEach((h) => (state.halls[h.id] = h.default));
-const allHallShow = (n) => halls.some((h) => h.floorsM.some((f) => f.showM(n)));
 
 function applyVisibility() {
   const hide = modeHide[state.mode] || (() => false);
@@ -118,11 +127,11 @@ function applyVisibility() {
     for (const h of halls) {
       if (h.modes && !h.modes.includes(state.mode)) continue;
       const f = h.floorsM.find((x) => x.id === state.halls[h.id]);
-      if (!f) continue;
-      if (f.hideM(n)) v = false;
+      if (f?.hideM(n)) v = false;
     }
     m.visible = v;
   }
+  labels.reanchor();
 }
 function setMode(id, quiet) {
   state.mode = id;
@@ -201,81 +210,118 @@ function openModal(title, img) {
 $('modalClose').onclick = () => $('modal').classList.add('hidden');
 $('modal').onclick = (e) => { if (e.target.id === 'modal') $('modal').classList.add('hidden'); };
 
-// ---------- 點選：資訊卡、Shift＋點擊取座標 ----------
-const ray = new THREE.Raycaster();
-const infoItems = (infoCfg.items || []).map((i) => ({ ...i, re: new RegExp(i.match) }));
+// ---------- 點選：行人、Shift＋點擊取座標；點空白處收起標籤資料卡 ----------
+const ray = new THREE.Raycaster(); ray.firstHitOnly = true;
+const ndc = (e) => { const r = canvas.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); };
 let downAt = null;
 canvas.addEventListener('pointerdown', (e) => (downAt = [e.clientX, e.clientY]));
 canvas.addEventListener('pointerup', (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
   const r = canvas.getBoundingClientRect();
-  if (!e.shiftKey && !e.altKey && people.tap(e.clientX, e.clientY, camera, r)) return;
-  ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-  const objs = [...model.meshes.filter((m) => m.visible), ...screens.children];
-  const hit = ray.intersectObjects(objs, false)[0];
-  if (!hit) { $('card').classList.add('hidden'); state.card = null; return; }
-  if (e.shiftKey || e.altKey) {
-    const c = w2cm(hit.point), txt = `[${c.join(',')}]`;
-    navigator.clipboard?.writeText(txt);
-    toast(`座標（cm）${txt}　${hit.object.userData.fname}　已複製`, 5000);
+  if (!e.shiftKey && !e.altKey) {
+    if (people.tap(e.clientX, e.clientY, viewCam(), r)) return;
+    labels.close(); $('settings').classList.add('hidden');
     return;
   }
-  if (state.cards) showCard(hit.object.userData.fname);
+  ray.setFromCamera(ndc(e), viewCam());
+  const hit = ray.intersectObjects([...model.meshes.filter((m) => m.visible), ...screens.children], false)[0];
+  if (!hit) return;
+  const c = w2cm(hit.point), txt = `[${c.join(',')}]`;
+  navigator.clipboard?.writeText(txt);
+  toast(`座標（cm）${txt}　${hit.object.userData.fname}　已複製`, 5000);
 });
-function showCard(name) {
-  if (!name) { $('card').classList.add('hidden'); state.card = null; return; }
-  const it = infoItems.find((i) => i.re.test(name));
-  $('cardTitle').textContent = it?.title || name;
-  $('cardBody').innerHTML = (it?.text ? `<p>${it.text}</p>` : '') + (it?.img ? `<img src="${it.img}" alt="">` : '') +
-    (it ? '' : '<p style="opacity:.6">（可在 config/info.json 補上說明）</p>');
-  $('card').classList.remove('hidden'); state.card = name;
-}
-$('cardClose').onclick = () => showCard(null);
 
-// ---------- 高對比、線架構 ----------
-const whiteMat = new THREE.MeshLambertMaterial({ color: 0xf4f4f2, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+// ---------- 模型樣式：一般／高對比／線架構 ----------
+// 高對比：建築白色有明暗＋深色輪廓線，地坪與周邊淡成淺灰、不畫線，人車隱藏 → 凸顯建築
+const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+const groundMat = new THREE.MeshBasicMaterial({ color: 0xeceef1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
 const glassMat = new THREE.MeshLambertMaterial({ color: 0xbcd7e6, transparent: true, opacity: 0.35, depthWrite: false });
-// 線架構＝只顯示看得到的邊（wireframe with visible edges only）：面用不透明白色、往後推一點，
-// 先寫入深度，把後面的邊遮住；原本用透明材質，透明物件比線晚畫，結果所有被遮住的邊都露出來
-const hiddenFaceMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2, toneMapped: false });
-const edgeMat = new THREE.LineBasicMaterial({ color: 0x22262a, toneMapped: false });
+// 線架構＝只顯示看得到的邊：面用不透明白色、往後推一點先寫入深度，把後面的邊遮住
+const hiddenFaceMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+// 粗線（LineSegments2）：線寬以螢幕像素計，可在設定中調整
+const edgeMat = new LineMaterial({ color: 0x1f2328, linewidth: state.lineW, worldUnits: false });
+const groundEdgeMat = new LineMaterial({ color: 0x9aa0a6, linewidth: 1, worldUnits: false });
 let edgesBuilt = false;
 function buildEdges() {
   if (edgesBuilt) return; edgesBuilt = true;
+  const skip = new RegExp(site.edgeSkip || '^Site_Fountain_(LED|Nozzles)');   // 太細碎、看不出來的物件不畫線
   for (const m of model.meshes) {
-    const ls = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 45), edgeMat);
-    ls.visible = false; ls.raycast = () => {}; m.add(ls); m.userData.edges = ls;
+    if (skip.test(m.userData.fname)) continue;
+    const g = new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(m.geometry, 40));
+    const ls = new LineSegments2(g, m.userData.isGround ? groundEdgeMat : edgeMat);
+    ls.visible = false; ls.raycast = () => {}; ls.frustumCulled = false; m.add(ls); m.userData.edges = ls;
   }
+  resize();
 }
-function applyStyle() {
-  const style = state.wire ? 'wire' : state.contrast ? 'contrast' : 'normal';
+function setStyle(style) {
+  state.style = style; state.contrast = style === 'contrast'; state.wire = style === 'wire';
   if (style !== 'normal') buildEdges();
   for (const m of model.meshes) {
-    m.material = style === 'normal' ? m.userData.origMaterial : style === 'contrast' ? (m.userData.isGlass ? glassMat : whiteMat) : hiddenFaceMat;
-    if (m.userData.edges) m.userData.edges.visible = style !== 'normal' && (style === 'wire' || !m.userData.isGlass);
+    const g = m.userData.isGround, gl = m.userData.isGlass;
+    m.material = style === 'normal' ? m.userData.origMaterial
+      : style === 'contrast' ? (gl ? glassMat : g ? groundMat : whiteMat) : hiddenFaceMat;
+    if (m.userData.edges) m.userData.edges.visible = style === 'wire' || (style === 'contrast' && !g && !gl);
+    m.castShadow = style === 'normal' && !gl;
   }
+  // 高對比的建築輪廓線較淡、較細，避免屋頂直立縫太密變成一片黑
+  edgeMat.color.set(style === 'contrast' ? 0x6b7077 : 0x1f2328);
+  setLineW(state.lineW);
   night.group.visible = style === 'normal';
+  applyTraffic();
+  [...$('styleSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.style === style));
+  $('lineRow').classList.toggle('dim', style === 'normal');
+}
+function setLineW(v) {
+  state.lineW = +v; edgeMat.linewidth = state.lineW * (state.style === 'contrast' ? 0.5 : 1); groundEdgeMat.linewidth = Math.max(1, state.lineW * 0.5);
+  $('lineW').value = v; $('lineWv').textContent = v;
 }
 
-// ---------- 工具列 ----------
-const tb = (k) => document.querySelector(`[data-tool="${k}"]`);
+// ---------- 透視／等角（平行投影） ----------
+function setProj(p) {
+  state.ortho = p === 'ortho';
+  renderPass.camera = viewCam();
+  [...$('projSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.proj === p));
+}
+function syncOrtho() {
+  // 平行投影的畫面高度＝透視鏡頭在目標距離處看到的高度，切換時大小不跳
+  const d = camera.position.distanceTo(controls.target);
+  const hh = d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  orthoCam.top = hh; orthoCam.bottom = -hh; orthoCam.left = -hh * camera.aspect; orthoCam.right = hh * camera.aspect;
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  orthoCam.position.copy(controls.target).addScaledVector(dir, d + 2000);   // 往後退，避免切掉鏡頭後方的物件
+  orthoCam.quaternion.copy(camera.quaternion);
+  orthoCam.near = 1; orthoCam.far = d + 2000 + 6000;
+  orthoCam.updateProjectionMatrix(); orthoCam.updateMatrixWorld();
+}
+
+// ---------- 人車 ----------
+function applyTraffic() {
+  const on = state.traffic && state.style === 'normal';
+  for (const g of Object.values(vehicles.groups || {})) g.meshes.forEach((m) => (m.visible = on));
+  if (people.body) people.body.visible = people.head.visible = on;
+}
+
+// ---------- 設定選單（左下） ----------
 function setToggle(k, v) {
-  state[k] = v; tb(k)?.classList.toggle('on', v);
+  state[k] = v;
+  const cb = document.querySelector(`[data-tg="${k}"]`); if (cb) cb.checked = v;
   if (k === 'labels') labels.visible = v;
-  if (k === 'cards' && !v) showCard(null);
   if (k === 'clock') $('clock').classList.toggle('hidden', !v && !state.weather);
   if (k === 'weather') env.weatherOn = v;
-  if (k === 'contrast' || k === 'wire') applyStyle();
+  if (k === 'traffic') applyTraffic();
 }
-for (const b of document.querySelectorAll('[data-tool]')) {
-  const k = b.dataset.tool;
-  b.onclick = () => {
-    if (['labels', 'cards', 'clock', 'weather', 'contrast', 'wire'].includes(k)) setToggle(k, !state[k]);
-    else if (k === 'time') { $('timeSlider').classList.toggle('hidden'); b.classList.toggle('on'); if (!$('timeSlider').classList.contains('hidden')) syncPicker(); }
-    else if (k === 'snap') snapshot();
-    else if (k === 'present') $('presFile').click();
-  };
-}
+document.querySelectorAll('[data-tg]').forEach((cb) => (cb.onchange = () => setToggle(cb.dataset.tg, cb.checked)));
+$('settingsBtn').onclick = () => { $('settings').classList.toggle('hidden'); $('timeSlider').classList.add('hidden'); };
+$('settingsClose').onclick = () => $('settings').classList.add('hidden');
+$('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setStyle(s); };
+$('projSeg').onclick = (e) => { const p = e.target.dataset.proj; if (p) setProj(p); };
+$('lineW').oninput = (e) => setLineW(e.target.value);
+$('snapBtn').onclick = snapshot;
+$('presBtn').onclick = () => $('presFile').click();
+$('openTime').onclick = () => { $('settings').classList.add('hidden'); $('timeSlider').classList.remove('hidden'); syncPicker(); };
+setLineW(state.lineW);
+$('lineRow').classList.add('dim');
+
 // 時間選擇：時、分兩欄滾輪（24 小時制），停下來的那一格就是選到的值
 const tpH = $('tpH'), tpM = $('tpM'), ROW = 40;
 function buildCol(el, n) {
@@ -303,14 +349,60 @@ function syncPicker() {
   setTimeout(() => (pickerSync = false), 200);
 }
 $('timeLive').onclick = () => { env.override = null; syncPicker(); };
-$('timeDone').onclick = () => { $('timeSlider').classList.add('hidden'); document.querySelector('[data-tool="time"]')?.classList.remove('on'); };
+$('timeDone').onclick = () => $('timeSlider').classList.add('hidden');
 
-// ---------- 指北針 ----------
+// ---------- 指北針（真北）、視角方塊、視角切換 ----------
+// 真北：模型 +Y 軸順時針轉 northOffset_deg（預設 23°）。網頁座標：模型 +Y = −Z、+X = +X
+const NORTH = THREE.MathUtils.degToRad(site.northOffset_deg ?? 23);
+const northDir = new THREE.Vector3(Math.sin(NORTH), 0, -Math.cos(NORTH));
+function viewYaw(dirFromTarget) { return Math.atan2(dirFromTarget.x, dirFromTarget.z); }
 $('compass').onclick = () => {
+  // 轉到「真北朝上」：鏡頭放在目標的南邊（沿真北反方向），保持目前的俯角與距離
   const t = controls.target, d = camera.position.clone().sub(t);
   const r = Math.hypot(d.x, d.z);
-  flyTo(t.clone().add(new THREE.Vector3(0, d.y, r)), t.clone(), 900);
+  flyTo(t.clone().add(new THREE.Vector3(-northDir.x * r, d.y, -northDir.z * r)), t.clone(), 900);
 };
+// 依建築 X-Y-Z 軸的視角：dir 為「從目標指向鏡頭」的方向（模型座標 X, Y, Z）
+function viewFromModelDir(X, Y, Z, ms = 1000) {
+  const t = controls.target.clone(), d = camera.position.distanceTo(t);
+  let dir = new THREE.Vector3(X, Z, -Y).normalize();
+  if (X === 0 && Y === 0) dir = new THREE.Vector3(0, 1, 0.0015).normalize();   // 俯視：模型 +Y 朝畫面上方
+  if (Math.abs(Z) < 1e-6) dir.y = 0.012;                                    // 立面：接近水平
+  flyTo(t.clone().addScaledVector(dir.normalize(), d), t, ms);
+}
+const VIEWS = { top: [0, 0, 1], front: [0, -1, 0], back: [0, 1, 0], left: [-1, 0, 0], right: [1, 0, 0] };
+document.querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => viewFromModelDir(...VIEWS[b.dataset.view])));
+
+// CSS 3D 視角方塊：面＝俯視／四向立面，上方四個角＝等角視角
+const cubeCam = $('cubeCam'), S = 40;
+function cssM(m) { const e = m.elements; return 'translate(-50%,-50%) matrix3d(' + [e[0], e[1], e[2], e[3], -e[4], -e[5], -e[6], -e[7], e[8], e[9], e[10], e[11], e[12], e[13], e[14], e[15]].join(',') + ')'; }
+function addCubePart(el, pos, lookN, onClick) {
+  const o = new THREE.Object3D(); o.position.copy(pos);
+  if (lookN && Math.abs(lookN.y) > 0.99) o.rotation.x = -Math.sign(lookN.y) * Math.PI / 2;   // 上下面：文字朝北
+  else if (lookN) o.lookAt(pos.clone().add(lookN));
+  o.updateMatrixWorld(); el.style.transform = cssM(o.matrixWorld);
+  if (onClick) el.onclick = onClick;
+  cubeCam.appendChild(el);
+}
+// 面（網頁座標的法向）：+Y 上、−Z 北(+Y)、+Z 南(−Y)、+X 東、−X 西
+const faces = [
+  ['上', '+Z', new THREE.Vector3(0, 1, 0), 'top'], ['南', '−Y', new THREE.Vector3(0, 0, 1), 'front'], ['北', '+Y', new THREE.Vector3(0, 0, -1), 'back'],
+  ['東', '+X', new THREE.Vector3(1, 0, 0), 'right'], ['西', '−X', new THREE.Vector3(-1, 0, 0), 'left'], ['下', '−Z', new THREE.Vector3(0, -1, 0), null],
+];
+for (const [t, ax, n, v] of faces) {
+  const el = document.createElement('div'); el.className = 'cf'; el.innerHTML = `${t}<small>${ax}</small>`;
+  addCubePart(el, n.clone().multiplyScalar(S / 2), n, v ? () => viewFromModelDir(...VIEWS[v]) : null);
+}
+// 上方四個角：等角視角（模型 X±、Y±、Z+）
+for (const [X, Y] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+  const el = document.createElement('div'); el.className = 'cc'; el.title = '等角視角';
+  const p = new THREE.Vector3(X, 1, -Y).multiplyScalar(S / 2 + 1);
+  addCubePart(el, p, p.clone().normalize(), () => viewFromModelDir(X, Y, 1));
+}
+function updateCube(cam) {
+  const m = new THREE.Matrix4().extractRotation(cam.matrixWorldInverse), e = m.elements;
+  cubeCam.style.transform = 'matrix3d(' + [e[0], -e[1], e[2], e[3], e[4], -e[5], e[6], e[7], e[8], -e[9], e[10], e[11], 0, 0, 0, 1].join(',') + ')';
+}
 
 // ---------- 鏡頭動畫 ----------
 let fly = null;
@@ -319,46 +411,81 @@ function flyTo(pos, target, ms = 1600) {
 }
 
 // ---------- 簡報模式 ----------
-// 代碼格式：NKCA1:<base64 JSON>，可貼到記事本一行一個，依序播放
+// txt 格式：
+//   NKCA1:xxxx     ← 一頁（由「複製代碼」取得）
+//   # 標題          ← H1
+//   ## 副標         ← H2
+//   一般文字        ← 內文（可多行）
+//   // 註記        ← 不顯示（頁次、提醒）
+// 文字只在這次簡報顯示，不會存在瀏覽器裡。
 function snapshot() {
   const s = {
-    v: 1, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
-    ui: { labels: state.labels, cards: state.cards, clock: state.clock, weather: state.weather, contrast: state.contrast, wire: state.wire },
-    tod: env.override, card: state.card || null,
+    v: 2, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
+    ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic },
+    style: state.style, lw: state.lineW, proj: state.ortho ? 'ortho' : 'persp',
+    tod: env.override, card: labels.openId(),
   };
   const code = 'NKCA1:' + btoa(unescape(encodeURIComponent(JSON.stringify(s))));
   navigator.clipboard?.writeText(code);
-  toast('已複製簡報代碼（貼到記事本，一行一個）：\n' + code, 6000);
+  toast('已複製簡報代碼（貼到記事本，一頁一行）：\n' + code, 6000);
 }
-function decode(line) {
-  const m = line.trim().match(/^NKCA1:([A-Za-z0-9+/=]+)/);
-  if (!m) return null;
-  try { return JSON.parse(decodeURIComponent(escape(atob(m[1])))); } catch { return null; }
+function decode(code) {
+  try { return JSON.parse(decodeURIComponent(escape(atob(code)))); } catch { return null; }
+}
+function parseDeck(txt) {
+  const cues = []; let cur = null;
+  for (const raw of txt.split(/\r?\n/)) {
+    const line = raw.trim();
+    const m = line.match(/^NKCA1:([A-Za-z0-9+/=]+)/);
+    if (m) { const s = decode(m[1]); if (s) { cur = { ...s, h1: '', h2: '', p: [] }; cues.push(cur); } continue; }
+    if (!cur || !line || line.startsWith('//')) continue;
+    if (line.startsWith('## ')) cur.h2 = line.slice(3).trim();
+    else if (line.startsWith('# ')) cur.h1 = line.slice(2).trim();
+    else cur.p.push(line);
+  }
+  return cues;
 }
 const pres = { cues: [], i: 0 };
 $('presFile').onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;
-  pres.cues = (await f.text()).split(/\r?\n/).map(decode).filter(Boolean);
+  pres.cues = parseDeck(await f.text());
   e.target.value = '';
   if (!pres.cues.length) { toast('檔案中沒有可用的簡報代碼'); return; }
+  $('settings').classList.add('hidden');
   state.presenting = true; document.body.classList.add('presenting');
   $('presBar').classList.remove('hidden'); renderLiftPanel(true);
   goCue(0);
 };
+function showPresText(s) {
+  const box = $('presText'), has = s.h1 || s.h2 || s.p.length;
+  box.classList.add('fade');
+  setTimeout(() => {
+    box.querySelector('h1').textContent = s.h1 || '';
+    box.querySelector('h2').textContent = s.h2 || '';
+    const pt = box.querySelector('.pt'); pt.innerHTML = '';
+    for (const t of s.p) { const p = document.createElement('p'); p.textContent = t; pt.appendChild(p); }
+    box.classList.toggle('hidden', !has);
+    requestAnimationFrame(() => box.classList.remove('fade'));
+  }, 250);
+}
 function goCue(i) {
   pres.i = Math.max(0, Math.min(pres.cues.length - 1, i));
   const s = pres.cues[pres.i];
   $('presIdx').textContent = `${pres.i + 1}/${pres.cues.length}`;
   if (s.m) setMode(s.m, true);
   if (s.h) for (const h of halls) if (s.h[h.id]) setHallFloor(h, s.h[h.id]);
-  for (const [k, v] of Object.entries(s.ui || {})) setToggle(k, v);
+  for (const [k, v] of Object.entries(s.ui || {})) if (k in state) setToggle(k, v);
+  setStyle(s.style || (s.ui?.wire ? 'wire' : s.ui?.contrast ? 'contrast' : 'normal'));
+  if (s.lw) setLineW(s.lw);
+  setProj(s.proj || 'persp');
   env.override = s.tod ?? null;
-  showCard(s.card && state.cards ? s.card : null);
+  if (s.card) labels.openById(s.card); else labels.close();
+  showPresText(s);
   flyTo(cm2w(s.c), cm2w(s.t));
 }
 function exitPres() {
   state.presenting = false; document.body.classList.remove('presenting');
-  $('presBar').classList.add('hidden'); renderLiftPanel(true);
+  $('presBar').classList.add('hidden'); $('presText').classList.add('hidden'); renderLiftPanel(true);
 }
 $('presPrev').onclick = () => goCue(pres.i - 1);
 $('presNext').onclick = () => goCue(pres.i + 1);
@@ -375,6 +502,8 @@ function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false); composer.setSize(w, h); bloom.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
+  const pr = renderer.getPixelRatio();
+  edgeMat.resolution.set(w * pr, h * pr); groundEdgeMat.resolution.set(w * pr, h * pr);
 }
 addEventListener('resize', resize); resize();
 
@@ -398,11 +527,15 @@ renderer.setAnimationLoop(() => {
   }
   controls.update();
   if (camera.position.y < 1.2) camera.position.y = 1.2;
+  camera.updateMatrixWorld();
+  if (state.ortho) syncOrtho();
+  const cam = viewCam();
   env.update(dt);
-  if (state.contrast || state.wire) { scene.background = new THREE.Color(0xffffff); env.sky.visible = env.dome.visible = env.stars.visible = false; scene.fog.density = 0; }
+  const plain = state.contrast || state.wire;
+  if (plain) { scene.background = new THREE.Color(0xffffff); env.sky.visible = env.dome.visible = env.stars.visible = false; scene.fog.density = 0; }
   // 高對比／線架構不做色調映射，白就是純白（OutputPass 依 renderer.toneMapping 決定）
-  renderer.toneMapping = state.contrast || state.wire ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
-  const n = state.contrast || state.wire ? 0 : env.night;
+  renderer.toneMapping = plain ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+  const n = plain ? 0 : env.night;
   // 建築燈光營運時間（config/lights.json 的 buildingHours）：23:00 熄燈，路燈、車燈、道路標線不受影響
   venueK += ((buildingOpen(env.now()) ? 1 : 0) - venueK) * Math.min(1, dt * 1.5);
   night.update(n, n * venueK);
@@ -417,8 +550,9 @@ renderer.setAnimationLoop(() => {
     if (L.t >= 1) lifts.splice(i, 1);
   }
   composer.render();
-  labels.update(camera, innerWidth, innerHeight);
-  if (t - lastUI > 0.25) {
+  labels.update(cam, innerWidth, innerHeight);
+  updateCube(camera);
+  if (t - lastUI > 0.2) {
     lastUI = t;
     const d = env.now();
     const tp = d.toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -427,12 +561,21 @@ renderer.setAnimationLoop(() => {
     $('weather').textContent = state.weather ? env.weatherText() : '';
     $('clock').classList.toggle('hidden', !state.clock && !state.weather);
     $('timeLabel').textContent = env.override != null ? '手動 ' + tp : '即時';
-    const az = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
-    $('compassRose').setAttribute('transform', `rotate(${THREE.MathUtils.radToDeg(az)} 32 32)`);
     renderLiftPanel(false);
-    document.body.classList.toggle('night', env.night > 0.5 && !state.contrast && !state.wire);
+    document.body.classList.toggle('night', env.night > 0.5 && !plain);
   }
+  // 指北針：真北方向相對於畫面「往前」的角度（順時針為正）
+  const f = controls.target.clone().sub(camera.position); f.y = 0;
+  if (f.lengthSq() < 1e-8) f.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0);
+  f.normalize();
+  const r = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize();
+  // 俯視時「往前」以鏡頭的上方向為準
+  if (camera.position.clone().sub(controls.target).normalize().y > 0.995) {
+    f.set(0, 1, 0).applyQuaternion(camera.quaternion).setY(0).normalize(); r.crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize();
+  }
+  const ang = Math.atan2(northDir.dot(r), northDir.dot(f));
+  $('compassRose').style.transform = `rotate(${THREE.MathUtils.radToDeg(ang)}deg)`;
 });
 
 // 開發者用：在主控台 window.nkca 可以查物件
-window.nkca = { scene, camera, controls, model, env, state, setMode, flyTo, fountain, night, vehicles, people, renderer };
+window.nkca = { scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir };

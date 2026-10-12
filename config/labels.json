@@ -1,7 +1,8 @@
 {
- "_說明": "地點標籤，可自由增刪；pos_cm 為 Fusion 座標（cm）。show=false 先隱藏。",
+ "_說明": "地點標籤，可自由增刪；pos_cm 為 Fusion 座標（cm）。show=false 先隱藏。標籤會自動放在該位置最上層表面的上方，被建築擋住時自動隱藏。card 為點標籤後往下展開的資料卡：h1 標題、h2 副標、p 內文、sections 為分段（title 小標＋items 條列）。沒有 card 的標籤不能點。",
  "labels": [
   {
+   "id": "opera",
    "text": "歌劇院",
    "pos_cm": [
     13700,
@@ -11,6 +12,7 @@
    "show": true
   },
   {
+   "id": "concert",
    "text": "音樂廳",
    "pos_cm": [
     20900,
@@ -20,6 +22,7 @@
    "show": true
   },
   {
+   "id": "recital",
    "text": "表演廳",
    "pos_cm": [
     21350,
@@ -29,6 +32,7 @@
    "show": true
   },
   {
+   "id": "playhouse",
    "text": "戲劇院",
    "pos_cm": [
     6300,
@@ -38,6 +42,7 @@
    "show": true
   },
   {
+   "id": "outdoor",
    "text": "戶外劇場",
    "pos_cm": [
     11500,
@@ -47,6 +52,7 @@
    "show": true
   },
   {
+   "id": "banyan",
    "text": "榕樹廣場",
    "pos_cm": [
     13800,
@@ -56,13 +62,34 @@
    "show": true
   },
   {
-   "text": "旱地噴泉",
+   "id": "fountain",
+   "text": "榕泉",
    "pos_cm": [
     17150,
     26146,
     400
    ],
-   "show": true
+   "show": true,
+   "card": {
+    "h1": "榕泉",
+    "h2": "北側廣場旱地噴泉",
+    "sections": [
+     {
+      "title": "開放時間",
+      "items": [
+       "每日11:00 至 21:00 開放",
+       "每小時整點啟動一次，每次運轉 15分鐘"
+      ]
+     },
+     {
+      "title": "注意事項",
+      "items": [
+       "噴泉中央主水柱的瞬間噴壓較強，靠近時請多加留意孩童與自身安全。",
+       "若遇到大雨、颱風停班停課，或是水情管制等特殊情況，榕泉會暫停開放。"
+      ]
+     }
+    ]
+   }
   }
  ]
 }

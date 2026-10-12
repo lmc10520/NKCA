@@ -25,7 +25,6 @@ button{font:inherit;color:inherit;border:none;background:none;cursor:pointer;-we
 .fab.primary{background:var(--tonal);color:var(--on-tonal)}
 .fab.on{background:var(--tonal);color:var(--on-tonal)}
 
-#compass{top:16px;left:16px;padding:0}
 #compass svg{width:30px;height:30px}
 #compass .n{fill:#ea4335} #compass .s{fill:#9aa0a6}
 
@@ -50,18 +49,9 @@ body.night #clock{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 .liftButtons button:hover{background:var(--surface-2)}
 .liftButtons button.on{background:var(--primary);color:var(--on-primary)}
 
-/* 篩選晶片 */
-.chips{left:16px;bottom:20px;display:flex;gap:8px;max-width:calc(100% - 260px);overflow-x:auto;padding:2px;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{height:36px;padding:0 14px 0 10px;border-radius:999px;background:var(--surface);box-shadow:var(--elev1);
-  display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--on-2);white-space:nowrap}
-.chip .ms{font-size:18px}
-.chip.on{background:var(--tonal);color:var(--on-tonal)}
-
-#fabs{right:16px;bottom:20px;display:flex;gap:12px;align-items:flex-end}
 
 .sheet{background:var(--surface);border-radius:20px;box-shadow:var(--elev2)}
-#timeSlider{right:16px;bottom:88px;width:236px;padding:14px 16px 8px;color:var(--on-2)}
+#timeSlider{left:16px;bottom:84px;width:236px;padding:14px 16px 8px;color:var(--on-2)}
 .tpHead{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:var(--on);margin-bottom:6px}
 .tpHead .ms{color:var(--on-2)}
 .tpState{margin-left:auto;font-size:12px;color:var(--primary);font-weight:500}
@@ -78,10 +68,6 @@ body.night #clock{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 button.text{color:var(--primary);font-weight:500;padding:8px 10px;border-radius:999px}
 button.text:hover{background:#e8f0fe}
 
-#card{left:16px;bottom:72px;width:min(360px,calc(100% - 32px));padding:18px 20px}
-#card h3{margin:0 28px 6px 0;font-size:18px;font-weight:500}
-#cardBody{font-size:14px;color:var(--on-2);line-height:1.6}
-#cardBody img{width:100%;border-radius:12px;margin-top:8px}
 .x{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;color:var(--on-2)}
 .x:hover{background:var(--surface-2)}
 
@@ -96,14 +82,12 @@ button.text:hover{background:#e8f0fe}
 #presBar .icon:hover{background:var(--surface-2)}
 #presBar .ms{font-size:26px}
 #presIdx{min-width:4em;text-align:center;font-variant-numeric:tabular-nums;color:var(--on-2);font-weight:500}
-body.presenting #toolbar,body.presenting #fabs,body.presenting #modeBar,body.presenting #timeSlider{display:none!important}
+body.presenting #settingsBtn,body.presenting #settings,body.presenting #modeBar,body.presenting #timeSlider{display:none!important}
 
 #toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:40;background:#303030;color:#f2f2f2;
   border-radius:4px;padding:12px 16px;max-width:min(640px,calc(100% - 32px));font-size:14px;word-break:break-all;box-shadow:var(--elev2)}
 
 #labels{position:fixed;inset:0;pointer-events:none;z-index:5}
-.lbl{position:absolute;left:0;top:0;color:#202124;font-size:13px;font-weight:500;padding:4px 10px;border-radius:999px;background:#fff;
-  box-shadow:var(--elev1);white-space:nowrap}
 
 #loading{position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 #loading .bar{width:min(280px,70vw);height:4px;background:#d3e3fd;border-radius:2px;overflow:hidden}
@@ -111,13 +95,96 @@ body.presenting #toolbar,body.presenting #fabs,body.presenting #modeBar,body.pre
 #loadNote{color:var(--on-2);font-size:12px;opacity:.7}
 #loadText{color:var(--on-2);font-size:14px}
 
+/* 左上：指北針、視角方塊、視角切換 */
+#navTL{top:16px;left:16px;display:flex;flex-direction:column;align-items:center;gap:10px;width:64px}
+#compass{padding:0}
+#compass svg{width:34px;height:34px;overflow:visible}
+#compass .n{fill:#ea4335} #compass .s{fill:#9aa0a6}
+#compass .nt{font:700 7px Roboto,sans-serif;fill:#fff;text-anchor:middle}
+#compassRose{transform-origin:24px 24px;transform-box:view-box}
+#viewCube{position:relative;width:64px;height:64px;perspective:none}
+#cubeCam{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d}
+.cf{position:absolute;left:0;top:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  background:rgba(255,255,255,.94);border:1px solid #b8bec6;color:#3c4043;font:600 11px/1.1 Roboto,"Noto Sans TC",sans-serif;cursor:pointer;
+  backface-visibility:hidden;user-select:none}
+.cf small{font-weight:500;font-size:8px;color:#80868b}
+.cf:hover{background:#d3e3fd}
+.cc{position:absolute;left:0;top:0;width:10px;height:10px;border-radius:50%;background:#0b57d0;border:2px solid #fff;cursor:pointer;box-shadow:0 0 2px rgba(0,0,0,.4)}
+.cc:hover{background:#ea4335}
+.ax{position:absolute;left:0;top:0;height:2px;width:26px;transform-origin:0 50%}
+.ax b{position:absolute;right:-9px;top:-6px;font:700 9px Roboto,sans-serif}
+.pad3{display:grid;grid-template-columns:repeat(3,20px);grid-template-rows:repeat(3,20px);gap:2px;background:var(--surface);padding:4px;border-radius:12px;box-shadow:var(--elev1)}
+.pad3 button{width:20px;height:20px;border-radius:6px;font-size:11px;font-weight:500;color:var(--on-2);padding:0}
+.pad3 button:hover{background:var(--tonal);color:var(--on-tonal)}
+.pad3 .mid{background:var(--surface-2)}
+
+/* 標籤＋資料卡 */
+.lbl{position:absolute;left:0;top:0;width:0;height:0;transition:opacity .25s}
+.lbl.gone{opacity:0;pointer-events:none}
+.lbl.gone .lblText{pointer-events:none}
+.lblText{position:absolute;bottom:6px;left:0;transform:translateX(-50%);color:#202124;font-size:13px;font-weight:500;padding:4px 10px;border-radius:999px;
+  background:#fff;box-shadow:var(--elev1);white-space:nowrap}
+.lbl.clickable .lblText{pointer-events:auto;cursor:pointer;padding-right:24px}
+.lbl.clickable .lblText::after{content:"";position:absolute;right:10px;top:50%;width:6px;height:6px;border-right:2px solid var(--on-2);border-bottom:2px solid var(--on-2);transform:translateY(-70%) rotate(45deg);transition:transform .2s}
+.lbl.open .lblText{background:var(--primary);color:#fff}
+.lbl.open .lblText::after{border-color:#fff;transform:translateY(-25%) rotate(-135deg)}
+.lblCard{position:absolute;left:0;top:4px;transform:translateX(-50%);width:min(320px,calc(100vw - 32px));pointer-events:auto;
+  background:var(--surface);border-radius:20px;box-shadow:var(--elev2);padding:16px 18px 12px;color:var(--on-2);font-size:14px;line-height:1.55;
+  animation:drop .22s ease-out;max-height:60vh;overflow:auto}
+.lbl.up .lblCard{top:auto;bottom:40px}
+@keyframes drop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+.lblCard h1{margin:0 28px 2px 0;font-size:22px;font-weight:500;color:var(--on)}
+.lblCard h2{margin:0 0 8px;font-size:14px;font-weight:500;color:var(--primary)}
+.lblCard h3{margin:10px 0 2px;font-size:14px;font-weight:600;color:var(--on)}
+.lblCard ul{margin:0;padding-left:1.2em}
+.lblCard li{margin:2px 0}
+.lblCard p{margin:4px 0}
+.lblCard img{width:100%;border-radius:12px;margin-top:8px}
+
+/* 左下：設定 */
+#settingsBtn{left:16px;bottom:20px}
+#settings{left:16px;bottom:88px;width:300px;max-height:calc(100vh - 120px);overflow:auto;padding:12px 16px 14px;color:var(--on)}
+.setHead{display:flex;align-items:center;font-size:16px;font-weight:500;margin-bottom:4px}
+.setHead .x{position:static;margin-left:auto}
+.setSec{font-size:12px;font-weight:600;color:var(--primary);margin:12px 0 4px;letter-spacing:.3px}
+.setRow{display:flex;align-items:center;gap:10px;min-height:40px;font-size:14px}
+.setRow>.ms{color:var(--on-2)}
+.setRow>:last-child{margin-left:auto}
+.setRow input[type=range]{flex:1;accent-color:var(--primary);min-width:0}
+.setRow b{width:2em;text-align:right;font-weight:500;color:var(--on-2);font-variant-numeric:tabular-nums}
+.sw{position:relative;width:40px;height:24px;flex:none}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw i{position:absolute;inset:0;border-radius:999px;background:#e1e3e1;border:2px solid #747775;transition:.15s}
+.sw i::after{content:"";position:absolute;left:4px;top:50%;width:12px;height:12px;border-radius:50%;background:#747775;transform:translateY(-50%);transition:.15s}
+.sw input:checked+i{background:var(--primary);border-color:var(--primary)}
+.sw input:checked+i::after{left:18px;width:16px;height:16px;background:#fff}
+.seg2{display:flex;background:var(--surface-2);border-radius:999px;padding:3px;gap:2px}
+.seg2 button{flex:1;height:34px;border-radius:999px;font-size:13px;font-weight:500;color:var(--on-2)}
+.seg2 button.on{background:var(--surface);color:var(--on);box-shadow:var(--elev1)}
+.setRow.dim{opacity:.45}
+.setNote{font-size:12px;color:var(--on-2);line-height:1.6;margin-top:4px}
+.setNote code{background:var(--surface-2);padding:0 4px;border-radius:4px}
+.setNote a{color:var(--primary)}
+
+/* 簡報文字框 */
+#presText{left:24px;bottom:84px;max-width:min(520px,calc(100% - 48px));background:rgba(255,255,255,.94);border-radius:20px;box-shadow:var(--elev2);
+  padding:18px 22px;transition:opacity .4s}
+#presText.fade{opacity:0}
+#presText h1{margin:0;font-size:28px;font-weight:500;color:var(--on)}
+#presText h2{margin:4px 0 0;font-size:17px;font-weight:500;color:var(--primary)}
+#presText .pt{margin-top:8px;font-size:15px;line-height:1.65;color:var(--on-2)}
+#presText .pt p{margin:4px 0}
+#presText h1:empty,#presText h2:empty,#presText .pt:empty{display:none}
+
 @media (max-width:720px){
   .seg{top:68px} .seg button{height:36px;padding:0 12px;font-size:13px}
   #clock{top:12px;right:14px} #clockTime{font-size:24px}
-  .chips{bottom:88px;left:12px;max-width:calc(100% - 24px)}
-  #fabs{right:12px;bottom:16px;gap:10px}
   .fab{width:48px;height:48px;border-radius:14px}
   #liftPanel{right:10px}
-  #card{bottom:140px}
-  #timeSlider{right:12px;bottom:76px}
+  #timeSlider{left:12px;bottom:76px}
+  #settings{left:12px;bottom:76px;width:calc(100% - 24px)}
+  #settingsBtn{left:12px;bottom:16px}
+  #navTL{top:12px;left:12px}
+  #presText{left:12px;bottom:80px}
+  #presText h1{font-size:22px}
 }

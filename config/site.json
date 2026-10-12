@@ -35,5 +35,7 @@
   "zenith": "#0b1834",
   "sky": "#1e3260",
   "horizon": "#4a5d86"
- }
+ },
+ "northOffset_deg": 23,
+ "_northOffset說明": "真北＝模型 +Y 軸順時針轉幾度（指北針用）"
 }

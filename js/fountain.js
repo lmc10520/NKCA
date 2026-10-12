@@ -38,10 +38,13 @@ export class Fountain {
 
   isShowTime(date) {
     if (this.forced) return true;
-    const s = this.cfg.schedule || { minute: 0, duration_min: 10 };
+    const s = this.cfg.schedule || {};
+    const hm = (t, d) => { const [h, m] = String(t ?? d).split(':').map(Number); return h * 60 + (m || 0); };
     const tp = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-    const m = tp.getMinutes();
-    return m >= s.minute && m < s.minute + s.duration_min;
+    const now = tp.getHours() * 60 + tp.getMinutes();
+    const start = tp.getHours() * 60 + (s.minute ?? 0);          // 這一小時的啟動時間
+    if (start < hm(s.open, '00:00') || start >= hm(s.close, '24:00')) return false;
+    return now >= start && now < start + (s.duration_min ?? 15);
   }
 
   update(t, date, night) {
