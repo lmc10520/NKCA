@@ -18,6 +18,20 @@ import { Labels, Pois } from './labels.js';
 
 const $ = (id) => document.getElementById(id);
 
+// ---------- 載入進度：數字平滑往上跳 ----------
+const load = { shown: 0, target: 0 };
+function setLoad(pct, text) { load.target = Math.max(load.target, Math.min(100, pct)); if (text) $('loadText').textContent = text; }
+(function tickLoad() {
+  if ($('loading').classList.contains('hidden')) return;
+  load.shown += (load.target - load.shown) * 0.18;
+  if (load.target - load.shown < 0.4) load.shown = load.target;
+  $('loadPct').firstChild.nodeValue = Math.floor(load.shown);
+  $('loadBar').style.width = load.shown.toFixed(1) + '%';
+  requestAnimationFrame(tickLoad);
+})();
+const paint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // 讓畫面有機會更新數字
+setLoad(2, '讀取設定…');
+
 // ---------- 設定 ----------
 const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg] =
   await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois']
@@ -82,7 +96,11 @@ composer.addPass(new OutputPass());
 const env = new Environment(scene, renderer, site);
 
 // ---------- 模型 ----------
-const model = await loadModel(site.model || 'model/nkca.glb', (f) => ($('loadBar').style.width = (f * 100).toFixed(0) + '%'));
+setLoad(5, '下載模型…');
+// 沒有檔案大小資訊時，用 site.json 的 modelBytes（約 8.8 MB）估算
+const model = await loadModel(site.model || 'model/nkca.glb', (loaded, total) =>
+  setLoad(5 + 75 * Math.min(1, loaded / (total || site.modelBytes || 9e6)), loaded >= (total || Infinity) ? '解析模型…' : '下載模型…'));
+setLoad(82, '整理模型…'); await paint();
 scene.add(model.root);
 const exclude = makeMatcher(modesCfg.exclude, modesCfg.groups);
 for (const m of model.meshes) if (exclude(m.userData.fname)) { m.visible = false; m.userData.excluded = true; }
@@ -108,14 +126,17 @@ for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
 const groundRe = new RegExp(site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
 for (const m of model.meshes) m.userData.isGround = groundRe.test(m.userData.fname);
 
+setLoad(86, '佈置夜間燈光…'); await paint();
 const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
 night.addStreetLights(streetCfg);
+setLoad(93, '加入人車與噴泉…'); await paint();
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
 const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles);
 const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
 const labels = new Labels(labelsCfg, model);
 const pois = new Pois(poisCfg, model, labels);
+setLoad(100, '完成'); await paint(); await new Promise((r) => setTimeout(r, 250));
 $('loading').classList.add('hidden');
 
 // ---------- 可見性：模式 + 廳院樓層 ----------
@@ -501,6 +522,21 @@ function updateCube(cam) {
 }
 $('cubeHome').onclick = () => flyTo(cm2w(sc.pos_cm || [2000, -12000, 16000]), cm2w(sc.target_cm || [13700, 15300, 0]), 1200);
 
+// ---------- 迎賓模式：載入後時間天氣大字置中、模型緩慢自轉；使用者一操作就回到一般瀏覽 ----------
+const welcome = { on: site.welcome !== false };
+if (welcome.on) {
+  document.body.classList.add('welcome'); $('welcomeHint').classList.remove('hidden');
+  controls.autoRotate = true; controls.autoRotateSpeed = site.welcomeRotateSpeed ?? 0.5;   // 約 2 分鐘轉一圈
+  const end = () => {
+    if (!welcome.on) return;
+    welcome.on = false; controls.autoRotate = false;
+    document.body.classList.remove('welcome'); $('welcomeHint').classList.add('hidden');
+    for (const [ev, opt] of WELCOME_EVENTS) removeEventListener(ev, end, opt);
+  };
+  const WELCOME_EVENTS = [['pointerdown', true], ['wheel', true], ['keydown', true], ['touchstart', true]];
+  for (const [ev, opt] of WELCOME_EVENTS) addEventListener(ev, end, opt);
+}
+
 // ---------- 鏡頭動畫 ----------
 let fly = null;
 function flyTo(pos, target, ms = 1600) {
@@ -636,7 +672,7 @@ renderer.setAnimationLoop(() => {
     camera.position.lerpVectors(fly.p0, fly.p1, k); controls.target.lerpVectors(fly.t0, fly.t1, k);
     if (fly.t >= 1) fly = null;
   }
-  controls.update();
+  controls.update(dt);   // 傳入 dt：迎賓自轉速度與幀率無關
   if (camera.position.y < 1.2) camera.position.y = 1.2;
   camera.updateMatrixWorld();
   if (state.ortho) syncOrtho();

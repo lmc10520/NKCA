@@ -44,5 +44,9 @@
   "^Site_Grass$": 3,
   "^Site_North_Mound_Solid$": -4,
   "^(Site_Dry_Fountain|Site_Fountain_)": 2
- }
+ },
+ "welcome": true,
+ "welcomeRotateSpeed": 0.5,
+ "modelBytes": 8834256,
+ "_welcome說明": "welcome：載入後先顯示迎賓畫面（時間天氣大字置中、模型自轉），使用者點擊或拖曳後結束；welcomeRotateSpeed 為自轉速度（0.5 約 2 分鐘一圈）。modelBytes：模型檔大小，用來估算下載進度。"
 }

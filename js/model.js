@@ -10,7 +10,7 @@ export async function loadModel(url, onProgress) {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
   loader.setMeshoptDecoder(MeshoptDecoder);
-  const gltf = await loader.loadAsync(url, (e) => e.total && onProgress?.(e.loaded / e.total));
+  const gltf = await loader.loadAsync(url, (e) => onProgress?.(e.loaded, e.total));
   const root = gltf.scene;
   const meshes = [];
   const byName = new Map();
