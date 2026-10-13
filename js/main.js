@@ -523,19 +523,25 @@ function updateCube(cam) {
 $('cubeHome').onclick = () => flyTo(cm2w(sc.pos_cm || [2000, -12000, 16000]), cm2w(sc.target_cm || [13700, 15300, 0]), 1200);
 
 // ---------- 迎賓模式：載入後時間天氣大字置中、模型緩慢自轉；使用者一操作就回到一般瀏覽 ----------
-const welcome = { on: site.welcome !== false };
-if (welcome.on) {
+const welcome = { on: false };
+const WELCOME_EVENTS = ['pointerdown', 'wheel', 'keydown', 'touchstart'];
+function endWelcome() {
+  if (!welcome.on) return;
+  welcome.on = false; controls.autoRotate = false;
+  document.body.classList.remove('welcome'); $('welcomeHint').classList.add('hidden');
+  for (const ev of WELCOME_EVENTS) removeEventListener(ev, endWelcome, true);
+}
+function startWelcome() {
+  if (welcome.on || state.presenting) return;
+  welcome.on = true;
+  $('settings').classList.add('hidden'); $('timeSlider').classList.add('hidden'); labels.close();
   document.body.classList.add('welcome'); $('welcomeHint').classList.remove('hidden');
   controls.autoRotate = true; controls.autoRotateSpeed = site.welcomeRotateSpeed ?? 0.5;   // 約 2 分鐘轉一圈
-  const end = () => {
-    if (!welcome.on) return;
-    welcome.on = false; controls.autoRotate = false;
-    document.body.classList.remove('welcome'); $('welcomeHint').classList.add('hidden');
-    for (const [ev, opt] of WELCOME_EVENTS) removeEventListener(ev, end, opt);
-  };
-  const WELCOME_EVENTS = [['pointerdown', true], ['wheel', true], ['keydown', true], ['touchstart', true]];
-  for (const [ev, opt] of WELCOME_EVENTS) addEventListener(ev, end, opt);
+  // 等這次點擊結束後才開始監聽，避免按下「開啟迎賓模式」的同一下就把它關掉
+  setTimeout(() => { if (welcome.on) for (const ev of WELCOME_EVENTS) addEventListener(ev, endWelcome, true); }, 400);
 }
+$('welcomeBtn').onclick = (e) => { e.stopPropagation(); startWelcome(); };
+if (site.welcome !== false) startWelcome();
 
 // ---------- 鏡頭動畫 ----------
 let fly = null;

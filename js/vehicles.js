@@ -37,6 +37,11 @@ export class Vehicles {
     if (!cfg?.enabled) return;
     const k = isMobile ? 0.5 : 1;
     const byType = {};
+    this.routes = [];
+    // 紅綠燈（roads.json 的 signals）：依車輛「進入路口時的行進方向」分相位
+    this.signals = (cfg.signals || []).map((sg) => ({ ...sg, c: cm2w([sg.center_cm[0], sg.center_cm[1], 0]), R: sg.radius_cm / 100,
+      cycle: sg.phases.length * ((sg.green_s ?? 20) + (sg.yellow_s ?? 3) + (sg.allred_s ?? 2)) }));
+    this.time = 0;
     for (const r of cfg.routes || []) {
       const pts = r.pts_cm.map((p) => cm2w([p[0], p[1], p[2] ?? 0]).add(new THREE.Vector3(0, 0.02, 0)));
       if (pts.length < 2) continue;
@@ -44,12 +49,16 @@ export class Vehicles {
       const len = curve.getLength();
       curve.arcLengthDivisions = Math.max(200, Math.round(len / 2));
       curve.updateArcLengths();
+      const rt = { curve, len, entries: [], vs: [] };
+      this.routes.push(rt);
+      this.findEntries(rt);
       const n = Math.max(1, Math.round((r.count || 1) * k));
       for (let i = 0; i < n; i++) {
-        const v = { type: r.type, curve, len, loop: !!r.loop, park: r.kind !== 'road',
+        const v = { type: r.type, rt, curve, len, loop: !!r.loop, park: r.kind !== 'road', cur: 0, half: { car: 2.3, scooter: 1, bus: 6.1 }[r.type] || 2.3,
           u: (i + Math.random() * 0.6) / n, speed: ((r.speed_kmh || 30) / 3.6) * (0.85 + Math.random() * 0.3), wait: 0 };
         if (v.park) { v.u = Math.random() * 0.3; v.wait = Math.random() * 20; }
-        (byType[r.type] ||= []).push(v); this.list.push(v);
+        v.cur = v.speed;
+        (byType[r.type] ||= []).push(v); this.list.push(v); rt.vs.push(v);
       }
     }
     const headMat = new THREE.MeshBasicMaterial({ color: lightCfg?.headlight || '#fff6dd', toneMapped: false });
@@ -82,8 +91,68 @@ export class Vehicles {
     }
     this._m = new THREE.Matrix4(); this._p = new THREE.Vector3(); this._q = new THREE.Vector3();
     this._up = new THREE.Vector3(0, 1, 0); this._zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    this.buildSignalHeads(scene);
   }
-  setVisible(v) { this.visible = v; for (const g of Object.values(this.groups)) g.meshes.forEach((m) => (m.visible = v)); }
+  // 每條路線進入各路口的位置（u）與所屬相位
+  findEntries(rt) {
+    if (!this.signals.length) return;
+    const p = new THREE.Vector3(), q = new THREE.Vector3(), step = 1 / Math.max(10, Math.round(rt.len));
+    for (const [si, sg] of this.signals.entries()) {
+      let prevIn = null;
+      for (let u = 0; u <= 1; u += step) {
+        rt.curve.getPointAt(u, p);
+        const inside = Math.hypot(p.x - sg.c.x, p.z - sg.c.z) < sg.R;
+        if (inside && prevIn === false) {
+          rt.curve.getPointAt(Math.min(1, u + 2 / rt.len), q);
+          const h = (THREE.MathUtils.radToDeg(Math.atan2(-(q.z - p.z), q.x - p.x)) + 360) % 360;   // 模型座標的行進方向（0=東、90=北）
+          const ph = sg.phases.findIndex((ranges) => ranges.some(([a, b]) => (a <= b ? h >= a && h <= b : h >= a || h <= b)));
+          if (ph >= 0) rt.entries.push({ u, sig: si, phase: ph, pos: p.clone(), heading: h });
+        }
+        prevIn = inside;
+      }
+    }
+    rt.entries.sort((a, b) => a.u - b.u);
+  }
+  // 相位狀態：'g' 綠、'y' 黃、'r' 紅
+  phaseState(sg, ph) {
+    const G = sg.green_s ?? 20, Y = sg.yellow_s ?? 3, A = sg.allred_s ?? 2, slot = G + Y + A;
+    const t = (this.time + (sg.offset_s ?? 0)) % sg.cycle, cur = Math.floor(t / slot), r = t - cur * slot;
+    if (cur !== ph) return 'r';
+    return r < G ? 'g' : r < G + Y ? 'y' : 'r';
+  }
+  // 號誌燈頭：每個「相位 × 進入方向」一支，立在停止線右側路邊
+  buildSignalHeads(scene) {
+    this.heads = [];
+    if (!this.signals.length) return;
+    const groups = new Map();
+    for (const rt of this.routes) for (const e of rt.entries) {
+      const key = `${e.sig}:${e.phase}:${Math.round(e.heading / 30)}`;
+      if (!groups.has(key)) groups.set(key, { e, pts: [] });
+      groups.get(key).pts.push(e.pos);
+    }
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x3c4046, roughness: 0.6 });
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x1b1c1e, roughness: 0.5 });
+    for (const { e, pts } of groups.values()) {
+      const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+      const h = THREE.MathUtils.degToRad(e.heading);
+      const fwd = new THREE.Vector3(Math.cos(h), 0, -Math.sin(h)), right = new THREE.Vector3(-fwd.z, 0, fwd.x);   // 行進方向的右手邊
+      const g = new THREE.Group();
+      g.position.copy(c).addScaledVector(right, 6).addScaledVector(fwd, -2);   // 右側路邊、停止線前
+      g.position.y = c.y;
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 5.2, 8).translate(0, 2.6, 0), poleMat));
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.25, 0.3).translate(0, 5.4, 0), boxMat); g.add(box);
+      const lamps = ['#ff3b30', '#ffb300', '#2bd16b'].map((col, i) => {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8).translate(0, 5.8 - i * 0.4, 0.16),
+          new THREE.MeshBasicMaterial({ color: col, toneMapped: false }));
+        m.userData.on = new THREE.Color(col).multiplyScalar(2.2); m.userData.off = new THREE.Color(col).multiplyScalar(0.12);
+        g.add(m); return m;
+      });
+      g.lookAt(g.position.clone().sub(fwd));   // 燈面朝向來車
+      scene.add(g);
+      this.heads.push({ g, lamps, sig: this.signals[e.sig], phase: e.phase });
+    }
+  }
+  setVisible(v) { this.visible = v; for (const g of Object.values(this.groups)) g.meshes.forEach((m) => (m.visible = v)); }  // 號誌燈保留
   update(dt, night) {
     if (!this.headMat || !this.visible) return;
     dt = Math.min(dt, 0.1);
@@ -91,12 +160,37 @@ export class Vehicles {
     this.tailMat.color.copy(this.tailBase).multiplyScalar(0.5 + night * 2.0);
     this.glowMat.opacity = night * 0.55;
     const m = this._m, p = this._p, q = this._q;
+    this.time += dt;
+    for (const h of this.heads) {
+      const st = this.phaseState(h.sig, h.phase);
+      h.lamps.forEach((l, i) => l.material.color.copy(('ryg'[i] === st) ? l.userData.on : l.userData.off));
+    }
+    // 速度：跟車（同一路線前車）＋紅燈停在停止線前；加速 2.5、減速 6 m/s²
+    const ACC = 2.5, DEC = 6;
+    for (const rt of this.routes) {
+      const act = rt.vs.filter((v) => !(v.wait > 0)).sort((a, b) => b.u - a.u);
+      act.forEach((v, idx) => {
+        let lim = v.speed;
+        const lead = act[idx - 1];
+        if (lead) {
+          const gap = (lead.u - v.u) * rt.len - lead.half - v.half - 2;
+          lim = Math.min(lim, Math.sqrt(2 * DEC * 0.6 * Math.max(0, gap)));
+        }
+        const e = rt.entries.find((x) => x.u > v.u);
+        if (e) {
+          const dist = (e.u - v.u) * rt.len - v.half - 1.5;
+          const st = this.phaseState(this.signals[e.sig], e.phase);
+          if (dist < 60 && (st === 'r' || (st === 'y' && dist > 12))) lim = Math.min(lim, Math.sqrt(2 * DEC * 0.6 * Math.max(0, dist)));
+        }
+        v.cur = lim > v.cur ? Math.min(lim, v.cur + ACC * dt) : Math.max(lim, v.cur - DEC * dt);
+      });
+    }
     for (const g of Object.values(this.groups)) {
       g.vs.forEach((v, i) => {
         let hidden = false;
-        if (v.wait > 0) { v.wait -= dt; hidden = true; }
+        if (v.wait > 0) { v.wait -= dt; hidden = true; if (v.wait <= 0) v.cur = v.speed; }
         else {
-          v.u += (v.speed * dt) / v.len;
+          v.u += (v.cur * dt) / v.len;
           if (v.u >= 1) {
             if (v.loop) v.u -= 1;
             else { v.u = 0; v.wait = v.park ? 15 + Math.random() * 40 : Math.random() * 4; hidden = true; }
