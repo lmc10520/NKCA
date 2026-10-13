@@ -32,8 +32,10 @@ const TYPES = {
 };
 
 export class Vehicles {
-  constructor(scene, cfg, lightCfg) {
+  constructor(scene, cfg, lightCfg, model) {
     this.list = []; this.groups = {}; this.visible = true;
+    // 號誌燈桿立在路面／人行道／分隔島上
+    this.ground = (model?.meshes || []).filter((m) => /^Site_(Road_Base|Sidewalk|Campus_Paving|Park_Paving|Grass)/.test(m.userData.fname));
     if (!cfg?.enabled) return;
     const k = isMobile ? 0.5 : 1;
     const byType = {};
@@ -120,36 +122,33 @@ export class Vehicles {
     if (cur !== ph) return 'r';
     return r < G ? 'g' : r < G + Y ? 'y' : 'r';
   }
-  // 號誌燈頭：每個「相位 × 進入方向」一支，立在停止線右側路邊
+  // 號誌燈頭：位置由 roads.json 的 signals[].heads 指定（路側或中央分隔島），燈面朝向來車；double 為雙面
   buildSignalHeads(scene) {
     this.heads = [];
-    if (!this.signals.length) return;
-    const groups = new Map();
-    for (const rt of this.routes) for (const e of rt.entries) {
-      const key = `${e.sig}:${e.phase}:${Math.round(e.heading / 30)}`;
-      if (!groups.has(key)) groups.set(key, { e, pts: [] });
-      groups.get(key).pts.push(e.pos);
-    }
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x3c4046, roughness: 0.6 });
     const boxMat = new THREE.MeshStandardMaterial({ color: 0x1b1c1e, roughness: 0.5 });
-    for (const { e, pts } of groups.values()) {
-      const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
-      const h = THREE.MathUtils.degToRad(e.heading);
-      const fwd = new THREE.Vector3(Math.cos(h), 0, -Math.sin(h)), right = new THREE.Vector3(-fwd.z, 0, fwd.x);   // 行進方向的右手邊
+    const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
+    for (const sg of this.signals) for (const hd of sg.heads || []) {
       const g = new THREE.Group();
-      g.position.copy(c).addScaledVector(right, 6).addScaledVector(fwd, -2);   // 右側路邊、停止線前
-      g.position.y = c.y;
+      g.position.copy(cm2w([hd.pos_cm[0], hd.pos_cm[1], 0]));
+      if (this.ground?.length) { ray.set(g.position.clone().setY(60), down); const h = ray.intersectObjects(this.ground, false)[0]; if (h) g.position.y = h.point.y; }
       g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 5.2, 8).translate(0, 2.6, 0), poleMat));
-      const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.25, 0.3).translate(0, 5.4, 0), boxMat); g.add(box);
-      const lamps = ['#ff3b30', '#ffb300', '#2bd16b'].map((col, i) => {
-        const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8).translate(0, 5.8 - i * 0.4, 0.16),
-          new THREE.MeshBasicMaterial({ color: col, toneMapped: false }));
-        m.userData.on = new THREE.Color(col).multiplyScalar(2.2); m.userData.off = new THREE.Color(col).multiplyScalar(0.12);
-        g.add(m); return m;
-      });
-      g.lookAt(g.position.clone().sub(fwd));   // 燈面朝向來車
+      const lamps = [];
+      for (const side of hd.double ? [1, -1] : [1]) {
+        g.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.25, 0.3).translate(0, 5.4, side * 0.02), boxMat));
+        ['#ff3b30', '#ffb300', '#2bd16b'].forEach((col, i) => {
+          const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8).translate(0, 5.8 - i * 0.4, side * 0.17),
+            new THREE.MeshBasicMaterial({ color: col, toneMapped: false }));
+          m.userData.on = new THREE.Color(col).multiplyScalar(2.2); m.userData.off = new THREE.Color(col).multiplyScalar(0.12); m.userData.i = i;
+          g.add(m); lamps.push(m);
+        });
+      }
+      // 燈面（+z）朝向來車：也就是車流行進方向的反方向
+      const h = THREE.MathUtils.degToRad(hd.traffic_deg ?? 0);
+      const fwd = new THREE.Vector3(Math.cos(h), 0, -Math.sin(h));
+      g.lookAt(g.position.clone().sub(fwd));
       scene.add(g);
-      this.heads.push({ g, lamps, sig: this.signals[e.sig], phase: e.phase });
+      this.heads.push({ g, lamps, sig: sg, phase: hd.phase ?? 0 });
     }
   }
   setVisible(v) { this.visible = v; for (const g of Object.values(this.groups)) g.meshes.forEach((m) => (m.visible = v)); }  // 號誌燈保留
@@ -163,7 +162,7 @@ export class Vehicles {
     this.time += dt;
     for (const h of this.heads) {
       const st = this.phaseState(h.sig, h.phase);
-      h.lamps.forEach((l, i) => l.material.color.copy(('ryg'[i] === st) ? l.userData.on : l.userData.off));
+      h.lamps.forEach((l) => l.material.color.copy(('ryg'[l.userData.i] === st) ? l.userData.on : l.userData.off));
     }
     // 速度：跟車（同一路線前車）＋紅燈停在停止線前；加速 2.5、減速 6 m/s²
     const ACC = 2.5, DEC = 6;

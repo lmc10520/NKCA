@@ -131,7 +131,7 @@ const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
 night.addStreetLights(streetCfg);
 setLoad(93, '加入人車與噴泉…'); await paint();
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
-const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles);
+const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles, model);
 const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
 const labels = new Labels(labelsCfg, model);
