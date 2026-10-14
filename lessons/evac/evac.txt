@@ -1,0 +1,18 @@
+// 範例教材：逃生動線（網址加 ?course=evac，或在設定的教學代碼輸入 evac）
+// 本資料夾：evac.txt（這個檔）＋ evac.svg（逃生動線圖層）
+// @svg 後面的檔名相對於這個資料夾；evac.svg 用預設範圍（site.json 的 planFrame_cm），所以不用寫範圍
+
+// ===== 第 1 頁：俯視 =====
+NKCA1:eyJ2IjoyLCJjIjpbMTUxMzEsMTY5OTYsMzM3MzddLCJ0IjpbMTUxMzEsMTcwNDYsMF0sIm0iOiJwbGF6YSIsImgiOnsiUkgiOiIxRiIsIlBIIjoiMUYifSwidWkiOnsibGFiZWxzIjp0cnVlLCJjbG9jayI6dHJ1ZSwid2VhdGhlciI6dHJ1ZSwidHJhZmZpYyI6dHJ1ZX0sInN0eWxlIjoibm9ybWFsIiwibHciOjIsInByb2oiOiJwZXJzcCIsInRvZCI6bnVsbCwiY2FyZCI6bnVsbH0=
+# 逃生動線
+## 各廳院往戶外的疏散方向
+紅：歌劇院往北側出口　橘：表演廳往北側榕泉
+黃：音樂廳往南側、東側　藍：戲劇院往南側
+@svg evac.svg
+
+// ===== 第 2 頁：同一張圖層，斜角看 =====
+NKCA1:eyJ2IjoyLCJjIjpbOTAwMCwtOTAwMCwxNzAwMF0sInQiOlsxNDUwMCwxNTUwMCwwXSwibSI6InBsYXphIiwiaCI6eyJSSCI6IjFGIiwiUEgiOiIxRiJ9LCJ1aSI6eyJsYWJlbHMiOnRydWUsImNsb2NrIjp0cnVlLCJ3ZWF0aGVyIjp0cnVlLCJ0cmFmZmljIjp0cnVlfSwic3R5bGUiOiJub3JtYWwiLCJsdyI6MiwicHJvaiI6InBlcnNwIiwidG9kIjpudWxsLCJjYXJkIjpudWxsfQ==
+# 逃生動線
+## 斜角檢視
+圖層貼在模型的平面座標上，轉動視角也會對齊建築。
+@svg evac.svg

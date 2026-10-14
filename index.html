@@ -53,12 +53,16 @@
   <button id="settingsBtn" class="ui fab" title="設定"><span class="ms">tune</span></button>
   <div id="settings" class="ui sheet hidden">
     <div class="setHead"><span>瀏覽設定</span><button class="x ms" id="settingsClose" aria-label="關閉">close</button></div>
-    <button id="welcomeBtn" class="welcomeBtn"><span class="ms">screenshot_monitor</span>開啟迎賓模式</button>
+    <div class="welcomeRow">
+      <button id="welcomeBtn" class="welcomeBtn"><span class="ms">screenshot_monitor</span>開啟迎賓模式</button>
+      <button id="welcomePureBtn" class="welcomeMini" title="純轉動模式（只有轉動的模型，不顯示時間、天氣與提示文字）"><span class="ms">3d_rotation</span></button>
+    </div>
     <div class="setSec">顯示</div>
     <div class="setRow"><span class="ms">label</span>標籤<label class="sw"><input type="checkbox" data-tg="labels" checked><i></i></label></div>
     <div class="setRow"><span class="ms">schedule</span>時間<label class="sw"><input type="checkbox" data-tg="clock" checked><i></i></label></div>
     <div class="setRow"><span class="ms">partly_cloudy_day</span>天氣<label class="sw"><input type="checkbox" data-tg="weather" checked><i></i></label></div>
     <div class="setRow"><span class="ms">directions_car</span>人車<label class="sw"><input type="checkbox" data-tg="traffic" checked><i></i></label></div>
+    <div class="setRow"><span class="ms">lightbulb</span>場館燈光<button class="text hidden" id="venueAuto" title="回到依營運時間自動開關">自動</button><label class="sw"><input type="checkbox" id="venueSw" checked><i></i></label></div>
     <div class="setRow"><span class="ms">wb_twilight</span>指定時間<button class="text" id="openTime">調整</button></div>
     <div class="setSec">天氣預覽</div>
     <div class="seg2" id="wxSeg"><button data-wx="live" class="on">即時</button><button data-wx="clear">晴</button><button data-wx="cloudy">陰</button><button data-wx="rain">雨</button><button data-wx="snow">雪</button></div>
@@ -70,7 +74,8 @@
     <div class="setSec">簡報</div>
     <div class="presRow">
       <button class="iconBtn" id="snapBtn" title="記住目前畫面（複製代碼）"><span class="ms">bookmark_add</span></button>
-      <button class="iconBtn" id="presBtn" title="簡報模式（匯入 txt）"><span class="ms">slideshow</span></button>
+      <button class="iconBtn" id="presBtn" title="簡報模式（匯入 txt，可連同 svg／圖片一起選取）"><span class="ms">slideshow</span></button>
+      <button class="iconBtn" id="planBtn" title="下載平面底圖（俯視、北朝上，畫逃生動線等 SVG 用）"><span class="ms">map</span></button>
       <form id="lessonForm" class="lessonBox"><input id="lessonCode" placeholder="教學代碼" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="ms" title="開啟教學">search</button></form>
     </div>
   </div>
@@ -100,7 +105,7 @@
     <button id="presNext" class="icon" title="下一個"><span class="ms">skip_next</span></button>
     <button id="presExit" class="icon" title="結束簡報"><span class="ms">close</span></button>
   </div>
-  <input type="file" id="presFile" accept=".txt,text/plain" hidden>
+  <input type="file" id="presFile" accept=".txt,text/plain,.svg,image/*" multiple hidden>
 
   <div id="toast" class="hidden"></div>
   <div id="loading"><div id="loadPct">0<small>%</small></div><div class="bar"><div id="loadBar"></div></div><div id="loadText">載入模型中…</div></div>

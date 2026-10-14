@@ -48,5 +48,13 @@
  "welcome": true,
  "welcomeRotateSpeed": 0.5,
  "modelBytes": 8834256,
- "_welcome說明": "welcome：載入後先顯示迎賓畫面（時間天氣大字置中、模型自轉），使用者點擊或拖曳後結束；welcomeRotateSpeed 為自轉速度（0.5 約 2 分鐘一圈）。modelBytes：模型檔大小，用來估算下載進度。"
+ "_welcome說明": "welcome：載入後先顯示迎賓畫面（時間天氣大字置中、模型自轉），使用者點擊或拖曳後結束；welcomeRotateSpeed 為自轉速度（0.5 約 2 分鐘一圈）。modelBytes：模型檔大小，用來估算下載進度。",
+ "planFrame_cm": [
+  -4000,
+  2000,
+  36000,
+  30000
+ ],
+ "planZ_cm": 150,
+ "_plan說明": "簡報平面圖層（@svg）：planFrame_cm 為預設範圍 [x0,y0,x1,y1]（cm），SVG 畫板四邊對應這個範圍、北（+Y）朝上；planZ_cm 為圖層高度。網頁「下載平面底圖」輸出同一範圍的俯視底圖。"
 }

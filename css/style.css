@@ -167,6 +167,8 @@ body.welcome #clockDate,body.welcome #weather{font-size:clamp(16px,2.6vw,28px);f
 body.welcome #clock{color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.35)}
 body.welcome #navTL,body.welcome #modeBar,body.welcome #settingsBtn,body.welcome #liftPanel,body.welcome #labels{opacity:0;pointer-events:none}
 #navTL,#modeBar,#settingsBtn,#labels{transition:opacity .6s}
+/* 純轉動：連時間、日期、天氣和提示文字都不顯示 */
+body.welcomePure #clock,body.welcomePure #welcomeHint,body.welcomePure #toast{opacity:0;pointer-events:none}
 #welcomeHint{position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:10;color:#fff;font-size:15px;letter-spacing:1px;
   text-shadow:0 1px 6px rgba(0,0,0,.5);pointer-events:none;animation:breathe 2.6s ease-in-out infinite}
 @keyframes breathe{0%,100%{opacity:.35}50%{opacity:.95}}
@@ -176,7 +178,10 @@ body.welcome #navTL,body.welcome #modeBar,body.welcome #settingsBtn,body.welcome
 #settings{left:16px;bottom:88px;width:300px;max-height:calc(100vh - 120px);overflow:auto;padding:12px 16px 14px;color:var(--on)}
 .setHead{display:flex;align-items:center;font-size:16px;font-weight:500;margin-bottom:4px}
 .setHead .x{position:static;margin-left:auto}
-.welcomeBtn{width:100%;height:44px;margin:6px 0 2px;border-radius:999px;background:var(--tonal);color:var(--on-tonal);font-size:14px;font-weight:500;
+.welcomeRow{display:flex;gap:8px;align-items:center;margin:6px 0 2px}
+.welcomeMini{width:44px;height:44px;flex:none;border-radius:50%;background:var(--tonal);color:var(--on-tonal);display:flex;align-items:center;justify-content:center}
+.welcomeMini:hover{filter:brightness(.97)}
+.welcomeBtn{flex:1;min-width:0;height:44px;border-radius:999px;background:var(--tonal);color:var(--on-tonal);font-size:14px;font-weight:500;
   display:flex;align-items:center;justify-content:center;gap:8px}
 .welcomeBtn:hover{filter:brightness(.97)}
 .setSec{font-size:12px;font-weight:600;color:var(--primary);margin:12px 0 4px;letter-spacing:.3px}
@@ -195,6 +200,8 @@ body.welcome #navTL,body.welcome #modeBar,body.welcome #settingsBtn,body.welcome
 .seg2 button{flex:1;height:34px;border-radius:999px;font-size:13px;font-weight:500;color:var(--on-2)}
 .seg2 button.on{background:var(--surface);color:var(--on);box-shadow:var(--elev1)}
 .setRow.dim{opacity:.45}
+#venueAuto{margin-left:auto;padding:4px 10px}
+#venueAuto:not(.hidden)+.sw{margin-left:0}
 .presRow{display:flex;align-items:center;gap:8px;margin-top:4px}
 .iconBtn{width:40px;height:40px;border-radius:12px;background:var(--surface-2);color:var(--on-2);display:flex;align-items:center;justify-content:center;flex:none}
 .iconBtn:hover{background:var(--tonal);color:var(--on-tonal)}
@@ -211,6 +218,7 @@ body.welcome #navTL,body.welcome #modeBar,body.welcome #settingsBtn,body.welcome
 #presText h2{margin:4px 0 0;font-size:17px;font-weight:500;color:var(--primary)}
 #presText .pt{margin-top:8px;font-size:15px;line-height:1.65;color:var(--on-2)}
 #presText .pt p{margin:4px 0}
+#presText .pt img{display:block;max-width:100%;max-height:40vh;margin:8px 0 2px;border-radius:12px}
 #presText h1:empty,#presText h2:empty,#presText .pt:empty{display:none}
 
 @media (max-width:720px){

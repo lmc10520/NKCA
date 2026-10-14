@@ -15,6 +15,7 @@ import { Fountain } from './fountain.js';
 import { Vehicles, People } from './vehicles.js';
 import { buildScreens } from './screens.js';
 import { Labels, Pois } from './labels.js';
+import { PlanOverlay } from './overlay.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -136,6 +137,8 @@ const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
 const labels = new Labels(labelsCfg, model);
 const pois = new Pois(poisCfg, model, labels);
+const plan = new PlanOverlay(scene, renderer, site);
+plan.onError = (src) => toast(`讀不到圖層 ${decodeURIComponent(src.split('/').pop())}`);
 setLoad(100, '完成'); await paint(); await new Promise((r) => setTimeout(r, 250));
 $('loading').classList.add('hidden');
 
@@ -143,6 +146,7 @@ $('loading').classList.add('hidden');
 const state = {
   mode: modesCfg.default || 'exterior', halls: {}, clock: true, weather: true, labels: true, traffic: true,
   style: 'normal', contrast: false, wire: false, ortho: false, lineW: 2,
+  venue: null,   // 場館燈光：null＝依營運時間自動，true／false＝手動開／關
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
@@ -328,7 +332,7 @@ canvas.addEventListener('pointerup', (e) => {
   // 複製一行可直接貼進 config/pois.json 的設定（含目前模式；榕樹廣場模式附上附近廳院的樓層）
   const n = nearest(), hallPart = state.mode === 'plaza' && n?.type === 'hall' ? `, "hall": "${n.c.id}", "floor": "${state.halls[n.c.id]}"` : '';
   const line = `{ "icon": "", "text": "", "pos_cm": ${txt}, "modes": ["${state.mode}"]${hallPart} }`;
-  navigator.clipboard?.writeText(line);
+  navigator.clipboard?.writeText(line)?.catch(() => {});
   toast(`已複製（${hit.object.userData.fname}）：\n${line}`, 6000);
 });
 
@@ -411,6 +415,14 @@ function setToggle(k, v) {
   if (k === 'traffic') applyTraffic();
 }
 document.querySelectorAll('[data-tg]').forEach((cb) => (cb.onchange = () => setToggle(cb.dataset.tg, cb.checked)));
+// 場館燈光：預設依 lights.json 的營運時間自動開關；手動切換後維持，按「自動」回到排程
+function setVenue(v) {
+  state.venue = v;
+  $('venueAuto').classList.toggle('hidden', v == null);
+  if (v != null) $('venueSw').checked = v;
+}
+$('venueSw').onchange = (e) => { setVenue(e.target.checked); toast(e.target.checked ? '場館燈光：開（手動）' : '場館燈光：關（手動）'); };
+$('venueAuto').onclick = () => { setVenue(null); toast('場館燈光：依營運時間自動開關'); };
 $('settingsBtn').onclick = () => { $('settings').classList.toggle('hidden'); $('timeSlider').classList.add('hidden'); };
 $('settingsClose').onclick = () => $('settings').classList.add('hidden');
 $('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setStyle(s); };
@@ -528,20 +540,22 @@ const WELCOME_EVENTS = ['pointerdown', 'wheel', 'keydown', 'touchstart'];
 function endWelcome() {
   if (!welcome.on) return;
   welcome.on = false; controls.autoRotate = false;
-  document.body.classList.remove('welcome'); $('welcomeHint').classList.add('hidden');
+  document.body.classList.remove('welcome', 'welcomePure'); $('welcomeHint').classList.add('hidden');
   for (const ev of WELCOME_EVENTS) removeEventListener(ev, endWelcome, true);
 }
-function startWelcome() {
+// pure＝純轉動：只有轉動的模型，不顯示時間、日期、天氣和提示文字；離開方式相同
+function startWelcome(pure = false) {
   if (welcome.on || state.presenting) return;
   welcome.on = true;
   $('settings').classList.add('hidden'); $('timeSlider').classList.add('hidden'); labels.close();
-  document.body.classList.add('welcome'); $('welcomeHint').classList.remove('hidden');
+  document.body.classList.add('welcome'); document.body.classList.toggle('welcomePure', pure);
+  $('welcomeHint').classList.toggle('hidden', pure);
   controls.autoRotate = true; controls.autoRotateSpeed = site.welcomeRotateSpeed ?? 0.5;   // 約 2 分鐘轉一圈
   // 等這次點擊結束後才開始監聽，避免按下「開啟迎賓模式」的同一下就把它關掉
   setTimeout(() => { if (welcome.on) for (const ev of WELCOME_EVENTS) addEventListener(ev, endWelcome, true); }, 400);
 }
 $('welcomeBtn').onclick = (e) => { e.stopPropagation(); startWelcome(); };
-if (site.welcome !== false) startWelcome();
+$('welcomePureBtn').onclick = (e) => { e.stopPropagation(); startWelcome(true); };
 
 // ---------- 鏡頭動畫 ----------
 let fly = null;
@@ -551,12 +565,14 @@ function flyTo(pos, target, ms = 1600) {
 
 // ---------- 簡報模式 ----------
 // txt 格式：
-//   NKCA1:xxxx     ← 一頁（由「複製代碼」取得）
-//   # 標題          ← H1
-//   ## 副標         ← H2
-//   一般文字        ← 內文（可多行）
-//   // 註記        ← 不顯示（頁次、提醒）
-// 文字只在這次簡報顯示，不會存在瀏覽器裡。
+//   NKCA1:xxxx         ← 一頁（由「複製代碼」取得）
+//   # 標題              ← H1
+//   ## 副標             ← H2
+//   一般文字            ← 內文（可多行）
+//   @svg 檔名.svg       ← 平面圖層（逃生動線等），貼在模型平面上；可加範圍 x0,y0,x1,y1、z=高度(cm)、depth（被建築遮住）
+//   @img 檔名.jpg       ← 文字框裡的圖片
+//   // 註記            ← 不顯示（頁次、提醒）
+// 檔名是相對於 txt 所在的資料夾。文字只在這次簡報顯示，不會存在瀏覽器裡。
 function snapshot() {
   const s = {
     v: 2, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
@@ -564,59 +580,107 @@ function snapshot() {
     style: state.style, lw: state.lineW, proj: state.ortho ? 'ortho' : 'persp',
     tod: env.override, card: labels.openId(),
   };
+  if (state.venue != null) s.vl = state.venue;
   const code = 'NKCA1:' + btoa(unescape(encodeURIComponent(JSON.stringify(s))));
-  navigator.clipboard?.writeText(code);
+  navigator.clipboard?.writeText(code)?.catch(() => {});
   toast('已複製簡報代碼（貼到記事本，一頁一行）：\n' + code, 6000);
 }
 function decode(code) {
   try { return JSON.parse(decodeURIComponent(escape(atob(code)))); } catch { return null; }
 }
-function parseDeck(txt) {
+// resolve：把 txt 裡的檔名換成網址（GitHub 上的教材資料夾，或本機一起選取的檔案）
+function parseDeck(txt, resolve = (f) => f) {
   const cues = []; let cur = null;
   for (const raw of txt.split(/\r?\n/)) {
     const line = raw.trim();
     const m = line.match(/^NKCA1:([A-Za-z0-9+/=]+)/);
-    if (m) { const s = decode(m[1]); if (s) { cur = { ...s, h1: '', h2: '', p: [] }; cues.push(cur); } continue; }
+    if (m) { const s = decode(m[1]); if (s) { cur = { ...s, h1: '', h2: '', p: [], svg: [], img: [] }; cues.push(cur); } continue; }
     if (!cur || !line || line.startsWith('//')) continue;
+    const at = line.match(/^@(svg|img)\s+(.+)$/i);
+    if (at) {
+      const parts = at[2].trim().split(/\s+/), file = parts.shift();
+      if (at[1].toLowerCase() === 'img') { cur.img.push(resolve(file)); continue; }
+      const L = { src: resolve(file) };
+      for (const o of parts) {
+        const f = o.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+        if (f) L.frame = f.slice(1).map(Number);
+        else if (/^z=/i.test(o)) L.z = +o.slice(2);
+        else if (/^depth$/i.test(o)) L.depth = true;
+      }
+      cur.svg.push(L);
+      continue;
+    }
     if (line.startsWith('## ')) cur.h2 = line.slice(3).trim();
     else if (line.startsWith('# ')) cur.h1 = line.slice(2).trim();
     else cur.p.push(line);
   }
   return cues;
 }
-const pres = { cues: [], i: 0 };
+const pres = { cues: [], i: 0, course: null, urls: [] };
+// 匯入：可以同時選 txt 和它用到的 svg／圖片（上傳 GitHub 前先在本機預覽）
 $('presFile').onchange = async (e) => {
-  const f = e.target.files[0]; if (!f) return;
-  e.target.value = '';
-  startDeck(await f.text());
+  const files = [...e.target.files]; e.target.value = '';
+  const txt = files.find((f) => /\.txt$/i.test(f.name)); if (!txt) { toast('請選擇簡報 txt 檔'); return; }
+  pres.urls.forEach(URL.revokeObjectURL);
+  const map = {};
+  for (const f of files) if (f !== txt) map[f.name] = URL.createObjectURL(f);
+  pres.urls = Object.values(map);
+  const missing = new Set();
+  const resolve = (n) => { if (/^(https?:|data:|blob:)/.test(n)) return n; if (map[n]) return map[n]; missing.add(n); return n; };
+  pres.course = null;
+  startDeck(await txt.text(), resolve);
+  if (missing.size) toast(`沒有選到這些檔案：${[...missing].join('、')}（請和 txt 一起選取）`, 5000);
 };
-// 教學代碼：輸入「newbie」→ 讀取 GitHub 上的 lessons/newbie.txt 並開始播放
-$('lessonForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const code = $('lessonCode').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  if (!code) return;
-  try {
-    const r = await fetch(`lessons/${code}.txt`, { cache: 'no-cache' });
-    if (!r.ok) throw new Error(r.status);
-    startDeck(await r.text());
-  } catch { toast(`找不到教學代碼「${code}」`); }
-};
-function startDeck(txt) {
-  pres.cues = parseDeck(txt);
+// 教學代碼：讀取 GitHub 上的 lessons/代碼/代碼.txt（圖片放同一個資料夾）；也相容舊的 lessons/代碼.txt
+const cleanCode = (c) => String(c || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+async function loadCourse(raw) {
+  const code = cleanCode(raw);
+  if (!code) return false;
+  for (const dir of [`lessons/${code}/`, 'lessons/']) {
+    try {
+      const r = await fetch(`${dir}${code}.txt`, { cache: 'no-cache' });
+      if (!r.ok) continue;
+      const txt = await r.text();
+      pres.course = code;
+      endWelcome();
+      startDeck(txt, (f) => (/^(https?:|data:|blob:|\/)/.test(f) ? f : dir + f));
+      return true;
+    } catch {}
+  }
+  toast(`找不到教學代碼「${code}」`);
+  return false;
+}
+$('lessonForm').onsubmit = (e) => { e.preventDefault(); loadCourse($('lessonCode').value); };
+// 網址帶 course：…/?course=evac（或 &course=evac、#course=evac）直接開啟教材
+function courseFromURL() {
+  const q = new URLSearchParams(location.search).get('course') || new URLSearchParams(location.hash.slice(1)).get('course');
+  return cleanCode(q || (location.href.match(/[?&#]course=([^&#]+)/) || [])[1]);
+}
+function setCourseURL(code) {
+  const u = new URL(location.href);
+  if (code) u.searchParams.set('course', code); else u.searchParams.delete('course');
+  u.hash = u.hash.replace(/(^#|&)course=[^&]*/, '').replace(/^#&/, '#');
+  if (u.hash === '#') u.hash = '';
+  history.replaceState(null, '', u);
+}
+function startDeck(txt, resolve) {
+  pres.cues = parseDeck(txt, resolve);
   if (!pres.cues.length) { toast('檔案中沒有可用的簡報代碼'); return; }
   $('settings').classList.add('hidden');
   state.presenting = true; document.body.classList.add('presenting');
   $('presBar').classList.remove('hidden'); renderLiftPanel(true);
+  setCourseURL(pres.course);   // 網址列就是可以分享給學生的連結
   goCue(0);
 }
 function showPresText(s) {
-  const box = $('presText'), has = s.h1 || s.h2 || s.p.length;
+  const box = $('presText'), has = s.h1 || s.h2 || s.p.length || s.img.length;
   box.classList.add('fade');
   setTimeout(() => {
     box.querySelector('h1').textContent = s.h1 || '';
     box.querySelector('h2').textContent = s.h2 || '';
     const pt = box.querySelector('.pt'); pt.innerHTML = '';
     for (const t of s.p) { const p = document.createElement('p'); p.textContent = t; pt.appendChild(p); }
+    for (const src of s.img) { const im = document.createElement('img'); im.src = src; im.alt = ''; pt.appendChild(im); }
     box.classList.toggle('hidden', !has);
     requestAnimationFrame(() => box.classList.remove('fade'));
   }, 250);
@@ -632,13 +696,17 @@ function goCue(i) {
   if (s.lw) setLineW(s.lw);
   setProj(s.proj || 'persp');
   env.override = s.tod ?? null;
+  setVenue(s.vl ?? null);
   if (s.card) labels.openById(s.card); else labels.close();
   showPresText(s);
+  plan.show(s.svg);
   flyTo(cm2w(s.c), cm2w(s.t));
 }
 function exitPres() {
   state.presenting = false; document.body.classList.remove('presenting');
   $('presBar').classList.add('hidden'); $('presText').classList.add('hidden'); renderLiftPanel(true);
+  plan.show([]);
+  if (pres.course) { pres.course = null; setCourseURL(null); }
 }
 $('presPrev').onclick = () => goCue(pres.i - 1);
 $('presNext').onclick = () => goCue(pres.i + 1);
@@ -649,6 +717,73 @@ addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft' || e.key === 'PageUp') goCue(pres.i - 1);
   if (e.key === 'Escape') exitPres();
 });
+
+// ---------- 平面底圖：俯視、北（+Y）朝上的正射影像，給 Illustrator 描逃生動線用 ----------
+// 範圍：畫面拉近時取目前看到的地面範圍，否則用 site.json 的 planFrame_cm（整個基地）。範圍寫在檔名裡。
+function planFrameNow() {
+  const def = site.planFrame_cm || [-4000, 2000, 36000, 30000];
+  const g = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), xs = [], ys = [];
+  for (const [x, y] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    ray.setFromCamera(new THREE.Vector2(x, y), viewCam());
+    const p = new THREE.Vector3();
+    if (!ray.ray.intersectPlane(g, p)) return def;
+    const c = w2cm(p); xs.push(c[0]); ys.push(c[1]);
+  }
+  let f = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  if ((f[2] - f[0]) * (f[3] - f[1]) >= (def[2] - def[0]) * (def[3] - def[1]) * 0.8) return def;
+  f = [Math.floor(f[0] / 100) * 100, Math.floor(f[1] / 100) * 100, Math.ceil(f[2] / 100) * 100, Math.ceil(f[3] / 100) * 100];
+  return [Math.max(f[0], def[0] - 8000), Math.max(f[1], def[1] - 8000), Math.min(f[2], def[2] + 8000), Math.min(f[3], def[3] + 8000)];
+}
+function exportPlan() {
+  const [x0, y0, x1, y1] = planFrameNow();
+  const wcm = x1 - x0, hcm = y1 - y0;
+  const k = Math.min(4096 / Math.max(wcm, hcm), 0.5, renderer.capabilities.maxTextureSize / Math.max(wcm, hcm));   // 像素／cm
+  const W = Math.round(wcm * k), H = Math.round(hcm * k);
+  const cam = new THREE.OrthographicCamera(-wcm / 200, wcm / 200, hcm / 200, -hcm / 200, 1, 3000);
+  const c = cm2w([(x0 + x1) / 2, (y0 + y1) / 2, 0]);
+  cam.position.set(c.x, 1500, c.z); cam.up.set(0, 0, -1); cam.lookAt(c.x, 0, c.z); cam.updateMatrixWorld();
+  const pr = renderer.getPixelRatio(), fog = scene.fog;
+  scene.fog = null; plan.visible = false;
+  edgeMat.resolution.set(W, H); groundEdgeMat.resolution.set(W, H);
+  renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+  renderer.render(scene, cam);
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const g = out.getContext('2d');
+  g.drawImage(renderer.domElement, 0, 0);
+  scene.fog = fog; plan.visible = true;
+  renderer.setPixelRatio(pr); resize();
+  // 標籤畫在底圖上，方便對位置
+  const fs = Math.max(14, Math.round(W / 140));
+  g.font = `500 ${fs}px Roboto, "Noto Sans TC", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const it of labels.items) {
+    const [lx, ly] = it.cfg.pos_cm, u = (lx - x0) * k, v = (y1 - ly) * k;
+    if (u < 0 || v < 0 || u > W || v > H) continue;
+    const tw = g.measureText(it.cfg.text).width + fs * 1.2, th = fs * 1.7;
+    g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.roundRect(u - tw / 2, v - th / 2, tw, th, th / 2); g.fill();
+    g.fillStyle = '#202124'; g.fillText(it.cfg.text, u, v + 1);
+  }
+  g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillStyle = 'rgba(0,0,0,.55)';
+  g.font = `${Math.round(fs * 0.8)}px Roboto, sans-serif`;
+  g.fillText(`NKCA plan  x ${x0}–${x1} cm  y ${y0}–${y1} cm  (1 px = ${(1 / k).toFixed(1)} cm, north-up = model +Y)`, fs * 0.6, H - fs * 0.5);
+  const name = `NKCA_plan_${x0}_${y0}_${x1}_${y1}.png`;
+  out.toBlob((b) => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }, 'image/png');
+  const def = site.planFrame_cm || [-4000, 2000, 36000, 30000];
+  const isDef = [x0, y0, x1, y1].every((v, i) => v === def[i]);
+  navigator.clipboard?.writeText(isDef ? '@svg 檔名.svg' : `@svg 檔名.svg ${x0},${y0},${x1},${y1}`)?.catch(() => {});
+  toast(`已下載平面底圖 ${W}×${H}\n範圍 ${x0},${y0},${x1},${y1}（cm）\n` +
+    (isDef ? '這是預設範圍，txt 寫「@svg 檔名.svg」即可（已複製）' : `txt 寫「@svg 檔名.svg ${x0},${y0},${x1},${y1}」（已複製）`), 8000);
+}
+$('planBtn').onclick = exportPlan;
+
+// 開啟網頁：網址有 course 就直接播放教材，否則依設定進入迎賓模式
+{
+  const course = courseFromURL();
+  if (course) loadCourse(course).then((ok) => { if (!ok && site.welcome !== false) startWelcome(); });
+  else if (site.welcome !== false) startWelcome();
+}
 
 // ---------- 迴圈 ----------
 function resize() {
@@ -691,10 +826,12 @@ renderer.setAnimationLoop(() => {
   renderer.toneMapping = plain ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
   const n = plain ? 0 : env.night;
   // 建築燈光營運時間（config/lights.json 的 buildingHours）：23:00 熄燈，路燈、車燈、道路標線不受影響
-  venueK += ((buildingOpen(env.now()) ? 1 : 0) - venueK) * Math.min(1, dt * 1.5);
+  const venueOn = state.venue ?? buildingOpen(env.now());
+  venueK += ((venueOn ? 1 : 0) - venueK) * Math.min(1, dt * 1.5);
   night.update(n, n * venueK);
   bloom.strength = n * 0.9;
   fountain?.update(t, env.now(), n);
+  plan.update(dt);
   vehicles.update(dt, n);
   people.update(dt);
   for (let i = lifts.length - 1; i >= 0; i--) {
@@ -717,6 +854,7 @@ renderer.setAnimationLoop(() => {
     $('clock').classList.toggle('hidden', !state.clock && !state.weather);
     $('timeLabel').textContent = env.override != null ? '手動 ' + tp : '即時';
     renderLiftPanel(false);
+    if (state.venue == null) $('venueSw').checked = buildingOpen(env.now());
     document.body.classList.toggle('night', env.night > 0.5 && !plain);
   }
   // 指北針：真北方向相對於畫面「往前」的角度（順時針為正）
