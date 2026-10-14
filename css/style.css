@@ -218,6 +218,10 @@ body.welcomePure #clock,body.welcomePure #welcomeHint,body.welcomePure #toast{op
 #presText h2{margin:4px 0 0;font-size:17px;font-weight:500;color:var(--primary)}
 #presText .pt{margin-top:8px;font-size:15px;line-height:1.65;color:var(--on-2)}
 #presText .pt p{margin:4px 0}
+/* 簡報畫面圖層（@screen）：高度＝視窗高度、水平置中，和 3D 畫面一起縮放 */
+#screenLayers{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:1}
+.screenLayer{position:absolute;top:0;left:50%;height:100%;width:auto;max-width:none;transform:translateX(-50%);opacity:0;transition:opacity .5s;user-select:none}
+.screenLayer.on{opacity:1}
 #presText .pt img{display:block;max-width:100%;max-height:40vh;margin:8px 0 2px;border-radius:12px}
 #presText h1:empty,#presText h2:empty,#presText .pt:empty{display:none}
 

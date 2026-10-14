@@ -1,5 +1,5 @@
 // 範例教材：逃生動線（網址加 ?course=evac，或在設定的教學代碼輸入 evac）
-// 本資料夾：evac.txt（這個檔）＋ evac.svg（逃生動線圖層）
+// 本資料夾：evac.txt（這個檔）＋ evac.svg（平面圖層，俯視北朝上）＋ assembly.svg（畫面圖層，第 3 頁的視角）
 // @svg 後面的檔名相對於這個資料夾；evac.svg 用預設範圍（site.json 的 planFrame_cm），所以不用寫範圍
 
 // ===== 第 1 頁：俯視 =====
@@ -16,3 +16,12 @@ NKCA1:eyJ2IjoyLCJjIjpbOTAwMCwtOTAwMCwxNzAwMF0sInQiOlsxNDUwMCwxNTUwMCwwXSwibSI6In
 ## 斜角檢視
 圖層貼在模型的平面座標上，轉動視角也會對齊建築。
 @svg evac.svg
+
+// ===== 第 3 頁：畫面圖層（任意視角） =====
+// @screen 的 SVG 是照這一頁的畫面畫的（設定 → 簡報 →「下載目前畫面底圖」），拖曳畫面時會淡出
+NKCA1:eyJ2IjoyLCJjIjpbMjUwMCwtNDAwMCw1NTAwXSwidCI6WzcwMDAsNjAwMCwwXSwibSI6InBsYXphIiwiaCI6eyJSSCI6IjFGIiwiUEgiOiIxRiJ9LCJ1aSI6eyJsYWJlbHMiOnRydWUsImNsb2NrIjp0cnVlLCJ3ZWF0aGVyIjp0cnVlLCJ0cmFmZmljIjp0cnVlfSwic3R5bGUiOiJub3JtYWwiLCJsdyI6MiwicHJvaiI6InBlcnNwIiwidG9kIjpudWxsLCJjYXJkIjpudWxsfQ==
+# 集合點
+## 戲劇院南側草坪
+疏散後在集合點清點人數。
+@svg evac.svg
+@screen assembly.svg

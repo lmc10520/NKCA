@@ -19,6 +19,7 @@
 <body>
 <div id="app">
   <canvas id="view"></canvas>
+  <div id="screenLayers"></div>
   <div id="labels"></div>
 
   <!-- 左上：指北針（只指真北）＋視角方塊＋視角切換 -->
@@ -75,7 +76,10 @@
     <div class="presRow">
       <button class="iconBtn" id="snapBtn" title="記住目前畫面（複製代碼）"><span class="ms">bookmark_add</span></button>
       <button class="iconBtn" id="presBtn" title="簡報模式（匯入 txt，可連同 svg／圖片一起選取）"><span class="ms">slideshow</span></button>
-      <button class="iconBtn" id="planBtn" title="下載平面底圖（俯視、北朝上，畫逃生動線等 SVG 用）"><span class="ms">map</span></button>
+      <button class="iconBtn" id="planBtn" title="下載平面底圖（俯視、北朝上，給 @svg 平面圖層用）"><span class="ms">map</span></button>
+      <button class="iconBtn" id="viewBtn" title="下載目前畫面底圖（任意視角，給 @screen 畫面圖層用；同時複製這個畫面的代碼）"><span class="ms">add_photo_alternate</span></button>
+    </div>
+    <div class="presRow">
       <form id="lessonForm" class="lessonBox"><input id="lessonCode" placeholder="教學代碼" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="ms" title="開啟教學">search</button></form>
     </div>
   </div>

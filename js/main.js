@@ -15,7 +15,7 @@ import { Fountain } from './fountain.js';
 import { Vehicles, People } from './vehicles.js';
 import { buildScreens } from './screens.js';
 import { Labels, Pois } from './labels.js';
-import { PlanOverlay } from './overlay.js';
+import { PlanOverlay, ScreenOverlay } from './overlay.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -139,6 +139,8 @@ const labels = new Labels(labelsCfg, model);
 const pois = new Pois(poisCfg, model, labels);
 const plan = new PlanOverlay(scene, renderer, site);
 plan.onError = (src) => toast(`讀不到圖層 ${decodeURIComponent(src.split('/').pop())}`);
+const screenLayer = new ScreenOverlay($('screenLayers'));
+screenLayer.onError = plan.onError;
 setLoad(100, '完成'); await paint(); await new Promise((r) => setTimeout(r, 250));
 $('loading').classList.add('hidden');
 
@@ -570,10 +572,11 @@ function flyTo(pos, target, ms = 1600) {
 //   ## 副標             ← H2
 //   一般文字            ← 內文（可多行）
 //   @svg 檔名.svg       ← 平面圖層（逃生動線等），貼在模型平面上；可加範圍 x0,y0,x1,y1、z=高度(cm)、depth（被建築遮住）
+//   @screen 檔名.svg    ← 畫面圖層：疊在這一頁的畫面上（任意視角），底圖用「下載目前畫面底圖」
 //   @img 檔名.jpg       ← 文字框裡的圖片
 //   // 註記            ← 不顯示（頁次、提醒）
 // 檔名是相對於 txt 所在的資料夾。文字只在這次簡報顯示，不會存在瀏覽器裡。
-function snapshot() {
+function snapshotCode() {
   const s = {
     v: 2, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
     ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic },
@@ -581,7 +584,10 @@ function snapshot() {
     tod: env.override, card: labels.openId(),
   };
   if (state.venue != null) s.vl = state.venue;
-  const code = 'NKCA1:' + btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+  return 'NKCA1:' + btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+}
+function snapshot() {
+  const code = snapshotCode();
   navigator.clipboard?.writeText(code)?.catch(() => {});
   toast('已複製簡報代碼（貼到記事本，一頁一行）：\n' + code, 6000);
 }
@@ -594,12 +600,13 @@ function parseDeck(txt, resolve = (f) => f) {
   for (const raw of txt.split(/\r?\n/)) {
     const line = raw.trim();
     const m = line.match(/^NKCA1:([A-Za-z0-9+/=]+)/);
-    if (m) { const s = decode(m[1]); if (s) { cur = { ...s, h1: '', h2: '', p: [], svg: [], img: [] }; cues.push(cur); } continue; }
+    if (m) { const s = decode(m[1]); if (s) { cur = { ...s, h1: '', h2: '', p: [], svg: [], img: [], screen: [] }; cues.push(cur); } continue; }
     if (!cur || !line || line.startsWith('//')) continue;
-    const at = line.match(/^@(svg|img)\s+(.+)$/i);
+    const at = line.match(/^@(svg|img|screen)\s+(.+)$/i);
     if (at) {
-      const parts = at[2].trim().split(/\s+/), file = parts.shift();
-      if (at[1].toLowerCase() === 'img') { cur.img.push(resolve(file)); continue; }
+      const parts = at[2].trim().split(/\s+/), file = parts.shift(), kind = at[1].toLowerCase();
+      if (kind === 'img') { cur.img.push(resolve(file)); continue; }
+      if (kind === 'screen') { cur.screen.push({ src: resolve(file) }); continue; }
       const L = { src: resolve(file) };
       for (const o of parts) {
         const f = o.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
@@ -700,12 +707,13 @@ function goCue(i) {
   if (s.card) labels.openById(s.card); else labels.close();
   showPresText(s);
   plan.show(s.svg);
+  screenLayer.show(s.screen, { c: cm2w(s.c), t: cm2w(s.t) });
   flyTo(cm2w(s.c), cm2w(s.t));
 }
 function exitPres() {
   state.presenting = false; document.body.classList.remove('presenting');
   $('presBar').classList.add('hidden'); $('presText').classList.add('hidden'); renderLiftPanel(true);
-  plan.show([]);
+  plan.show([]); screenLayer.show([]);
   if (pres.course) { pres.course = null; setCourseURL(null); }
 }
 $('presPrev').onclick = () => goCue(pres.i - 1);
@@ -742,16 +750,7 @@ function exportPlan() {
   const cam = new THREE.OrthographicCamera(-wcm / 200, wcm / 200, hcm / 200, -hcm / 200, 1, 3000);
   const c = cm2w([(x0 + x1) / 2, (y0 + y1) / 2, 0]);
   cam.position.set(c.x, 1500, c.z); cam.up.set(0, 0, -1); cam.lookAt(c.x, 0, c.z); cam.updateMatrixWorld();
-  const pr = renderer.getPixelRatio(), fog = scene.fog;
-  scene.fog = null; plan.visible = false;
-  edgeMat.resolution.set(W, H); groundEdgeMat.resolution.set(W, H);
-  renderer.setPixelRatio(1); renderer.setSize(W, H, false);
-  renderer.render(scene, cam);
-  const out = document.createElement('canvas'); out.width = W; out.height = H;
-  const g = out.getContext('2d');
-  g.drawImage(renderer.domElement, 0, 0);
-  scene.fog = fog; plan.visible = true;
-  renderer.setPixelRatio(pr); resize();
+  const out = renderOffscreen(cam, W, H, true), g = out.getContext('2d');
   // 標籤畫在底圖上，方便對位置
   const fs = Math.max(14, Math.round(W / 140));
   g.font = `500 ${fs}px Roboto, "Noto Sans TC", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -766,10 +765,7 @@ function exportPlan() {
   g.font = `${Math.round(fs * 0.8)}px Roboto, sans-serif`;
   g.fillText(`NKCA plan  x ${x0}–${x1} cm  y ${y0}–${y1} cm  (1 px = ${(1 / k).toFixed(1)} cm, north-up = model +Y)`, fs * 0.6, H - fs * 0.5);
   const name = `NKCA_plan_${x0}_${y0}_${x1}_${y1}.png`;
-  out.toBlob((b) => {
-    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  }, 'image/png');
+  downloadCanvas(out, name);
   const def = site.planFrame_cm || [-4000, 2000, 36000, 30000];
   const isDef = [x0, y0, x1, y1].every((v, i) => v === def[i]);
   navigator.clipboard?.writeText(isDef ? '@svg 檔名.svg' : `@svg 檔名.svg ${x0},${y0},${x1},${y1}`)?.catch(() => {});
@@ -777,6 +773,54 @@ function exportPlan() {
     (isDef ? '這是預設範圍，txt 寫「@svg 檔名.svg」即可（已複製）' : `txt 寫「@svg 檔名.svg ${x0},${y0},${x1},${y1}」（已複製）`), 8000);
 }
 $('planBtn').onclick = exportPlan;
+
+// 離屏算圖：指定鏡頭與尺寸，回傳 2D canvas（noFog：平面底圖不要霧）
+function renderOffscreen(cam, W, H, noFog = false) {
+  const pr = renderer.getPixelRatio(), fog = scene.fog;
+  if (noFog) scene.fog = null;
+  plan.visible = false;
+  edgeMat.resolution.set(W, H); groundEdgeMat.resolution.set(W, H);
+  renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+  renderer.render(scene, cam);
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  out.getContext('2d').drawImage(renderer.domElement, 0, 0);
+  scene.fog = fog; plan.visible = true;
+  renderer.setPixelRatio(pr); resize();
+  return out;
+}
+const downloadCanvas = (cv, name) => cv.toBlob((b) => {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}, 'image/png');
+
+// ---------- 目前畫面底圖：任意視角，給 @screen 畫面圖層用 ----------
+// 同時複製這個畫面的簡報代碼＋「@screen 檔名.svg」，貼進 txt 就是一頁。
+function exportView() {
+  const code = snapshotCode();
+  // 先把鏡頭放到代碼記錄的位置（四捨五入到 cm），底圖和播放時的畫面才會完全一樣
+  const s = decode(code.slice(6));
+  fly = null; camera.position.copy(cm2w(s.c)); controls.target.copy(cm2w(s.t)); controls.update(); camera.updateMatrixWorld();
+  if (state.ortho) syncOrtho();
+  const H = 1440, W = Math.round(H * camera.aspect);
+  const out = renderOffscreen(viewCam(), W, H), g = out.getContext('2d');
+  // 看得到的標籤也畫上去（位置照目前畫面等比例換算）
+  const k = H / innerHeight, fs = Math.round(13 * k);
+  g.font = `500 ${fs}px Roboto, "Noto Sans TC", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const it of labels.items) {
+    if (it.el.classList.contains('gone') || !state.labels) continue;
+    const m = it.el.style.transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/); if (!m) continue;
+    const u = +m[1] * k, v = (+m[2] - 18) * k;
+    const tw = g.measureText(it.cfg.text).width + fs * 1.6, th = fs * 1.9;
+    g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.roundRect(u - tw / 2, v - th / 2, tw, th, th / 2); g.fill();
+    g.fillStyle = '#202124'; g.fillText(it.cfg.text, u, v + 1);
+  }
+  const d = new Date(), pad = (n) => String(n).padStart(2, '0');
+  const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  downloadCanvas(out, `NKCA_view_${stamp}.png`);
+  navigator.clipboard?.writeText(`${code}\n@screen 檔名.svg`)?.catch(() => {});
+  toast(`已下載目前畫面底圖 ${W}×${H}\n已複製這個畫面的簡報代碼＋「@screen 檔名.svg」，貼進 txt 後把檔名改成你的 SVG`, 8000);
+}
+$('viewBtn').onclick = exportView;
 
 // 開啟網頁：網址有 course 就直接播放教材，否則依設定進入迎賓模式
 {
@@ -832,6 +876,7 @@ renderer.setAnimationLoop(() => {
   bloom.strength = n * 0.9;
   fountain?.update(t, env.now(), n);
   plan.update(dt);
+  screenLayer.update(camera.position, controls.target, !!fly);
   vehicles.update(dt, n);
   people.update(dt);
   for (let i = lifts.length - 1; i >= 0; i--) {
