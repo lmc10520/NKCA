@@ -1,5 +1,12 @@
 {
- "_說明": "地點標籤，可自由增刪；pos_cm 為 Fusion 座標（cm）。show=false 先隱藏。標籤會自動放在該位置最上層表面的上方，被建築擋住時自動隱藏。card 為點標籤後往下展開的資料卡：h1 標題、h2 副標、p 內文、sections 為分段（title 小標＋items 條列）。沒有 card 的標籤不能點。 lift 為點標籤後顯示的樓層選單：\"core:SW\" 交通核、\"hall:RH\" 廳院（廳院樓層會自動切到榕樹廣場模式）。",
+ "_說明": "地點標籤，可自由增刪；pos_cm 為 Fusion 座標（cm）。show=false 先隱藏。標籤會自動放在該位置最上層表面的上方，被建築擋住時自動隱藏。card 為點標籤後往下展開的資料卡：h1 標題、h2 副標、p 內文、sections 為分段（title 小標＋items 條列）。沒有 card 的標籤不能點。 lift 為點標籤後顯示的樓層選單：\"core:SW\" 交通核、\"hall:RH\" 廳院（廳院樓層會自動切到榕樹廣場模式）。 venue 為標籤圓點的識別色（CH 音樂廳、RH 表演廳、OH 歌劇院、PH 戲劇院、public 其他公共空間與交通核），顏色在 colors。",
+ "colors": {
+  "CH": "#DABE00",
+  "RH": "#E98B19",
+  "OH": "#E50012",
+  "PH": "#0072BE",
+  "public": "#2B8D56"
+ },
  "labels": [
   {
    "id": "opera",
@@ -9,7 +16,8 @@
     17500,
     2600
    ],
-   "show": true
+   "show": true,
+   "venue": "OH"
   },
   {
    "id": "concert",
@@ -19,7 +27,8 @@
     12500,
     2600
    ],
-   "show": true
+   "show": true,
+   "venue": "CH"
   },
   {
    "id": "recital",
@@ -30,7 +39,8 @@
     2400
    ],
    "show": true,
-   "lift": "hall:RH"
+   "lift": "hall:RH",
+   "venue": "RH"
   },
   {
    "id": "playhouse",
@@ -41,7 +51,8 @@
     2600
    ],
    "show": true,
-   "lift": "hall:PH"
+   "lift": "hall:PH",
+   "venue": "PH"
   },
   {
    "id": "outdoor",
@@ -51,7 +62,8 @@
     8700,
     1800
    ],
-   "show": true
+   "show": true,
+   "venue": "public"
   },
   {
    "id": "banyan",
@@ -61,7 +73,8 @@
     12500,
     600
    ],
-   "show": true
+   "show": true,
+   "venue": "public"
   },
   {
    "id": "fountain",
@@ -91,7 +104,8 @@
       ]
      }
     ]
-   }
+   },
+   "venue": "public"
   },
   {
    "id": "core_sw",
@@ -101,7 +115,8 @@
     9950,
     600
    ],
-   "lift": "core:SW"
+   "lift": "core:SW",
+   "venue": "public"
   },
   {
    "id": "core_ne",
@@ -111,7 +126,8 @@
     17460,
     600
    ],
-   "lift": "core:NE"
+   "lift": "core:NE",
+   "venue": "public"
   },
   {
    "id": "core_se",
@@ -121,7 +137,8 @@
     7300,
     350
    ],
-   "lift": "core:SE"
+   "lift": "core:SE",
+   "venue": "public"
   }
  ]
 }

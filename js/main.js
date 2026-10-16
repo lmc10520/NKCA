@@ -16,6 +16,7 @@ import { Vehicles, People } from './vehicles.js';
 import { buildScreens } from './screens.js';
 import { Labels, Pois } from './labels.js';
 import { PlanOverlay, ScreenOverlay } from './overlay.js';
+import { Festival } from './festival.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,8 +35,8 @@ const paint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r,
 setLoad(2, '讀取設定…');
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -135,6 +136,7 @@ const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
 const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles, model);
 const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
+const festival = new Festival(scene, festCfg, model);
 const labels = new Labels(labelsCfg, model);
 const pois = new Pois(poisCfg, model, labels);
 const plan = new PlanOverlay(scene, renderer, site);
@@ -149,6 +151,7 @@ const state = {
   mode: modesCfg.default || 'exterior', halls: {}, clock: true, weather: true, labels: true, traffic: true,
   style: 'normal', contrast: false, wire: false, ortho: false, lineW: 2,
   venue: null,   // 場館燈光：null＝依營運時間自動，true／false＝手動開／關
+  festival: true,   // 節慶物件（檔期內才有）
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
@@ -415,6 +418,7 @@ function setToggle(k, v) {
   if (k === 'clock') $('clock').classList.toggle('hidden', !v && !state.weather);
   if (k === 'weather') env.weatherOn = v;
   if (k === 'traffic') applyTraffic();
+  if (k === 'festival') festival.setOn(v);
 }
 document.querySelectorAll('[data-tg]').forEach((cb) => (cb.onchange = () => setToggle(cb.dataset.tg, cb.checked)));
 // 場館燈光：預設依 lights.json 的營運時間自動開關；手動切換後維持，按「自動」回到排程
@@ -425,7 +429,10 @@ function setVenue(v) {
 }
 $('venueSw').onchange = (e) => { setVenue(e.target.checked); toast(e.target.checked ? '場館燈光：開（手動）' : '場館燈光：關（手動）'); };
 $('venueAuto').onclick = () => { setVenue(null); toast('場館燈光：依營運時間自動開關'); };
-$('settingsBtn').onclick = () => { $('settings').classList.toggle('hidden'); $('timeSlider').classList.add('hidden'); };
+// 節慶物件：只有檔期內（或網址 ?festival=）才出現這一列
+$('festRow').classList.toggle('hidden', !festival.active);
+$('festName').textContent = festival.active ? `節慶物件（${festival.names}）` : '節慶物件';
+$('settingsBtn').onclick = () => { $('settings').classList.toggle('hidden'); $('timeSlider').classList.add('hidden'); closeOverview(); };
 $('settingsClose').onclick = () => $('settings').classList.add('hidden');
 $('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setStyle(s); };
 $('projSeg').onclick = (e) => { const p = e.target.dataset.proj; if (p) setProj(p); };
@@ -433,6 +440,8 @@ $('lineW').oninput = (e) => setLineW(e.target.value);
 $('wxSeg').onclick = (e) => {
   const w = e.target.dataset.wx; if (!w) return;
   env.wxOverride = w === 'live' ? null : w;
+  // 極光只在夜間看得到：白天選極光時自動切到 21:00
+  if (w === 'aurora' && env.night < 0.5) { env.override = 21 * 60; toast('極光要在夜間才看得到，已切到 21:00（設定 → 指定時間 → 回到現在 可還原）', 4000); }
   [...$('wxSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.wx === w));
 };
 $('snapBtn').onclick = snapshot;
@@ -579,7 +588,7 @@ function flyTo(pos, target, ms = 1600) {
 function snapshotCode() {
   const s = {
     v: 2, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
-    ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic },
+    ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic, festival: state.festival },
     style: state.style, lw: state.lineW, proj: state.ortho ? 'ortho' : 'persp',
     tod: env.override, card: labels.openId(),
   };
@@ -671,9 +680,16 @@ function setCourseURL(code) {
   history.replaceState(null, '', u);
 }
 function startDeck(txt, resolve) {
-  pres.cues = parseDeck(txt, resolve);
-  if (!pres.cues.length) { toast('檔案中沒有可用的簡報代碼'); return; }
-  $('settings').classList.add('hidden');
+  const cues = parseDeck(txt, resolve);
+  if (!cues.length) { toast('檔案中沒有可用的簡報代碼'); return; }
+  pois.highlight(null);
+  startCues(cues);
+}
+function startCues(cues) {
+  pres.cues = cues;
+  if (!state.presenting) pres.keep = { festival: state.festival };
+  $('presBar').classList.toggle('single', cues.length < 2);
+  $('settings').classList.add('hidden'); closeOverview();
   state.presenting = true; document.body.classList.add('presenting');
   $('presBar').classList.remove('hidden'); renderLiftPanel(true);
   setCourseURL(pres.course);   // 網址列就是可以分享給學生的連結
@@ -699,6 +715,7 @@ function goCue(i) {
   if (s.m) setMode(s.m, true);
   if (s.h) for (const h of halls) if (s.h[h.id]) setHallFloor(h, s.h[h.id]);
   for (const [k, v] of Object.entries(s.ui || {})) if (k in state) setToggle(k, v);
+  if (s.ui?.festival == null) setToggle('festival', false);   // 舊代碼沒有記錄：教材預設不顯示節慶物件
   setStyle(s.style || (s.ui?.wire ? 'wire' : s.ui?.contrast ? 'contrast' : 'normal'));
   if (s.lw) setLineW(s.lw);
   setProj(s.proj || 'persp');
@@ -714,6 +731,8 @@ function exitPres() {
   state.presenting = false; document.body.classList.remove('presenting');
   $('presBar').classList.add('hidden'); $('presText').classList.add('hidden'); renderLiftPanel(true);
   plan.show([]); screenLayer.show([]);
+  if (pres.keep) { setToggle('festival', pres.keep.festival); pres.keep = null; }
+  pois.highlight(null);
   if (pres.course) { pres.course = null; setCourseURL(null); }
 }
 $('presPrev').onclick = () => goCue(pres.i - 1);
@@ -822,6 +841,58 @@ function exportView() {
 }
 $('viewBtn').onclick = exportView;
 
+// ---------- 概覽（右側選單）：分類定點導覽 ----------
+// config/overview.json 的分類；定點來自 pois.json 中 cat 相同的圖示、分類自己的 items，或直接開教材（course）
+const ovCats = overviewCfg.categories || [];
+const iconSrc = (n) => poisCfg.icons?.[n] || null;
+function catPoints(c) {
+  const out = [];
+  for (const it of pois.items) if (it.cfg.cat === c.id) out.push({ title: it.cfg.text, pos_cm: it.cfg.pos_cm, modes: it.cfg.modes, hall: it.cfg.hall, floor: it.cfg.floor, text: it.cfg.note });
+  for (const it of c.items || []) out.push(it);
+  return out;
+}
+function renderOverview() {
+  const box = $('ovList'); box.innerHTML = '';
+  for (const c of ovCats) {
+    const n = catPoints(c).length, b = document.createElement('button');
+    b.className = 'ovItem' + (n || c.course ? '' : ' empty');
+    b.style.setProperty('--c', c.color || '#0b57d0');
+    const src = iconSrc(c.icon);
+    b.innerHTML = `<span class="ovIcon">${src ? `<img src="${src}" alt="">` : `<span class="ms">${c.icon || 'place'}</span>`}</span>` +
+      `<span><div class="ovName"></div><div class="ovSub">${c.course ? '教材' : n ? `${n} 個定點` : '尚未設定位置'}</div></span>`;
+    b.querySelector('.ovName').textContent = c.name;
+    b.onclick = () => startOverview(c);
+    box.appendChild(b);
+  }
+}
+function openOverview() { renderOverview(); $('ovDrawer').classList.add('open'); $('settings').classList.add('hidden'); }
+function closeOverview() { $('ovDrawer').classList.remove('open'); }
+$('ovBtn').onclick = (e) => { e.stopPropagation(); $('ovDrawer').classList.contains('open') ? closeOverview() : openOverview(); };
+$('ovClose').onclick = closeOverview;
+function startOverview(c) {
+  if (c.course) { closeOverview(); loadCourse(c.course); return; }
+  const pts = catPoints(c);
+  if (!pts.length) { toast(`「${c.name}」還沒有設定位置（config/overview.json 或 pois.json 的 cat）`); return; }
+  // 鏡頭：沿用目前的方位，往下看 50°，距離 dist_m（預設 45 m）
+  const off = camera.position.clone().sub(controls.target); off.y = 0;
+  if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
+  off.normalize();
+  const cues = pts.map((p, i) => {
+    let base;
+    if (p.code) base = decode(String(p.code).replace(/^NKCA1:/, ''));
+    if (!base) {
+      const t = cm2w(p.pos_cm), d = p.dist_m || 45, e = THREE.MathUtils.degToRad(50);
+      const cpos = t.clone().addScaledVector(off, Math.cos(e) * d); cpos.y += Math.sin(e) * d;
+      base = { c: w2cm(cpos), t: p.pos_cm, m: p.modes?.[0] || c.mode || state.mode };
+      if (p.hall) base.h = { ...state.halls, [p.hall]: p.floor };
+    }
+    return { ...base, h1: c.name, h2: p.title || '', p: p.text ? String(p.text).split('\n') : [], svg: [], img: [], screen: [] };
+  });
+  pres.course = null;
+  startCues(cues);
+  pois.highlight(c.id, c.color || '#0b57d0');
+}
+
 // 開啟網頁：網址有 course 就直接播放教材，否則依設定進入迎賓模式
 {
   const course = courseFromURL();
@@ -873,8 +944,10 @@ renderer.setAnimationLoop(() => {
   const venueOn = state.venue ?? buildingOpen(env.now());
   venueK += ((venueOn ? 1 : 0) - venueK) * Math.min(1, dt * 1.5);
   night.update(n, n * venueK);
-  bloom.strength = n * 0.9;
+  bloom.strength = n * 0.9 + (env.flashK || 0) * 0.6;
+  if (env.flashK) renderer.toneMappingExposure += env.flashK * 0.9;   // 閃電瞬間整個畫面亮一下
   fountain?.update(t, env.now(), n);
+  festival.update(dt, n);
   plan.update(dt);
   screenLayer.update(camera.position, controls.target, !!fly);
   vehicles.update(dt, n);
@@ -916,4 +989,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // 開發者用：在主控台 window.nkca 可以查物件
-window.nkca = { scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir };
+window.nkca = { festival, pois, startOverview, ovCats, scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir };

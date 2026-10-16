@@ -131,10 +131,8 @@ body.presenting #settingsBtn,body.presenting #settings,body.presenting #modeBar,
   background:#fff;box-shadow:var(--elev1);white-space:nowrap}
 .lbl.clickable .lblText{pointer-events:auto;cursor:pointer;padding-right:24px}
 .lbl.clickable .lblText::after{content:"";position:absolute;right:10px;top:50%;width:6px;height:6px;border-right:2px solid var(--on-2);border-bottom:2px solid var(--on-2);transform:translateY(-70%) rotate(45deg);transition:transform .2s}
-.lbl.liftable .lblText{pointer-events:auto;cursor:pointer;padding-left:26px}
-.lbl.liftable .lblText::before{content:"";position:absolute;left:9px;top:50%;width:11px;height:13px;transform:translateY(-50%);
-  background:linear-gradient(var(--on-2),var(--on-2)) 50% 2px/2px 4px no-repeat,linear-gradient(var(--on-2),var(--on-2)) 50% 7px/2px 4px no-repeat;
-  border:1.5px solid var(--on-2);border-radius:2px;box-sizing:border-box}
+.lbl.liftable .lblText{pointer-events:auto;cursor:pointer}
+.lblDot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
 .lbl.open .lblText{background:var(--primary);color:#fff}
 .lbl.open .lblText::after{border-color:#fff;transform:translateY(-25%) rotate(-135deg)}
 .lblCard{position:absolute;left:0;top:4px;transform:translateX(-50%);width:min(320px,calc(100vw - 32px));pointer-events:auto;
@@ -157,6 +155,11 @@ body.presenting #settingsBtn,body.presenting #settings,body.presenting #modeBar,
 .poiTile{position:absolute;left:0;top:0;transform:translate(-50%,-100%);width:34px;height:34px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 .poiTile img{display:block;width:100%;height:100%}
 .poiText{position:absolute;left:0;top:0;transform:translate(-50%,-100%);white-space:nowrap;background:#111;color:#fff;font-size:12px;font-weight:500;padding:4px 8px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.poi.hl .poiTile{outline:4px solid var(--hl);outline-offset:2px;animation:hlPulse 1.6s ease-in-out infinite}
+.poi.hl .poiText{background:var(--hl);outline:3px solid #fff}
+.poi.hl .poiPole{background:var(--hl);width:3px}
+.poi.hl{z-index:2}
+@keyframes hlPulse{0%,100%{box-shadow:0 0 0 0 var(--hl)}50%{box-shadow:0 0 0 8px transparent}}
 
 /* 迎賓模式：時間天氣放大置中（像待機畫面），其他介面淡出，模型緩緩自轉 */
 #clock{transition:all .8s cubic-bezier(.2,.7,.2,1)}
@@ -172,6 +175,23 @@ body.welcomePure #clock,body.welcomePure #welcomeHint,body.welcomePure #toast{op
 #welcomeHint{position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:10;color:#fff;font-size:15px;letter-spacing:1px;
   text-shadow:0 1px 6px rgba(0,0,0,.5);pointer-events:none;animation:breathe 2.6s ease-in-out infinite}
 @keyframes breathe{0%,100%{opacity:.35}50%{opacity:.95}}
+
+/* 右上：概覽按鈕與右側抽屜 */
+#ovBtn{right:16px;top:96px;height:40px;padding:0 16px 0 12px;border-radius:999px;background:var(--surface);box-shadow:var(--elev2);display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--on)}
+#ovBtn .ms{font-size:20px;color:var(--primary)}
+#ovDrawer{top:16px;right:16px;bottom:16px;width:300px;max-width:calc(100% - 32px);padding:12px 12px 14px 16px;overflow:auto;transform:translateX(calc(100% + 24px));transition:transform .35s cubic-bezier(.2,.7,.2,1);visibility:hidden}
+#ovDrawer.open{transform:none;visibility:visible}
+.ovItem{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:6px 8px;border-radius:16px;text-align:left}
+.ovItem:hover{background:var(--surface-2)}
+.ovIcon{width:40px;height:40px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:inset 0 0 0 3px var(--c)}
+.ovIcon img{width:26px;height:26px}
+.ovIcon .ms{color:var(--c);font-size:24px}
+.ovName{font-size:15px;font-weight:500;color:var(--on)}
+.ovSub{font-size:12px;color:var(--on-2);margin-top:2px}
+.ovItem.empty{opacity:.55}
+body.presenting #ovBtn,body.welcome #ovBtn{opacity:0;pointer-events:none}
+#ovBtn{transition:opacity .6s}
+#presBar.single #presPrev,#presBar.single #presNext{display:none}
 
 /* 左下：設定 */
 #settingsBtn{left:16px;bottom:20px}

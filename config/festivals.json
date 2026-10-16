@@ -1,0 +1,38 @@
+{
+ "_說明": "節慶物件。每個活動：id、name、檔期 from／to（\"2026-11-07\" 只限那一年；\"12-01\" 每年）、objects。以台灣時間判斷檔期，到期自動出現、過期自動消失；enabled:false 可先關掉。網址加 ?festival=活動id 可以不管檔期直接預覽（例如 ?festival=xmas）。設定選單的「節慶物件」開關可以隨時關閉；簡報（教材）預設不顯示節慶物件。",
+ "_物件說明": "pos_cm 為 Fusion 平面座標 [x, y]（cm），高度自動貼齊地面。pumpkin：height_cm、face_deg（笑臉朝向，0＝北、90＝東、180＝南）。ghosts：projectors 為地面投影機，from_cm 投影機位置、to_cm 投影中心（建築表面上的點），angle_deg 投影範圍、intensity 亮度、drift_m 飄動幅度，只有夜間看得到。ball：diameter_cm、color、texture（可放自己的 2:1 貼圖，例如 img/festival/ball.jpg）。xmasTree：height_cm。",
+ "events": [
+  {
+   "id": "halloween",
+   "name": "萬聖節",
+   "from": "10-17",
+   "to": "11-01",
+   "objects": [
+    { "type": "pumpkin", "pos_cm": [10200, 4900], "height_cm": 1200, "face_deg": 160 },
+    { "type": "ghosts", "projectors": [
+      { "from_cm": [8800, 2600, 300], "to_cm": [9800, 9200, 700], "angle_deg": 10, "intensity": 1.6 },
+      { "from_cm": [11500, 2200, 300], "to_cm": [11800, 9600, 1100], "angle_deg": 10, "intensity": 1.6 },
+      { "from_cm": [14200, 2600, 300], "to_cm": [13700, 9300, 900], "angle_deg": 10, "intensity": 1.6 }
+    ] }
+   ]
+  },
+  {
+   "id": "ball",
+   "name": "大球來訪",
+   "from": "2026-11-07",
+   "to": "2026-11-08",
+   "objects": [
+    { "type": "ball", "pos_cm": [15300, 26150], "diameter_cm": 400, "color": "#f2c230", "texture": "" }
+   ]
+  },
+  {
+   "id": "xmas",
+   "name": "聖誕節",
+   "from": "12-01",
+   "to": "12-31",
+   "objects": [
+    { "type": "xmasTree", "pos_cm": [19200, 26150], "height_cm": 1500 }
+   ]
+  }
+ ]
+}

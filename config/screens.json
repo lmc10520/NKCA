@@ -1,144 +1,87 @@
 {
- "_說明": "LED 廣告電視與舞台貼圖。把圖片放到 img/ 並用 file 指定的檔名上傳即可更新。corners_cm 依序為 左下、右下、右上、左上（從觀看方向看）。座標請用 Shift+點擊 量測後填入，enabled 改 true。",
+ "_說明": "LED 電視、舞台貼圖、玻璃帷幕貼紙。把圖片用 file 指定的檔名上傳到 img/ 就會貼上。corners_cm：四個角點（左下、右下、右上、左上，從觀看方向看）；path_cm＋z_cm：沿折線由左到右展開（L 型轉角貼紙），z_cm 為 [下緣, 上緣]。kind：led＝自己發光（沒有圖片時是關機的黑色面板）；sticker＝透明貼紙 PNG（沒有圖片就不顯示）。template 是標出玻璃接縫的範本圖，網址加 ?screens=test 會用範本檢查位置。座標為 Fusion 座標（cm）。",
  "screens": [
   {
-   "id": "led_se",
-   "label": "東南角落地玻璃 LED",
-   "file": "img/led_se.jpg",
-   "enabled": false,
-   "corners_cm": [
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ]
-   ]
-  },
-  {
-   "id": "led_nw",
-   "label": "西北角落地玻璃 LED",
-   "file": "img/led_nw.jpg",
-   "enabled": false,
-   "corners_cm": [
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ]
-   ]
-  },
-  {
    "id": "led_oh_n",
-   "label": "歌劇院北側玻璃 LED",
+   "label": "歌劇院北側 LED（寬 1200、高 250 cm）",
+   "kind": "led",
    "file": "img/led_oh_n.jpg",
-   "enabled": false,
+   "template": "img/templates/template_led_oh_n.png",
+   "enabled": true,
+   "_來源": "OH.dwg 黃線（OH2F 圖層），套到模型：X = x + 2275、Y = y + 7197；高度＝歌劇院 2F 玻璃帶 +4.97～+7.47 m",
    "corners_cm": [
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ]
+    [14077,22040,497],
+    [12873,22026,497],
+    [12873,22026,747],
+    [14077,22040,747]
    ]
+  },
+  {
+   "id": "sticker_se",
+   "label": "東南角玻璃貼紙（南面轉角小片＋東面 3 片）",
+   "kind": "sticker",
+   "file": "img/sticker_se.png",
+   "template": "img/templates/template_sticker_se.png",
+   "enabled": true,
+   "path_cm": [
+    [24830,7517],
+    [24873,7517],
+    [24873,7980]
+   ],
+   "z_cm": [0,340]
+  },
+  {
+   "id": "sticker_nw",
+   "label": "西北角玻璃貼紙（北面轉角小片＋西面 3 片）",
+   "kind": "sticker",
+   "file": "img/sticker_nw.png",
+   "template": "img/templates/template_sticker_nw.png",
+   "enabled": true,
+   "path_cm": [
+    [2690,23208],
+    [2618,23208],
+    [2618,22740]
+   ],
+   "z_cm": [0,348]
+  },
+  {
+   "id": "sticker_ne",
+   "label": "東北角玻璃貼紙（東面 5 片＋北面轉角小片）",
+   "kind": "sticker",
+   "file": "img/sticker_ne.png",
+   "template": "img/templates/template_sticker_ne.png",
+   "enabled": true,
+   "path_cm": [
+    [24873,22433],
+    [24873,23208],
+    [24830,23208]
+   ],
+   "z_cm": [0,348]
   },
   {
    "id": "stage_oh",
    "label": "歌劇院鏡框式舞台",
+   "kind": "led",
    "file": "img/stage_oh.jpg",
    "enabled": false,
    "corners_cm": [
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ]
+    [0,0,0],
+    [0,0,0],
+    [0,0,0],
+    [0,0,0]
    ]
   },
   {
    "id": "stage_ph",
    "label": "戲劇院鏡框式舞台",
+   "kind": "led",
    "file": "img/stage_ph.jpg",
    "enabled": false,
    "corners_cm": [
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ],
-    [
-     0,
-     0,
-     0
-    ]
+    [0,0,0],
+    [0,0,0],
+    [0,0,0],
+    [0,0,0]
    ]
   }
  ]

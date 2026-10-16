@@ -32,7 +32,9 @@ export class Labels {
     this.ray = new THREE.Raycaster(); this.ray.firstHitOnly = true;
     this.items = (cfg?.labels || []).filter((l) => l.show !== false).map((l, i) => {
       const el = document.createElement('div'); el.className = 'lbl';
-      el.innerHTML = `<span class="lblText">${esc(l.text)}</span>`;
+      // 圓點＝場館識別色（labels.json 的 venue／colors）
+      const col = l.color || cfg.colors?.[l.venue || 'public'] || '#2B8D56';
+      el.innerHTML = `<span class="lblText"><i class="lblDot" style="background:${esc(col)}"></i>${esc(l.text)}</span>`;
       const it = { id: l.id || 'L' + i, cfg: l, el, base: cm2w(l.pos_cm), p: cm2w(l.pos_cm), seen: true, open: false };
       // card：展開資料卡；lift：顯示樓層選單（"core:SW"、"hall:RH"）
       if (l.card || l.lift) {
@@ -163,6 +165,15 @@ export class Pois {
     this.on = true; this.lastTest = 0;
   }
   set visible(v) { this.on = v; for (const it of this.items) it.el.style.display = v ? '' : 'none'; }
+  // 概覽：把某一類（cat）的標示框上顏色；cat=null 取消
+  highlight(cat, color) {
+    for (const it of this.items) {
+      const on = !!cat && it.cfg.cat === cat;
+      it.el.classList.toggle('hl', on);
+      it.el.style.setProperty('--hl', on ? color : '');
+      it.force = on;
+    }
+  }
   // 依模式與廳院樓層決定哪些標示出現
   setContext(state) {
     for (const it of this.items) {
@@ -190,7 +201,7 @@ export class Pois {
     }
     const A = new THREE.Vector3(), B = new THREE.Vector3();
     for (const it of this.items) {
-      const near = camera.isOrthographicCamera ? (camera.top - camera.bottom) < this.within : it.b.distanceTo(cp) < this.within;
+      const near = it.force || (camera.isOrthographicCamera ? (camera.top - camera.bottom) < this.within : it.b.distanceTo(cp) < this.within);
       A.copy(it.a).project(camera); B.copy(it.b).project(camera);
       const inView = B.z < 1 && B.z > -1 && Math.abs(B.x) < 1.05 && Math.abs(B.y) < 1.05;
       const show = it.on && near && inView && it.seen;
