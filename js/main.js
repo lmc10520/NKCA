@@ -17,6 +17,7 @@ import { buildScreens } from './screens.js';
 import { Labels, Pois } from './labels.js';
 import { PlanOverlay, ScreenOverlay } from './overlay.js';
 import { Festival } from './festival.js';
+import { Piano } from './piano.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -35,8 +36,8 @@ const paint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r,
 setLoad(2, '讀取設定…');
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg, pianoCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview', 'piano']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -137,6 +138,8 @@ const vehicles = new Vehicles(scene, roadsCfg, lightsCfg.vehicles, model);
 const people = new People(scene, peopleCfg);
 const screens = buildScreens(scene, screensCfg);
 const festival = new Festival(scene, festCfg, model);
+const piano = new Piano(scene, pianoCfg);
+piano.onMessage = (t) => toast(t, 4000);
 const labels = new Labels(labelsCfg, model);
 const pois = new Pois(poisCfg, model, labels);
 const plan = new PlanOverlay(scene, renderer, site);
@@ -326,6 +329,8 @@ canvas.addEventListener('pointerup', (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
   const r = canvas.getBoundingClientRect();
   if (!e.shiftKey && !e.altKey) {
+    ray.setFromCamera(ndc(e), viewCam());
+    if (piano.hit(ray)) { piano.toggle(); return; }   // 點鋼琴：路人坐下來彈
     if (people.tap(e.clientX, e.clientY, viewCam(), r)) return;
     labels.close(); $('settings').classList.add('hidden');
     return;
@@ -438,7 +443,8 @@ $('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setSty
 $('projSeg').onclick = (e) => { const p = e.target.dataset.proj; if (p) setProj(p); };
 $('lineW').oninput = (e) => setLineW(e.target.value);
 $('wxSeg').onclick = (e) => {
-  const w = e.target.dataset.wx; if (!w) return;
+  const w = e.target.closest('[data-wx]')?.dataset.wx; if (!w) return;
+  $('wxName').textContent = e.target.closest('[data-wx]').title;
   env.wxOverride = w === 'live' ? null : w;
   // 極光只在夜間看得到：白天選極光時自動切到 21:00
   if (w === 'aurora' && env.night < 0.5) { env.override = 21 * 60; toast('極光要在夜間才看得到，已切到 21:00（設定 → 指定時間 → 回到現在 可還原）', 4000); }
@@ -948,6 +954,7 @@ renderer.setAnimationLoop(() => {
   if (env.flashK) renderer.toneMappingExposure += env.flashK * 0.9;   // 閃電瞬間整個畫面亮一下
   fountain?.update(t, env.now(), n);
   festival.update(dt, n);
+  piano.update(dt);
   plan.update(dt);
   screenLayer.update(camera.position, controls.target, !!fly);
   vehicles.update(dt, n);

@@ -18,27 +18,27 @@
   },
   {
    "id": "sticker_se",
-   "label": "東南角玻璃貼紙（南面轉角小片＋東面 3 片）",
+   "label": "東南角玻璃貼紙（南面轉角小片＋5 片｜東面 5 片）",
    "kind": "sticker",
    "file": "img/sticker_se.png",
    "template": "img/templates/template_sticker_se.png",
    "enabled": true,
    "path_cm": [
-    [24830,7517],
+    [24061,7517],
     [24873,7517],
-    [24873,7980]
+    [24873,8288]
    ],
    "z_cm": [0,340]
   },
   {
    "id": "sticker_nw",
-   "label": "西北角玻璃貼紙（北面轉角小片＋西面 3 片）",
+   "label": "西北角玻璃貼紙（北面轉角小片＋5 片｜西面 3 片）",
    "kind": "sticker",
    "file": "img/sticker_nw.png",
    "template": "img/templates/template_sticker_nw.png",
    "enabled": true,
    "path_cm": [
-    [2690,23208],
+    [3459,23208],
     [2618,23208],
     [2618,22740]
    ],
@@ -46,7 +46,7 @@
   },
   {
    "id": "sticker_ne",
-   "label": "東北角玻璃貼紙（東面 5 片＋北面轉角小片）",
+   "label": "東北角玻璃貼紙（東面 5 片｜北面轉角小片＋5 片）",
    "kind": "sticker",
    "file": "img/sticker_ne.png",
    "template": "img/templates/template_sticker_ne.png",
@@ -54,7 +54,7 @@
    "path_cm": [
     [24873,22433],
     [24873,23208],
-    [24830,23208]
+    [24061,23208]
    ],
    "z_cm": [0,348]
   },

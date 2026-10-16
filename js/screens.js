@@ -19,10 +19,10 @@ export function buildScreens(scene, cfg) {
     const sticker = s.kind === 'sticker';
     const mat = sticker
       ? new THREE.MeshStandardMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.35, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2 })
-      : new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide, toneMapped: false });
+      : new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide, toneMapped: false, transparent: true });   // 透明清單＋renderOrder 3：在玻璃之後畫，玻璃夜間發光時不會蓋住螢幕
     const mesh = new THREE.Mesh(g, mat);
     mesh.name = 'Screen_' + s.id; mesh.userData.fname = mesh.name; mesh.userData.label = s.label;
-    mesh.renderOrder = sticker ? 3 : 0;   // 貼紙在玻璃（renderOrder 2）之後畫
+    mesh.renderOrder = 3;   // 貼紙與 LED 都在玻璃（renderOrder 2）之後畫
     mesh.visible = !sticker;              // 貼紙等圖片載入後才顯示
     group.add(mesh);
     const apply = (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true; mesh.visible = true; };

@@ -193,6 +193,21 @@ body.presenting #ovBtn,body.welcome #ovBtn{opacity:0;pointer-events:none}
 #ovBtn{transition:opacity .6s}
 #presBar.single #presPrev,#presBar.single #presNext{display:none}
 
+/* 路人鋼琴播放列 */
+#pianoBar{left:50%;bottom:20px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;width:min(560px,calc(100% - 32px));z-index:12}
+#pianoBar button{width:38px;height:38px;border-radius:50%;color:var(--on);font-size:24px;flex:none}
+#pianoBar button:hover{background:var(--surface-2)}
+#pianoBar .pnIcon{color:var(--primary);font-size:24px;flex:none}
+#pianoBar .pnMid{flex:1;min-width:0}
+#pianoBar .pnTitle{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pianoBar .pnRow{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--on-2);font-variant-numeric:tabular-nums}
+#pianoBar input[type=range]{accent-color:var(--primary)}
+#pianoBar .pnSeek{flex:1;min-width:0}
+#pianoBar .pnVol{width:70px;flex:none}
+#pianoBar .pnVolI{color:var(--on-2);font-size:20px;flex:none}
+body.presenting #pianoBar{bottom:84px}
+@media (max-width:520px){#pianoBar .pnVol,#pianoBar .pnVolI{display:none}}
+
 /* 左下：設定 */
 #settingsBtn{left:16px;bottom:20px}
 #settings{left:16px;bottom:88px;width:300px;max-height:calc(100vh - 120px);overflow:auto;padding:12px 16px 14px;color:var(--on)}
@@ -218,6 +233,8 @@ body.presenting #ovBtn,body.welcome #ovBtn{opacity:0;pointer-events:none}
 .sw input:checked+i::after{left:18px;width:16px;height:16px;background:#fff}
 .seg2{display:flex;background:var(--surface-2);border-radius:999px;padding:3px;gap:2px}
 .seg2 button{flex:1;height:34px;border-radius:999px;font-size:13px;font-weight:500;color:var(--on-2)}
+.seg2.icons button .ms{font-size:20px;vertical-align:middle}
+.wxName{font-size:12px;color:var(--on-2);text-align:center;margin-top:4px}
 .seg2 button.on{background:var(--surface);color:var(--on);box-shadow:var(--elev1)}
 .setRow.dim{opacity:.45}
 #venueAuto{margin-left:auto;padding:4px 10px}
