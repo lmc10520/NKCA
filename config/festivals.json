@@ -8,21 +8,35 @@
    "from": "10-17",
    "to": "11-01",
    "objects": [
-    { "type": "pumpkin", "pos_cm": [10200, 4900], "height_cm": 1200, "face_deg": 160 },
-    { "type": "ghosts", "projectors": [
-      { "from_cm": [8800, 2600, 300], "to_cm": [9800, 9200, 700], "angle_deg": 10, "intensity": 1.6 },
-      { "from_cm": [11500, 2200, 300], "to_cm": [11800, 9600, 1100], "angle_deg": 10, "intensity": 1.6 },
-      { "from_cm": [14200, 2600, 300], "to_cm": [13700, 9300, 900], "angle_deg": 10, "intensity": 1.6 }
-    ] }
-   ]
-  },
-  {
-   "id": "ball",
-   "name": "大球來訪",
-   "from": "2026-11-07",
-   "to": "2026-11-08",
-   "objects": [
-    { "type": "ball", "pos_cm": [15300, 26150], "diameter_cm": 400, "color": "#f2c230", "texture": "" }
+    {
+     "type": "pumpkin",
+     "pos_cm": [9780, 2610],
+     "height_cm": 1200,
+     "face_deg": 205
+    },
+    {
+     "type": "ghosts",
+     "projectors": [
+      {
+       "from_cm": [8000, 1500, 400],
+       "to_cm": [9800, 9200, 700],
+       "angle_deg": 10,
+       "intensity": 1.6
+      },
+      {
+       "from_cm": [11500, 1200, 400],
+       "to_cm": [11800, 9600, 1100],
+       "angle_deg": 10,
+       "intensity": 1.6
+      },
+      {
+       "from_cm": [14500, 1500, 400],
+       "to_cm": [13700, 9300, 900],
+       "angle_deg": 10,
+       "intensity": 1.6
+      }
+     ]
+    }
    ]
   },
   {
@@ -31,7 +45,11 @@
    "from": "12-01",
    "to": "12-31",
    "objects": [
-    { "type": "xmasTree", "pos_cm": [19200, 26150], "height_cm": 1500 }
+    {
+     "type": "xmasTree",
+     "pos_cm": [13770, 25090],
+     "height_cm": 1500
+    }
    ]
   }
  ]

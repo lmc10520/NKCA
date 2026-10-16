@@ -18,7 +18,7 @@ export class Festival {
     this.on = true; this.k = 0; this.t = 0;
     this.items = []; this.lights = [];
     const force = new URLSearchParams(location.search).get('festival');
-    const ids = force ? force.split(',') : null;   // 可以一次預覽多個：?festival=ball,xmas
+    const ids = force ? force.split(',') : null;   // 可以一次預覽多個：?festival=halloween,xmas
     this.events = (this.cfg.events || []).filter((e) => e.enabled !== false && (ids ? ids.includes(e.id) : this.inRange(e)));
     this.ground = model.meshes.filter((m) => m.userData.isGround && !m.userData.excluded);
     this.ray = new THREE.Raycaster();
