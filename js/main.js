@@ -886,7 +886,7 @@ function startOverview(c) {
       base = { c: w2cm(cpos), t: p.pos_cm, m: p.modes?.[0] || c.mode || state.mode };
       if (p.hall) base.h = { ...state.halls, [p.hall]: p.floor };
     }
-    return { ...base, h1: c.name, h2: p.title || '', p: p.text ? String(p.text).split('\n') : [], svg: [], img: [], screen: [] };
+    return { ...base, h1: c.name, h2: p.title && p.title !== c.name ? p.title : '', p: p.text ? String(p.text).split('\n') : [], svg: [], img: [], screen: [] };
   });
   pres.course = null;
   startCues(cues);

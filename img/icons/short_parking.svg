@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56.69 56.69">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke-width: .33px;
+      }
+
+      .cls-1, .cls-2 {
+        stroke: #fff;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-1, .cls-3 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        stroke-width: .33px;
+      }
+    </style>
+  </defs>
+  <rect class="cls-2" x="0" y="0" width="56.69" height="56.69"/>
+  <path class="cls-1" d="M49.17,6.74h-4.49v12.03h1.35v-4.25h2.91c2.55,0,4.71-1.34,4.71-3.94v-.03c0-2.37-1.78-3.81-4.48-3.81ZM52.29,10.65c0,1.58-1.3,2.64-3.29,2.64h-2.96v-5.28h3.03c1.93,0,3.22.89,3.22,2.6v.04Z"/>
+  <path class="cls-3" d="M23.85,51.75c-10.2,0-18.5-8.3-18.5-18.5S13.65,14.75,23.85,14.75s18.5,8.3,18.5,18.5-8.3,18.5-18.5,18.5ZM23.85,17.08c-8.92,0-16.17,7.25-16.17,16.17s7.25,16.17,16.17,16.17,16.17-7.25,16.17-16.17-7.25-16.17-16.17-16.17Z"/>
+  <rect class="cls-3" x="24.24" y="29.53" width="7.85" height="2.33" transform="translate(-12.77 22.96) rotate(-36.75)"/>
+  <rect class="cls-3" x="22.68" y="21.55" width="2.33" height="11.5"/>
+  <circle class="cls-3" cx="23.85" cy="33.25" r="2.24"/>
+</svg>

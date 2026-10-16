@@ -2,9 +2,16 @@
  "_說明": "右側「概覽」選單。每個分類：id、name、icon（img/icons/ 的檔名或 Material 圖示名稱）、color（標示外框顏色）。點分類後會依序帶到每個定點（像簡報，上一個／下一個切換），並把同一類的圖示框上顏色。",
  "_定點來源": "1) pois.json 裡 cat 等於分類 id 的圖示（建議：在網頁 Shift＋點擊取得座標，貼進 pois.json，加上 \"cat\": \"water\" 之類）；2) 這裡的 items：{ title, text, pos_cm, modes, code（NKCA1 代碼，指定鏡頭）, dist_m（鏡頭距離） }；3) course：直接開教材（例如捷運出入口用 @svg 標好顏色、編號、方向的教材，填教學代碼）。",
  "categories": [
-  { "id": "taxi", "name": "計程車招呼站", "icon": "local_taxi", "color": "#F2B400", "items": [] },
+  { "id": "mrt", "name": "捷運站出入口", "icon": "mrt", "color": "#E3007F", "course": "", "items": [] },
+  { "id": "bus", "name": "公車站", "icon": "bus_stop", "color": "#0072BE", "items": [] },
+  { "id": "taxi", "name": "計程車招呼站", "icon": "taxi", "color": "#F2B400", "items": [] },
+  { "id": "parking", "name": "汽車停車場", "icon": "parking", "color": "#1A73E8", "items": [] },
+  { "id": "parking_entry", "name": "停車場車道出入口", "icon": "parking_entry_w", "color": "#5F6368", "items": [] },
+  { "id": "short", "name": "限時停車", "icon": "short_parking", "color": "#E98B19", "items": [] },
+  { "id": "coach", "name": "大客車停車", "icon": "coach_parking", "color": "#7B5EA7", "items": [] },
+  { "id": "scooter", "name": "機車停車場", "icon": "scooter_parking", "color": "#2B8D56", "items": [] },
+  { "id": "bike", "name": "自行車停車場", "icon": "bike_parking", "color": "#00A3A3", "items": [] },
   { "id": "roads", "name": "周邊道路及建物", "icon": "signpost", "color": "#5F6368", "course": "", "items": [] },
-  { "id": "mrt", "name": "捷運站出入口", "icon": "subway", "color": "#E3007F", "course": "", "items": [] },
   { "id": "nursing", "name": "哺乳室", "icon": "nursing", "color": "#E98B19", "items": [] },
   { "id": "water", "name": "飲水機", "icon": "water", "color": "#0072BE", "items": [] }
  ]

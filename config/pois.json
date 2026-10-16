@@ -1,14 +1,64 @@
 {
- "_說明": "室內標示（只在建築物裡面：四個廳院的樓面、3F 樹冠大廳）。每一項可以是圖示（icon）或地點文字（text）。pos_cm 是樓地板上的點（Fusion 座標，cm）；圖示會立在它上方 pole_m 公尺的細桿頂端。modes 指定在哪些模式出現（exterior 外觀／canopy 樹冠大廳／plaza 榕樹廣場）；hall＋floor 指定廳院樓層（例如表演廳 RH 的 2F）。取得座標：在網頁按住 Shift 點樓面，會複製一行可以直接貼進來的設定。",
+ "_說明": "室內標示（只在建築物裡面：四個廳院的樓面、3F 樹冠大廳）。每一項可以是圖示（icon）或地點文字（text）。pos_cm 是樓地板上的點（Fusion 座標，cm）；圖示會立在它上方 pole_m 公尺的細桿頂端。modes 指定在哪些模式出現（exterior 外觀／canopy 樹冠大廳／plaza 榕樹廣場）；hall＋floor 指定廳院樓層（例如表演廳 RH 的 2F）。取得座標：在網頁按住 Shift 點樓面，會複製一行可以直接貼進來的設定。 cat 為右側「概覽」的分類 id（overview.json），同一分類的圖示會在概覽導覽時依序走過並框上顏色。z 省略或不確定時填 0（地面）。",
  "icons": {
-  "restroom": "img/icons/restroom.svg", "men": "img/icons/men.svg", "women": "img/icons/women.svg",
-  "accessible": "img/icons/accessible.svg", "nursing": "img/icons/nursing.svg", "elevator": "img/icons/elevator.svg",
-  "escalator": "img/icons/escalator.svg", "info": "img/icons/info.svg", "tickets": "img/icons/tickets.svg",
-  "locker": "img/icons/locker.svg", "water": "img/icons/water.svg"
+  "restroom": "img/icons/restroom.svg",
+  "men": "img/icons/men.svg",
+  "women": "img/icons/women.svg",
+  "accessible": "img/icons/accessible.svg",
+  "nursing": "img/icons/nursing.svg",
+  "elevator": "img/icons/elevator.svg",
+  "escalator": "img/icons/escalator.svg",
+  "info": "img/icons/info.svg",
+  "tickets": "img/icons/tickets.svg",
+  "locker": "img/icons/locker.svg",
+  "water": "img/icons/water.svg",
+  "mrt": "img/icons/mrt.svg",
+  "bus_stop": "img/icons/bus_stop.svg",
+  "taxi": "img/icons/taxi.svg",
+  "parking": "img/icons/parking.svg",
+  "parking_entry_w": "img/icons/parking_entry_w.svg",
+  "parking_entry_e": "img/icons/parking_entry_e.svg",
+  "bike_parking": "img/icons/bike_parking.svg",
+  "scooter_parking": "img/icons/scooter_parking.svg",
+  "short_parking": "img/icons/short_parking.svg",
+  "coach_parking": "img/icons/coach_parking.svg"
  },
  "pole_m": 3,
  "showWithin_m": 220,
  "items": [
-  { "icon": "escalator", "text": "電扶梯（往表演廳 2F）", "pos_cm": [19240, 18560, 1470], "modes": ["canopy"] }
+  {
+   "icon": "escalator",
+   "text": "電扶梯（往表演廳 2F）",
+   "pos_cm": [
+    19240,
+    18560,
+    1470
+   ],
+   "modes": [
+    "canopy"
+   ]
+  },
+  { "icon": "mrt", "text": "捷運站出入口", "cat": "mrt", "pos_cm": [8680, 37340, 0] },
+  { "icon": "bike_parking", "text": "自行車停車場", "cat": "bike", "pos_cm": [23260, 35840, 0] },
+  { "icon": "mrt", "text": "捷運站出入口", "cat": "mrt", "pos_cm": [3060, 35350, -1] },
+  { "icon": "scooter_parking", "text": "機車停車場", "cat": "scooter", "pos_cm": [25000, 33940, 0] },
+  { "icon": "mrt", "text": "捷運站出入口", "cat": "mrt", "pos_cm": [-4040, 29620, 0] },
+  { "icon": "scooter_parking", "text": "機車停車場", "cat": "scooter", "pos_cm": [2350, 27970, 0] },
+  { "icon": "bus_stop", "text": "公車站", "cat": "bus", "pos_cm": [-8690, 26010, -1] },
+  { "icon": "bus_stop", "text": "公車站", "cat": "bus", "pos_cm": [-2490, 25740, 0] },
+  { "icon": "mrt", "text": "捷運站出入口", "cat": "mrt", "pos_cm": [390, 24720, 0] },
+  { "icon": "bike_parking", "text": "自行車停車場", "cat": "bike", "pos_cm": [29320, 24210, 0] },
+  { "icon": "scooter_parking", "text": "機車停車場", "cat": "scooter", "pos_cm": [31210, 22820, 0] },
+  { "icon": "coach_parking", "text": "大客車停車", "cat": "coach", "pos_cm": [-1310, 22570, -14] },
+  { "icon": "parking_entry_w", "text": "停車場車道出入口（西）", "cat": "parking_entry", "pos_cm": [2070, 20370, 0] },
+  { "icon": "coach_parking", "text": "大客車停車", "cat": "coach", "pos_cm": [29830, 18940, -14] },
+  { "icon": "scooter_parking", "text": "機車停車場", "cat": "scooter", "pos_cm": [32220, 18100, 4] },
+  { "icon": "parking_entry_e", "text": "停車場車道出入口（東）", "cat": "parking_entry", "pos_cm": [25380, 17930, 0] },
+  { "icon": "short_parking", "text": "限時停車", "cat": "short", "pos_cm": [26760, 17170, -38] },
+  { "icon": "parking", "text": "汽車停車場", "cat": "parking", "pos_cm": [200, 14450, 4] },
+  { "icon": "parking", "text": "汽車停車場", "cat": "parking", "pos_cm": [26920, 14190, 4] },
+  { "icon": "scooter_parking", "text": "機車停車場", "cat": "scooter", "pos_cm": [29530, 11340, -14] },
+  { "icon": "taxi", "text": "計程車招呼站", "cat": "taxi", "pos_cm": [25890, 11110, 0] },
+  { "icon": "taxi", "text": "計程車招呼站", "cat": "taxi", "pos_cm": [1990, 10900, 0] }
  ]
 }
