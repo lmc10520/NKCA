@@ -40,7 +40,7 @@ export class Soundscape {
     this.xfade = cfg.crossfade_s ?? 2.5;
     this.loopX = cfg.loopCrossfade_s ?? 3;
     this.hold = cfg.hold_s ?? 0.6;
-    this.duckCfg = { level: 0.25, attack_s: 0.6, release_s: 2.5, ...(cfg.duck || {}) };
+    this.duckCfg = { level: 0, attack_s: 0.8, release_s: 2.5, ...(cfg.duck || {}) };
     this.cacheBytes = (cfg.cacheMB ?? (isMobile ? 80 : 180)) * 1048576;
     const saved = store.get(STORE), vol = parseFloat(store.get(STORE_VOL));
     this.on = saved == null ? cfg.defaultOn !== false : saved === '1';
@@ -132,7 +132,7 @@ export class Soundscape {
     this.volume = Math.max(0, Math.min(1, +v)); store.set(STORE_VOL, String(this.volume));
     if (this.bus) this.bus.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.05);
   }
-  // 鋼琴播放時壓低環境音；停止後延遲一下再回來（換曲時不會忽大忽小）
+  // 鋼琴播放時環境音淡出（level 0＝完全靜音）；停止或暫停後延遲一下再淡入（換曲時不會忽大忽小）
   duck(on) {
     clearTimeout(this.duckTimer);
     const apply = (v) => {

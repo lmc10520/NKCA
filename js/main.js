@@ -448,6 +448,7 @@ function soundZoneText() {
   const st = soundscape.state;
   if (!st.on) return '已關閉';
   if (!st.unlocked) return '點一下畫面後開始播放';
+  if (soundscape.ducked && !soundscape.duckCfg.level) return '鋼琴演奏中，環境音暫停';
   const names = [st.zone?.name, ...st.layers.map((z) => z.name)].filter(Boolean);
   let t = names.length ? '目前：' + names.join('＋') : '目前沒有可播放的音檔';
   if (st.wanted) t += `\n（${st.wanted.name}：${st.wanted.folder}/ 尚無音檔）`;

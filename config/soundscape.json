@@ -2,13 +2,13 @@
  "_說明": "建築聲景：不同空間播放不同的環境音。音檔放在 folder（預設 audio/soundscape/<id>/），上傳 mp3 就會自動播放，不用改設定；資料夾沒有音檔的區域會被略過，改播下一個符合的區域。",
  "_觸發": "trigger 裡的條件全部符合才算在這個區域：modes＝目前模式（exterior 外觀、canopy 樹冠大廳、plaza 榕樹廣場）；center_cm＋radius_cm（圓形範圍）或 rect_cm [x0,y0,x1,y1]（矩形範圍），Fusion 座標 cm，判斷點預設是畫面中心（鏡頭看的位置 target），改 point:\"camera\" 則用鏡頭位置；minDist_m／maxDist_m＝鏡頭到畫面中心的距離（縮放）；floors＝廳院樓層，例如 {\"RH\":\"2F\"}；time＝day／night；weather＝[\"rain\",\"storm\"]。範圍座標可以在網頁按住 Shift 點地面取得。",
  "_底景與疊加": "底景（沒有 layer）同時只會有一個：符合條件的區域中 priority 最高者；都不符合就用 default。layer:true 為疊加層，可同時多個，疊在底景上；有 center_cm 時在 inner_cm 內全音量、往外漸弱到 radius_cm。byMode 可依模式覆蓋 volume 與 lowpass_hz（低通濾波：室內聽到的戶外聲音比較悶）。",
- "_音量": "volume 0–1 為各區相對音量；masterVolume 為預設總音量（使用者可在設定調整，會記住）。crossfade_s＝區域切換的交叉淡入淡出秒數；loopCrossfade_s＝同一區音檔循環或換下一個檔案時重疊的秒數；hold_s＝在新區域停留多久才切換。duck＝鋼琴彈奏時環境音降到 level（attack_s 降下、release_s 回復）。",
+ "_音量": "volume 0–1 為各區相對音量；masterVolume 為預設總音量（使用者可在設定調整，會記住）。crossfade_s＝區域切換的交叉淡入淡出秒數；loopCrossfade_s＝同一區音檔循環或換下一個檔案時重疊的秒數；hold_s＝在新區域停留多久才切換。duck＝鋼琴彈奏時環境音降到 level（0＝完全靜音；attack_s 淡出秒數、release_s 鋼琴停止後恢復的秒數）。",
  "default": "exterior",
  "masterVolume": 0.7,
  "crossfade_s": 2.5,
  "loopCrossfade_s": 3,
  "hold_s": 0.6,
- "duck": { "level": 0.25, "attack_s": 0.6, "release_s": 2.5 },
+ "duck": { "level": 0, "attack_s": 0.8, "release_s": 2.5 },
  "zones": [
   {
    "id": "overview",
