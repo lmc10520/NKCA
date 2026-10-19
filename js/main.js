@@ -18,6 +18,7 @@ import { Labels, Pois } from './labels.js';
 import { PlanOverlay, ScreenOverlay } from './overlay.js';
 import { Festival } from './festival.js';
 import { Piano } from './piano.js';
+import { Soundscape } from './soundscape.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -36,8 +37,8 @@ const paint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r,
 setLoad(2, '讀取設定…');
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg, pianoCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview', 'piano']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg, pianoCfg, soundCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview', 'piano', 'soundscape']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -140,6 +141,10 @@ const screens = buildScreens(scene, screensCfg);
 const festival = new Festival(scene, festCfg, model);
 const piano = new Piano(scene, pianoCfg);
 piano.onMessage = (t) => toast(t, 4000);
+// 建築聲景：依空間播放環境音；鋼琴彈奏時自動降低（ducking）
+const soundscape = new Soundscape(soundCfg);
+piano.onState = (on) => soundscape.duck(on);
+piano.muted = !soundscape.on;
 const labels = new Labels(labelsCfg, model);
 const pois = new Pois(poisCfg, model, labels);
 const plan = new PlanOverlay(scene, renderer, site);
@@ -330,7 +335,7 @@ canvas.addEventListener('pointerup', (e) => {
   const r = canvas.getBoundingClientRect();
   if (!e.shiftKey && !e.altKey) {
     ray.setFromCamera(ndc(e), viewCam());
-    if (piano.hit(ray)) { piano.toggle(); return; }   // 點鋼琴：路人坐下來彈
+    if (pianoAt(e.clientX, e.clientY)) { piano.toggle(); setPianoHover(false); return; }   // 點鋼琴：路人坐下來彈
     if (people.tap(e.clientX, e.clientY, viewCam(), r)) return;
     labels.close(); $('settings').classList.add('hidden');
     return;
@@ -345,6 +350,119 @@ canvas.addEventListener('pointerup', (e) => {
   navigator.clipboard?.writeText(line)?.catch(() => {});
   toast(`已複製（${hit.object.userData.fname}）：\n${line}`, 6000);
 });
+
+// ---------- 公共鋼琴：看得出可以點 ----------
+// 滑鼠：pointermove 節流（約 60 ms 一次）做 raycast，移到鋼琴上時游標變手形、鋼琴發光、游標旁跳出提示。
+// 手機（沒有 hover）：鏡頭靠近、看得到鋼琴時，在鋼琴上方常駐一個小提示，點提示或鋼琴都可以。
+// 被建築擋住（例如外觀模式的屋頂）時不算點到鋼琴。
+const occluders = () => model.meshes.filter((m) => m.visible && !m.userData.isGlass);
+function blockedBefore(dist) {
+  ray.far = Math.max(0, dist - 0.05);
+  const hit = ray.intersectObjects(occluders(), false).length > 0;
+  ray.far = Infinity;
+  return hit;
+}
+function pianoAt(cx, cy) {
+  if (!piano.cfg.pos_cm) return false;
+  ray.setFromCamera(ndc({ clientX: cx, clientY: cy }), viewCam());
+  const d = piano.hitDist(ray);
+  return d != null && !blockedBefore(d);
+}
+const tip = $('pianoTip'), tipText = tip.querySelector('.t');
+const tipMsg = () => (!piano.playing ? '點擊公共鋼琴，看看誰來彈鋼琴！' : piano.audio.paused ? '點擊繼續演奏' : '點擊暫停演奏');
+const hover = { x: 0, y: 0, on: false, last: 0, timer: 0, buttons: 0 };
+const noHover = matchMedia('(hover: none)').matches || (isMobile && !matchMedia('(hover: hover)').matches);
+function setPianoHover(on) {
+  if (hover.on === on) { if (on) placeTipAtCursor(); return; }
+  hover.on = on; piano.setHover(on);
+  canvas.style.cursor = on ? 'pointer' : '';
+  tip.classList.remove('anchor');
+  tip.classList.toggle('hidden', !on);
+  if (on) { tipText.textContent = tipMsg(); placeTipAtCursor(); }
+}
+function placeTipAtCursor() {
+  const w = tip.offsetWidth || 240, x = Math.min(hover.x + 16, innerWidth - w - 8), y = Math.min(hover.y + 20, innerHeight - 44);
+  tip.style.transform = `translate(${x}px,${y}px)`;
+}
+function checkHover() {
+  hover.timer = 0; hover.last = performance.now();
+  if (hover.buttons || fly || welcome.on) { setPianoHover(false); return; }   // 拖曳中、鏡頭飛行中、迎賓模式不判斷
+  setPianoHover(pianoAt(hover.x, hover.y));
+}
+function queueHover() {
+  if (hover.timer) return;
+  hover.timer = setTimeout(checkHover, Math.max(0, 60 - (performance.now() - hover.last)));
+}
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;   // 觸控、觸控筆沒有 hover
+  hover.x = e.clientX; hover.y = e.clientY; hover.buttons = e.buttons;
+  if (hover.on && !e.buttons) placeTipAtCursor();   // 提示跟著游標，判斷本身節流
+  queueHover();
+});
+canvas.addEventListener('pointerleave', () => { clearTimeout(hover.timer); hover.timer = 0; setPianoHover(false); });
+canvas.addEventListener('wheel', () => { if (hover.on || hover.x) queueHover(); }, { passive: true });
+// 手機：常駐提示（每 0.3 秒判斷一次要不要顯示，位置每幀跟著鋼琴）
+const hint = { on: false, last: 0, v: new THREE.Vector3() };
+const HINT_DIST = pianoCfg.hint_m ?? 90;
+function updatePianoHint(t) {
+  if (!noHover || !piano.cfg.pos_cm) return;
+  if (t - hint.last > 0.3) {
+    hint.last = t;
+    let on = !piano.playing && !state.presenting && !welcome.on && !fly;
+    if (on) {
+      const top = piano.top(hint.v), d = camera.position.distanceTo(top);
+      const p = top.clone().project(viewCam());
+      on = d < HINT_DIST && p.z < 1 && Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.85;
+      if (on) { ray.set(camera.position, top.clone().sub(camera.position).normalize()); on = !blockedBefore(d); }
+    }
+    if (on !== hint.on) {
+      hint.on = on; piano.setHint(on);
+      tip.classList.toggle('anchor', on); tip.classList.toggle('hidden', !on);
+      if (on) tipText.textContent = tipMsg();
+    }
+  }
+  if (hint.on) {
+    const p = piano.top(hint.v).project(viewCam());
+    tip.style.transform = `translate(${((p.x + 1) / 2) * innerWidth}px,${((1 - p.y) / 2) * innerHeight}px) translate(-50%,calc(-100% - 10px))`;
+  }
+}
+tip.addEventListener('click', () => { if (hint.on) { piano.toggle(); hint.last = 0; } });
+tip.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+// ---------- 建築聲景：開關按鈕、設定、第一次互動解鎖提示 ----------
+function renderSound(st = soundscape.state) {
+  const b = $('soundBtn');
+  b.querySelector('.ms').textContent = st.on ? 'volume_up' : 'volume_off';
+  b.classList.toggle('off', !st.on);
+  b.classList.toggle('locked', st.on && !st.unlocked);
+  b.title = st.on ? (st.unlocked ? '關閉環境聲音' : '點一下開啟環境聲音') : '開啟環境聲音（建築聲景）';
+  $('soundSw').checked = st.on;
+  $('soundVol').value = st.volume; $('soundVolV').textContent = Math.round(st.volume * 100);
+  $('soundHint').classList.toggle('hidden', !(st.on && !st.unlocked) || soundHintGone);
+  piano.muted = !st.on;
+}
+let soundHintGone = false;
+setTimeout(() => { soundHintGone = true; $('soundHint').classList.add('hidden'); }, 12000);   // 提示 12 秒後自己收起來
+soundscape.onChange = renderSound;
+function soundZoneText() {
+  const st = soundscape.state;
+  if (!st.on) return '已關閉';
+  if (!st.unlocked) return '點一下畫面後開始播放';
+  const names = [st.zone?.name, ...st.layers.map((z) => z.name)].filter(Boolean);
+  let t = names.length ? '目前：' + names.join('＋') : '目前沒有可播放的音檔';
+  if (st.wanted) t += `\n（${st.wanted.name}：${st.wanted.folder}/ 尚無音檔）`;
+  return t;
+}
+$('soundBtn').onclick = (e) => {
+  e.stopPropagation();
+  if (soundscape.on && !soundscape.unlocked) { soundscape.unlock(); toast('建築聲景：開'); }
+  else { soundscape.setOn(!soundscape.on); toast(soundscape.on ? '建築聲景：開' : '建築聲景：關（鋼琴也會靜音）'); }
+  renderSound();
+};
+$('soundBtn').addEventListener('pointerdown', (e) => e.stopPropagation());
+$('soundSw').onchange = (e) => { soundscape.setOn(e.target.checked); renderSound(); };
+$('soundVol').oninput = (e) => { soundscape.setVolume(e.target.value); $('soundVolV').textContent = Math.round(e.target.value * 100); };
+renderSound();
 
 // ---------- 模型樣式：一般／高對比／線架構 ----------
 // 高對比：建築白色有明暗＋深色輪廓線，地坪與周邊淡成淺灰、不畫線，人車隱藏 → 凸顯建築
@@ -955,6 +1073,8 @@ renderer.setAnimationLoop(() => {
   fountain?.update(t, env.now(), n);
   festival.update(dt, n);
   piano.update(dt);
+  updatePianoHint(t);
+  soundscape.update({ mode: state.mode, target: controls.target, camera: camera.position, dist: camera.position.distanceTo(controls.target), halls: state.halls, night: env.night, rainy: env.rainy, storm: !!env.storm });
   plan.update(dt);
   screenLayer.update(camera.position, controls.target, !!fly);
   vehicles.update(dt, n);
@@ -979,6 +1099,7 @@ renderer.setAnimationLoop(() => {
     $('clock').classList.toggle('hidden', !state.clock && !state.weather);
     $('timeLabel').textContent = env.override != null ? '手動 ' + tp : '即時';
     renderLiftPanel(false);
+    if (!$('settings').classList.contains('hidden')) $('soundZone').textContent = soundZoneText();
     if (state.venue == null) $('venueSw').checked = buildingOpen(env.now());
     document.body.classList.toggle('night', env.night > 0.5 && !plain);
   }
@@ -996,4 +1117,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // 開發者用：在主控台 window.nkca 可以查物件
-window.nkca = { festival, pois, startOverview, ovCats, scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir };
+window.nkca = { festival, pois, startOverview, ovCats, scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir, piano, soundscape };

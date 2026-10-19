@@ -73,6 +73,10 @@
     <div class="setRow"><span class="ms">lightbulb</span>場館燈光<button class="text hidden" id="venueAuto" title="回到依營運時間自動開關">自動</button><label class="sw"><input type="checkbox" id="venueSw" checked><i></i></label></div>
     <div class="setRow hidden" id="festRow"><span class="ms">celebration</span><span id="festName">節慶物件</span><label class="sw"><input type="checkbox" data-tg="festival" checked><i></i></label></div>
     <div class="setRow"><span class="ms">wb_twilight</span>指定時間<button class="text" id="openTime">調整</button></div>
+    <div class="setSec">建築聲景</div>
+    <div class="setRow"><span class="ms">graphic_eq</span>環境聲音<label class="sw"><input type="checkbox" id="soundSw" checked><i></i></label></div>
+    <div class="setRow"><span class="ms">volume_down</span>環境音量<input type="range" id="soundVol" min="0" max="1" step="0.01" value="0.7"><b id="soundVolV">70</b></div>
+    <div class="soundZone" id="soundZone"></div>
     <div class="setSec">天氣預覽</div>
     <div class="seg2 icons" id="wxSeg"><button data-wx="live" class="on" title="即時天氣"><span class="ms">sensors</span></button><button data-wx="clear" title="晴"><span class="ms">sunny</span></button><button data-wx="cloudy" title="陰"><span class="ms">cloud</span></button><button data-wx="rain" title="雨"><span class="ms">rainy</span></button><button data-wx="snow" title="雪"><span class="ms">weather_snowy</span></button><button data-wx="storm" title="颱風（閃電）"><span class="ms">thunderstorm</span></button><button data-wx="aurora" title="極光"><span class="ms">auto_awesome</span></button></div>
     <div class="wxName" id="wxName">即時</div>
@@ -119,6 +123,13 @@
     <button id="presExit" class="icon" title="結束簡報"><span class="ms">close</span></button>
   </div>
   <input type="file" id="presFile" accept=".txt,text/plain,.svg,image/*" multiple hidden>
+
+  <!-- 右下：建築聲景開關（記住選擇；第一次點擊畫面後才能出聲） -->
+  <button id="soundBtn" class="ui fab small" title="環境聲音（建築聲景）"><span class="ms">volume_up</span></button>
+  <div id="soundHint" class="ui hidden"><span class="ms">touch_app</span>點一下畫面，開啟建築聲景</div>
+
+  <!-- 公共鋼琴提示：滑鼠移到鋼琴上時跟著游標；手機在鋼琴上方常駐 -->
+  <div id="pianoTip" class="ui hidden"><span class="ms">piano</span><span class="t"></span></div>
 
   <div id="toast" class="hidden"></div>
   <div id="loading"><div id="loadPct">0<small>%</small></div><div class="bar"><div id="loadBar"></div></div><div id="loadText">載入模型中…</div></div>

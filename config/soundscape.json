@@ -1,0 +1,114 @@
+{
+ "_說明": "建築聲景：不同空間播放不同的環境音。音檔放在 folder（預設 audio/soundscape/<id>/），上傳 mp3 就會自動播放，不用改設定；資料夾沒有音檔的區域會被略過，改播下一個符合的區域。",
+ "_觸發": "trigger 裡的條件全部符合才算在這個區域：modes＝目前模式（exterior 外觀、canopy 樹冠大廳、plaza 榕樹廣場）；center_cm＋radius_cm（圓形範圍）或 rect_cm [x0,y0,x1,y1]（矩形範圍），Fusion 座標 cm，判斷點預設是畫面中心（鏡頭看的位置 target），改 point:\"camera\" 則用鏡頭位置；minDist_m／maxDist_m＝鏡頭到畫面中心的距離（縮放）；floors＝廳院樓層，例如 {\"RH\":\"2F\"}；time＝day／night；weather＝[\"rain\",\"storm\"]。範圍座標可以在網頁按住 Shift 點地面取得。",
+ "_底景與疊加": "底景（沒有 layer）同時只會有一個：符合條件的區域中 priority 最高者；都不符合就用 default。layer:true 為疊加層，可同時多個，疊在底景上；有 center_cm 時在 inner_cm 內全音量、往外漸弱到 radius_cm。byMode 可依模式覆蓋 volume 與 lowpass_hz（低通濾波：室內聽到的戶外聲音比較悶）。",
+ "_音量": "volume 0–1 為各區相對音量；masterVolume 為預設總音量（使用者可在設定調整，會記住）。crossfade_s＝區域切換的交叉淡入淡出秒數；loopCrossfade_s＝同一區音檔循環或換下一個檔案時重疊的秒數；hold_s＝在新區域停留多久才切換。duck＝鋼琴彈奏時環境音降到 level（attack_s 降下、release_s 回復）。",
+ "default": "exterior",
+ "masterVolume": 0.7,
+ "crossfade_s": 2.5,
+ "loopCrossfade_s": 3,
+ "hold_s": 0.6,
+ "duck": { "level": 0.25, "attack_s": 0.6, "release_s": 2.5 },
+ "zones": [
+  {
+   "id": "overview",
+   "name": "鳥瞰・城市遠景",
+   "volume": 0.6,
+   "priority": 50,
+   "trigger": { "modes": ["exterior"], "minDist_m": 300 }
+  },
+  {
+   "id": "exterior",
+   "name": "建築外圍",
+   "volume": 0.8,
+   "priority": 0,
+   "trigger": { "modes": ["exterior"] }
+  },
+  {
+   "id": "outdoor_theater",
+   "name": "戶外劇場",
+   "volume": 0.9,
+   "priority": 20,
+   "trigger": { "modes": ["exterior"], "center_cm": [11500, 8700], "radius_cm": 4500, "maxDist_m": 300 }
+  },
+  {
+   "id": "north_lawn",
+   "name": "北側草坪",
+   "volume": 0.85,
+   "priority": 20,
+   "trigger": { "modes": ["exterior"], "rect_cm": [-1000, 23000, 24000, 38000], "maxDist_m": 300 }
+  },
+  {
+   "id": "east_lawn",
+   "name": "東側草坪",
+   "volume": 0.85,
+   "priority": 20,
+   "trigger": { "modes": ["exterior"], "rect_cm": [24000, 4500, 32000, 30000], "maxDist_m": 300 }
+  },
+  {
+   "id": "fountain",
+   "name": "榕泉水聲",
+   "layer": true,
+   "volume": 0.8,
+   "trigger": { "modes": ["exterior"], "center_cm": [17150, 26146], "inner_cm": 1200, "radius_cm": 4500, "maxDist_m": 300 }
+  },
+  {
+   "id": "plaza",
+   "name": "榕樹廣場",
+   "volume": 0.85,
+   "priority": 10,
+   "trigger": { "modes": ["plaza"] }
+  },
+  {
+   "id": "plaza_opera",
+   "name": "歌劇院前廳",
+   "volume": 0.8,
+   "priority": 20,
+   "trigger": { "modes": ["plaza"], "center_cm": [13700, 17500], "radius_cm": 2800 }
+  },
+  {
+   "id": "plaza_concert",
+   "name": "音樂廳前廳",
+   "volume": 0.8,
+   "priority": 20,
+   "trigger": { "modes": ["plaza"], "center_cm": [20900, 12500], "radius_cm": 2800 }
+  },
+  {
+   "id": "plaza_recital",
+   "name": "表演廳前廳",
+   "volume": 0.8,
+   "priority": 20,
+   "trigger": { "modes": ["plaza"], "center_cm": [21354, 19775], "radius_cm": 3200 }
+  },
+  {
+   "id": "plaza_playhouse",
+   "name": "戲劇院前廳",
+   "volume": 0.8,
+   "priority": 20,
+   "trigger": { "modes": ["plaza"], "center_cm": [6311, 15900], "radius_cm": 3500 }
+  },
+  {
+   "id": "canopy",
+   "name": "樹冠大廳",
+   "volume": 0.8,
+   "priority": 10,
+   "trigger": { "modes": ["canopy"] }
+  },
+  {
+   "id": "weather_rain",
+   "name": "雨聲",
+   "layer": true,
+   "volume": 0.6,
+   "trigger": { "weather": ["rain"] },
+   "byMode": { "plaza": { "volume": 0.45, "lowpass_hz": 3500 }, "canopy": { "volume": 0.3, "lowpass_hz": 1400 } }
+  },
+  {
+   "id": "weather_storm",
+   "name": "颱風・雷雨",
+   "layer": true,
+   "volume": 0.7,
+   "trigger": { "weather": ["storm"] },
+   "byMode": { "plaza": { "volume": 0.5, "lowpass_hz": 3000 }, "canopy": { "volume": 0.35, "lowpass_hz": 1200 } }
+  }
+ ]
+}

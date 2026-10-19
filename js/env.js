@@ -137,6 +137,7 @@ export class Environment {
     if (storm) rainy = true;
     const wxOn = this.weatherOn || !!W;
     this.storm = storm;
+    this.rainy = !!(rainy && wxOn);   // 聲景用：下雨／颱風時疊加雨聲
 
     const u = this.sky.material.uniforms;
     u.sunPosition.value.copy(dir);
