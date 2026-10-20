@@ -19,7 +19,7 @@ import { PlanOverlay, ScreenOverlay } from './overlay.js';
 import { Festival } from './festival.js';
 import { Piano } from './piano.js';
 import { Soundscape } from './soundscape.js';
-import { LOW, quality, qualityPref, setQualityPref, TONE, FinalPass, AdaptiveRes } from './look.js';
+import { HIGH, quality, qualityPref, setQualityPref, TONE, FinalPass, AdaptiveRes } from './look.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -45,15 +45,15 @@ document.title = site.title || document.title;
 
 // ---------- 場景 ----------
 const canvas = $('view');
-// 對數深度緩衝可以避免遠處地面圖層閃爍，但手機 GPU 上很慢（每個像素都要自己寫深度、關掉提前剔除），
-// 省電模式改用「依鏡頭距離調整 near」的方式維持深度精度（見迴圈裡的 dynamicNear）。
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: !LOW, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
-const MAX_PR = Math.min(devicePixelRatio, LOW ? 1.5 : 2);
+// 對數深度緩衝很吃 GPU（每個像素自己寫深度、關掉提前剔除），屋頂、玻璃邊緣也容易顫動；
+// 預設改用一般深度緩衝＋「依鏡頭距離調整 near」維持精度（見迴圈），只有高畫質才開。
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: HIGH, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+const MAX_PR = Math.min(devicePixelRatio, isMobile ? 1.5 : 2);
 renderer.setPixelRatio(MAX_PR);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = TONE;   // Khronos PBR Neutral（look.js），保留材質原色，不像 ACES 那樣灰灰的
 renderer.toneMappingExposure = 1;
-renderer.shadowMap.enabled = !!site.shadows && !LOW;
+renderer.shadowMap.enabled = !!site.shadows && HIGH;   // 陰影只在高畫質
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 // camera：透視鏡頭，也是操控的主體；orthoCam：等角（平行投影）時跟著 camera 的方向與距離換算畫面大小
@@ -98,11 +98,11 @@ controls.target.copy(cm2w(sc.target_cm || [13700, 15300, 0]));
 // 後製只在需要時使用（夜間光暈、線稿＋網點）；平常直接畫到畫面，畫面有原生反鋸齒、也省一張浮點貼圖。
 // 後製用的貼圖在桌機開 4× MSAA，否則經過後製的畫面會有鋸齒。
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(innerWidth * MAX_PR, innerHeight * MAX_PR,
-  { type: THREE.HalfFloatType, samples: LOW || !renderer.capabilities.isWebGL2 ? 0 : 4 }));
+  { type: THREE.HalfFloatType, samples: isMobile || !renderer.capabilities.isWebGL2 ? 0 : 4 }));
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.0, 0.5, 0.85);
-const useBloom = site.bloom !== false && !LOW;   // 省電模式不做光暈（夜景的燈本身仍會亮）
+const useBloom = site.bloom !== false;   // 夜間光暈：預設與高畫質都有（白天自動跳過，不耗效能）
 if (useBloom) composer.addPass(bloom);
 const finalPass = new FinalPass();
 composer.addPass(finalPass);
@@ -119,9 +119,9 @@ const ENV_K = site.envIntensity ?? 0.25;
 // ---------- 模型 ----------
 setLoad(5, '下載模型…');
 // 沒有檔案大小資訊時，用 site.json 的 modelBytes（約 8.8 MB）估算
-// 省電模式改載減面模型（site.json 的 modelLite，由 tools/build_lite.mjs 產生）；讀不到就用原模型
-const modelURL = LOW && site.modelLite ? site.modelLite : site.model || 'model/nkca.glb';
-const modelBytes = LOW && site.modelLite ? site.modelLiteBytes : site.modelBytes;
+// 預設載入減面模型（site.json 的 modelLite，由 tools/build_lite.mjs 產生）；高畫質或讀不到時用原模型
+const modelURL = !HIGH && site.modelLite ? site.modelLite : site.model || 'model/nkca.glb';
+const modelBytes = !HIGH && site.modelLite ? site.modelLiteBytes : site.modelBytes;
 const onModelProgress = (loaded, total) =>
   setLoad(5 + 75 * Math.min(1, loaded / (total || modelBytes || 9e6)), loaded >= (total || Infinity) ? '解析模型…' : '下載模型…');
 const model = await loadModel(modelURL, onModelProgress).catch((e) => {
@@ -171,7 +171,7 @@ model.root.traverse((o) => { o.matrixAutoUpdate = false; });
 const envMats = new Set();
 
 setLoad(86, '佈置夜間燈光…'); await paint();
-const night = new NightLights(scene, model, lightsCfg, lawnsCfg, { spots: !LOW, area: !LOW });
+const night = new NightLights(scene, model, lightsCfg, lawnsCfg);   // 屋頂投射燈、廣場面光源都開
 for (const m of model.meshes) { const mt = m.userData.origMaterial; if (mt?.isMeshStandardMaterial) envMats.add(mt); }
 let envKNow = -1, nightNow = -1;
 function setEnvK(k) {
@@ -552,7 +552,7 @@ function setStyle(style) {
   if (!STYLES.includes(style)) style = 'normal';
   state.style = style; state.contrast = style === 'contrast'; state.wire = style === 'wire';
   if (style !== 'normal') {
-    if (!edgesBuilt && LOW) toast('正在產生線條…', 1500);
+    if (!edgesBuilt && isMobile) toast('正在產生線條…', 1500);
     buildEdges();
   }
   for (const m of model.meshes) {
@@ -639,11 +639,11 @@ $('projSeg').onclick = (e) => { const p = e.target.dataset.proj; if (p) setProj(
 $('lineW').oninput = (e) => setLineW(e.target.value);
 $('toneSize').oninput = (e) => setToneSize(e.target.value);
 setToneSize(state.toneSize);
-// 畫質：自動（手機省電、桌機高畫質）／高／省電；切換後重新載入（對數深度緩衝要重建畫布）
+// 畫質：預設／高畫質；切換後重新載入（對數深度緩衝、模型都要重建）
 function renderQuality() {
   const p = qualityPref();
   [...$('qualSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.q === p));
-  $('qualNote').textContent = `目前：${quality === 'low' ? '省電' : '高畫質'}${p === 'auto' ? '（自動）' : ''}`;
+  $('qualNote').textContent = HIGH ? '原模型＋陰影，建議效能較好的電腦使用' : '減面模型、無陰影，各種裝置都流暢';
 }
 $('qualSeg').onclick = (e) => {
   const q = e.target.closest('[data-q]')?.dataset.q; if (!q || q === qualityPref()) return;
@@ -1127,8 +1127,8 @@ function resize() {
   edgeMat.resolution.set(w * pr, h * pr); groundEdgeMat.resolution.set(w * pr, h * pr);
 }
 addEventListener('resize', resize); resize();
-// 動態解析度：鏡頭在動而幀率不足時降低像素比（最低 1，省電模式 0.8），順了再升回來
-const adaptive = new AdaptiveRes({ min: Math.min(MAX_PR, LOW ? 0.8 : 1), max: MAX_PR, apply: (pr) => { renderer.setPixelRatio(pr); resize(); } });
+// 動態解析度：鏡頭在動而幀率不足時降低像素比（電腦最低 1，手機 0.8），順了再升回來
+const adaptive = new AdaptiveRes({ min: Math.min(MAX_PR, isMobile ? 0.8 : 1), max: MAX_PR, apply: (pr) => { renderer.setPixelRatio(pr); resize(); } });
 const lastCam = new THREE.Matrix4();
 // 白模／線稿／網點的固定光源（site.json 的 studioLight：方位角由北順時針、仰角，度）
 const SL = site.studioLight || {};
@@ -1196,9 +1196,9 @@ renderer.setAnimationLoop(() => {
   soundscape.update({ mode: state.mode, target: controls.target, camera: camera.position, dist: camera.position.distanceTo(controls.target), halls: state.halls, night: env.night, rainy: env.rainy, storm: !!env.storm });
   plan.update(dt);
   screenLayer.update(camera.position, controls.target, !!fly);
-  // 省電模式：人車模擬隔一幀算一次（時間累加，速度不變）
+  // 手機平板：人車模擬隔一幀算一次（時間累加，速度不變）
   simDt += dt;
-  if (!LOW || (frameNo & 1)) { vehicles.update(simDt, n); people.update(simDt); simDt = 0; }
+  if (!isMobile || (frameNo & 1)) { vehicles.update(simDt, n); people.update(simDt); simDt = 0; }
   frameNo++;
   for (let i = lifts.length - 1; i >= 0; i--) {
     const L = lifts[i]; L.t = Math.min(1, L.t + dt / 1.2);

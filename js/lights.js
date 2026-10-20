@@ -14,7 +14,7 @@ function radial() {
 const bvh = (list) => { for (const m of list) if (!m.geometry.boundsTree) m.geometry.computeBoundsTree?.(); };
 
 export class NightLights {
-  // opts.spots／opts.area：省電模式關掉真的光源（每個像素都要計算，手機很吃力），只留自發光
+  // opts.spots／opts.area：設為 false 可關掉真的光源（每個像素都要計算），只留自發光
   constructor(scene, model, cfg, lawns, opts = {}) {
     this.scene = scene; this.cfg = cfg; this.items = [];
     model.root.updateMatrixWorld(true);

@@ -25,7 +25,7 @@
  "bloom": true,
  "envIntensity": 0.25,
  "skyBrightness": 0.62,
- "_畫面說明": "envIntensity＝環境反射強度（玻璃反光、白牆柔光，夜間自動調低）；skyBrightness＝天空亮度；materialColor＝覆蓋 Fusion 材質顏色（材質名稱 → 顏色），刪掉就恢復原色；studioLight＝白模／線稿／網點樣式的固定光源（az_deg 方位角由北順時針、alt_deg 仰角、sun 主光、ambient 環境光）；toneSize＝網點預設大小（px）；modelLite＝省電模式（手機）載入的減面模型。",
+ "_畫面說明": "envIntensity＝環境反射強度（玻璃反光、白牆柔光，夜間自動調低）；skyBrightness＝天空亮度；materialColor＝覆蓋 Fusion 材質顏色（材質名稱 → 顏色），刪掉就恢復原色；studioLight＝白模／線稿／網點樣式的固定光源（az_deg 方位角由北順時針、alt_deg 仰角、sun 主光、ambient 環境光）；toneSize＝網點預設大小（px）；modelLite＝預設畫質載入的減面模型（高畫質用 model）。",
  "materialColor": {
   "Site_Grass": "#7fad5f",
   "Planting_Green": "#5e9443",

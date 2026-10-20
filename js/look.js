@@ -2,25 +2,22 @@ import * as THREE from 'three';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { isMobile } from './util.js';
 
-// ---------- 畫質等級 ----------
-// high：桌機（對數深度、陰影、夜間光暈與投射燈、MSAA）；low：手機平板（省電，見 README「效能」）
-// 網址 ?q=high／?q=low 或 設定 → 畫質 可以強制指定（記在瀏覽器）
+// ---------- 畫質 ----------
+// default（預設，所有裝置）：減面模型、無陰影、一般深度緩衝＋依鏡頭距離調整 near、依幀率自動調整解析度；
+//   夜間光暈（bloom）、屋頂投射燈、廣場面光源照常開啟。
+// high（高畫質，給效能好的電腦）：原模型、陰影、對數深度緩衝。
+// 設定 → 畫質 切換（記在瀏覽器），或網址 ?q=high／?q=default。
 const QKEY = 'nkca.quality';
 export function qualityPref() {
   const q = new URLSearchParams(location.search).get('q');
-  if (q === 'high' || q === 'low') return q;
-  try { const v = localStorage.getItem(QKEY); if (v === 'high' || v === 'low') return v; } catch {}
-  return 'auto';
+  if (q === 'high' || q === 'default') return q;
+  try { if (localStorage.getItem(QKEY) === 'high') return 'high'; } catch {}   // 舊版存的 low／auto 都視為預設
+  return 'default';
 }
-export function setQualityPref(v) { try { v === 'auto' ? localStorage.removeItem(QKEY) : localStorage.setItem(QKEY, v); } catch {} }
-export const quality = (() => {
-  const p = qualityPref();
-  if (p !== 'auto') return p;
-  // 手機、平板（含 iPadOS 偽裝成桌機）、或 GPU 很弱的筆電 → low
-  const ipad = navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent);
-  return isMobile || ipad ? 'low' : 'high';
-})();
-export const LOW = quality === 'low';
+export function setQualityPref(v) { try { v === 'high' ? localStorage.setItem(QKEY, 'high') : localStorage.removeItem(QKEY); } catch {} }
+export const quality = qualityPref();
+export const HIGH = quality === 'high';
+export { isMobile };
 
 // ---------- 色調映射：Khronos PBR Neutral ----------
 // 原本的 ACES 會壓暗中間調、讓顏色變灰（看起來「霧霧、土土的」）；Neutral 在亮部以下幾乎不改變材質原色，

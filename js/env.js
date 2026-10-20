@@ -64,13 +64,63 @@ export class Environment {
     });
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 16), this.domeMat);
     this.dome.renderOrder = -1; this.dome.frustumCulled = false;
-    const sp = [], N = 1800;
+    // 星空：每顆星有自己的亮度、大小、色溫與閃爍節奏；靠近地平線閃得比較明顯（大氣擾動）。
+    // 少數亮星有十字星芒，亮度超過 1，夜間光暈（bloom）會帶出柔和光暈。
+    // 固定亂數種子：每次載入都是同一片星空
+    let seed = 20261020;
+    const rnd = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const N = 2200, sp = [], sz = [], br = [], ph = [], spd = [], col = [];
+    const tints = [[0.75, 0.84, 1.0], [0.88, 0.92, 1.0], [1.0, 1.0, 1.0], [1.0, 0.95, 0.82], [1.0, 0.82, 0.62]];
     for (let i = 0; i < N; i++) {
-      const y = 0.08 + Math.random() * 0.92, t = Math.random() * Math.PI * 2, r = Math.sqrt(1 - y * y);
+      const y = 0.06 + rnd() * 0.94, t = rnd() * Math.PI * 2, r = Math.sqrt(1 - y * y);
       sp.push(Math.cos(t) * r * 3900, y * 3900, Math.sin(t) * r * 3900);
+      const b = 0.22 + Math.pow(rnd(), 8) * 2.6;
+      br.push(b); sz.push(b > 2.3 ? 11 : 1.3 + b * 1.5);
+      ph.push(rnd() * Math.PI * 2); spd.push(1.2 + rnd() * 3.5);
+      const c = tints[Math.min(4, Math.floor(Math.pow(rnd(), 1.6) * 5))]; col.push(...c);
     }
-    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
-    this.starMat = new THREE.PointsMaterial({ color: 0xdfe8ff, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false });
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+    sg.setAttribute('aSize', new THREE.Float32BufferAttribute(sz, 1));
+    sg.setAttribute('aBright', new THREE.Float32BufferAttribute(br, 1));
+    sg.setAttribute('aPhase', new THREE.Float32BufferAttribute(ph, 1));
+    sg.setAttribute('aSpeed', new THREE.Float32BufferAttribute(spd, 1));
+    sg.setAttribute('aColor', new THREE.Float32BufferAttribute(col, 3));
+    this.starMat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uOp: { value: 0 }, uPR: { value: 1 } },
+      vertexShader: `
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
+        attribute float aSize, aBright, aPhase, aSpeed; attribute vec3 aColor;
+        uniform float uTime, uOp, uPR;
+        varying vec3 vCol; varying float vA, vSpike;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mv;
+          #include <logdepthbuf_vertex>
+          float hz = normalize(position).y;
+          float amp = mix(0.6, 0.3, smoothstep(0.1, 0.8, hz));
+          float tw = 1.0 - amp * (0.5 + 0.5 * sin(uTime * aSpeed + aPhase)) * (0.65 + 0.35 * sin(uTime * aSpeed * 2.7 + aPhase * 1.7));
+          vA = uOp * aBright * tw; vCol = aColor; vSpike = step(2.3, aBright) * tw;
+          gl_PointSize = aSize * uPR * (0.75 + 0.35 * tw);
+        }`,
+      fragmentShader: `
+        #include <common>
+        #include <logdepthbuf_pars_fragment>
+        varying vec3 vCol; varying float vA, vSpike;
+        void main() {
+          #include <logdepthbuf_fragment>
+          vec2 p = gl_PointCoord * 2.0 - 1.0;
+          float core = exp(-dot(p, p) * (vSpike > 0.0 ? 22.0 : 5.0));
+          float spike = vSpike * (exp(-abs(p.x) * 16.0) * exp(-abs(p.y) * 2.2) + exp(-abs(p.y) * 16.0) * exp(-abs(p.x) * 2.2)) * 0.7;
+          float a = (core + spike) * vA;
+          if (a < 0.004) discard;
+          gl_FragColor = vec4(vCol * a, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
     this.stars = new THREE.Points(sg, this.starMat); this.stars.frustumCulled = false;
     scene.add(this.dome, this.stars);
 
@@ -155,8 +205,9 @@ export class Environment {
     this.scene.background = null;
     this.domeMat.uniforms.uOp.value = night;
     this.dome.visible = night > 0.01;
-    this.starMat.opacity = Math.max(0, night - 0.3) * (1 - cloud) * 1.1;
-    this.stars.visible = this.starMat.opacity > 0.01;
+    const so = Math.max(0, night - 0.3) * (1 - cloud) * 1.1, su = this.starMat.uniforms;
+    su.uOp.value = so; su.uTime.value += dt; su.uPR.value = this.renderer.getPixelRatio();
+    this.stars.visible = so > 0.01;
 
     // 白天是太陽；入夜後同一盞平行光改當月光（冷白、較弱，仍有柔和陰影）
     const moon = night > 0.5, dark = storm * 0.35;   // 颱風天整體再暗一些
