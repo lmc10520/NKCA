@@ -37,6 +37,11 @@ export class Environment {
 
     this.sky = new Sky();
     this.sky.scale.setScalar(4500);
+    // 天空亮度（Neutral 色調映射不像 ACES 會壓亮部，天空直接輸出會偏白，這裡稍微壓暗讓藍色出來）
+    this.sky.material.uniforms.uSkyK = { value: site.skyBrightness ?? 0.62 };
+    this.sky.material.fragmentShader = this.sky.material.fragmentShader
+      .replace('void main() {', 'uniform float uSkyK;\nvoid main() {')
+      .replace('gl_FragColor = vec4( retColor, 1.0 );', 'gl_FragColor = vec4( retColor * uSkyK, 1.0 );');
     scene.add(this.sky);
     this.sunDir = new THREE.Vector3();
 
@@ -69,7 +74,7 @@ export class Environment {
     this.stars = new THREE.Points(sg, this.starMat); this.stars.frustumCulled = false;
     scene.add(this.dome, this.stars);
 
-    this.hemi = new THREE.HemisphereLight(0xdfe9f2, 0x4a4438, 0.9);
+    this.hemi = new THREE.HemisphereLight(0xdfe9f2, 0x5d6062, 0.9);   // 地面反光用中性灰（原本偏棕，整體會「土」）
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xfff3e0, 3);
     this.sun.castShadow = !!site.shadows;
@@ -156,13 +161,14 @@ export class Environment {
     // 白天是太陽；入夜後同一盞平行光改當月光（冷白、較弱，仍有柔和陰影）
     const moon = night > 0.5, dark = storm * 0.35;   // 颱風天整體再暗一些
     this.sun.position.copy(this.center).addScaledVector(moon ? this.moonDir : dir, 400);
-    this.sun.intensity = (moon ? night * this.moonI * (1 - cloud * 0.6) : (1 - night) * (3.0 - cloud * 1.6)) * (1 - dark);
+    // 白天：太陽＋環境反射（main.js 的 envIntensity）＋少量半球光；明暗比例約 2.3:1，立體感比較清楚
+    this.sun.intensity = (moon ? night * this.moonI * (1 - cloud * 0.6) : (1 - night) * (2.7 - cloud * 1.5)) * (1 - dark);
     if (moon) this.sun.color.set(0xaec0e6);
     else this.sun.color.setHSL(0.09, 0.6, 0.5 + 0.45 * Math.min(1, Math.max(0, alt * 3)));
-    this.hemi.intensity = (0.48 + (1 - night) * (0.42 + cloud * 0.4)) * (1 - dark);
+    this.hemi.intensity = (0.48 * night + (1 - night) * (0.45 + cloud * 0.55)) * (1 - dark);
     this.hemi.color.lerpColors(new THREE.Color(0xdfe9f2), new THREE.Color(0x8296c4), night);
-    this.hemi.groundColor.lerpColors(new THREE.Color(0x4a4438), new THREE.Color(0x30364a), night);
-    this.renderer.toneMappingExposure = 0.8 + (1 - night) * 0.2;
+    this.hemi.groundColor.lerpColors(new THREE.Color(0x5d6062), new THREE.Color(0x30364a), night);
+    this.renderer.toneMappingExposure = 0.85 + (1 - night) * 0.15;
 
     this.fog.density = wxOn ? (storm ? 0.0032 : rainy ? 0.0016 : snowy ? 0.0024 : cloud * 0.0006) : 0;
     this.fog.color.lerpColors(new THREE.Color(snowy ? 0xe4e8ec : storm ? 0x9aa3ab : 0xbfc8cf), new THREE.Color(0x1e2a48), night);

@@ -110,9 +110,10 @@ export class Labels {
   update(camera, w, h) {
     if (!this.on) return;
     const now = performance.now();
-    // 每 150 ms 檢查一次是否被建築擋住
-    if (this.ready && now - this.lastTest > 150) {
-      this.lastTest = now;
+    // 每 150 ms 檢查一次是否被建築擋住（鏡頭沒動時每秒一次就好，省手機的 CPU）
+    const moved = !(this._camM ||= new THREE.Matrix4()).equals(camera.matrixWorld);
+    if (this.ready && now - this.lastTest > (moved ? 150 : 1000)) {
+      this.lastTest = now; this._camM.copy(camera.matrixWorld);
       const occ = this.occluders(), cp = new THREE.Vector3();
       camera.getWorldPosition(cp);
       for (const it of this.items) {
@@ -188,8 +189,9 @@ export class Pois {
     if (!this.on) return;
     const cp = new THREE.Vector3(); camera.getWorldPosition(cp);
     const now = performance.now();
-    if (this.labels.ready && now - this.lastTest > 200) {
-      this.lastTest = now;
+    const moved = !(this._camM ||= new THREE.Matrix4()).equals(camera.matrixWorld);
+    if (this.labels.ready && now - this.lastTest > (moved ? 200 : 1000)) {
+      this.lastTest = now; this._camM.copy(camera.matrixWorld);
       const occ = this.labels.occluders();
       for (const it of this.items) {
         if (!it.on) continue;

@@ -23,6 +23,19 @@
  },
  "shadows": true,
  "bloom": true,
+ "envIntensity": 0.25,
+ "skyBrightness": 0.62,
+ "_畫面說明": "envIntensity＝環境反射強度（玻璃反光、白牆柔光，夜間自動調低）；skyBrightness＝天空亮度；materialColor＝覆蓋 Fusion 材質顏色（材質名稱 → 顏色），刪掉就恢復原色；studioLight＝白模／線稿／網點樣式的固定光源（az_deg 方位角由北順時針、alt_deg 仰角、sun 主光、ambient 環境光）；toneSize＝網點預設大小（px）；modelLite＝省電模式（手機）載入的減面模型。",
+ "materialColor": {
+  "Site_Grass": "#7fad5f",
+  "Planting_Green": "#5e9443",
+  "Site_Asphalt": "#5a5d63",
+  "Site_Fountain_Stone": "#4d5b6e"
+ },
+ "studioLight": { "az_deg": 300, "alt_deg": 46, "sun": 2.6, "ambient": 2.0 },
+ "toneSize": 5,
+ "modelLite": "model/nkca_lite.glb",
+ "modelLiteBytes": 5076528,
  "materialFrom": {
   "_說明": "名稱規則 → 參照物件：符合規則的物件改用參照物件的材質。南側屋頂和幾片屋頂補片在 Fusion 用了灰色 Steel - Satin，這裡統一成屋頂白鋁。",
   "^Roof_(South|Main_B13|Main_B14|Main_M15|Main_M16)$": "Roof_Main"

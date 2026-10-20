@@ -14,7 +14,8 @@ function radial() {
 const bvh = (list) => { for (const m of list) if (!m.geometry.boundsTree) m.geometry.computeBoundsTree?.(); };
 
 export class NightLights {
-  constructor(scene, model, cfg, lawns) {
+  // opts.spots／opts.area：省電模式關掉真的光源（每個像素都要計算，手機很吃力），只留自發光
+  constructor(scene, model, cfg, lawns, opts = {}) {
     this.scene = scene; this.cfg = cfg; this.items = [];
     model.root.updateMatrixWorld(true);
     this.group = new THREE.Group(); this.group.name = 'NightLights';
@@ -94,7 +95,7 @@ export class NightLights {
         };
         m.material.needsUpdate = true;
       }
-      if (c.plaza.area) {
+      if (c.plaza.area && opts.area !== false) {
         RectAreaLightUniformsLib.init();
         const a = c.plaza.area;
         const L = new THREE.RectAreaLight(new THREE.Color(c.plaza.color), 0, a.size_cm[0] / 100, a.size_cm[1] / 100);
@@ -108,7 +109,7 @@ export class NightLights {
     // 4. 屋頂投射燈（有方向性）：貼在屋面上，低角度掠過屋頂凸顯起伏
     this.spots = [];
     const rs = c.roofSpots;
-    if (rs?.items?.length) {
+    if (rs?.items?.length && opts.spots !== false) {
       const roofM = model.meshes.filter((m) => /^Roof_|^Seam_Roof/.test(m.userData.fname));
       bvh(roofM);
       const ray = new THREE.Raycaster();

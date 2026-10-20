@@ -3,7 +3,7 @@ import { MapControls } from 'three/addons/controls/MapControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -19,6 +19,7 @@ import { PlanOverlay, ScreenOverlay } from './overlay.js';
 import { Festival } from './festival.js';
 import { Piano } from './piano.js';
 import { Soundscape } from './soundscape.js';
+import { LOW, quality, qualityPref, setQualityPref, TONE, FinalPass, AdaptiveRes } from './look.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -44,11 +45,15 @@ document.title = site.title || document.title;
 
 // ---------- 場景 ----------
 const canvas = $('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, preserveDrawingBuffer: false });
-renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.5 : 2));
+// 對數深度緩衝可以避免遠處地面圖層閃爍，但手機 GPU 上很慢（每個像素都要自己寫深度、關掉提前剔除），
+// 省電模式改用「依鏡頭距離調整 near」的方式維持深度精度（見迴圈裡的 dynamicNear）。
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: !LOW, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+const MAX_PR = Math.min(devicePixelRatio, LOW ? 1.5 : 2);
+renderer.setPixelRatio(MAX_PR);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.shadowMap.enabled = !!site.shadows && !isMobile;
+renderer.toneMapping = TONE;   // Khronos PBR Neutral（look.js），保留材質原色，不像 ACES 那樣灰灰的
+renderer.toneMappingExposure = 1;
+renderer.shadowMap.enabled = !!site.shadows && !LOW;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 // camera：透視鏡頭，也是操控的主體；orthoCam：等角（平行投影）時跟著 camera 的方向與距離換算畫面大小
@@ -90,20 +95,40 @@ const sc = site.startCamera || {};
 camera.position.copy(cm2w(sc.pos_cm || [2000, -12000, 16000]));
 controls.target.copy(cm2w(sc.target_cm || [13700, 15300, 0]));
 
-const composer = new EffectComposer(renderer);
+// 後製只在需要時使用（夜間光暈、線稿＋網點）；平常直接畫到畫面，畫面有原生反鋸齒、也省一張浮點貼圖。
+// 後製用的貼圖在桌機開 4× MSAA，否則經過後製的畫面會有鋸齒。
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(innerWidth * MAX_PR, innerHeight * MAX_PR,
+  { type: THREE.HalfFloatType, samples: LOW || !renderer.capabilities.isWebGL2 ? 0 : 4 }));
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.0, 0.5, 0.85);
-if (site.bloom !== false) composer.addPass(bloom);
-composer.addPass(new OutputPass());
+const useBloom = site.bloom !== false && !LOW;   // 省電模式不做光暈（夜景的燈本身仍會亮）
+if (useBloom) composer.addPass(bloom);
+const finalPass = new FinalPass();
+composer.addPass(finalPass);
 
 const env = new Environment(scene, renderer, site);
+// 環境反射：讓玻璃、金屬有反光，白牆有柔和的環境光（取代一部分平板的半球光），質感差最多的地方
+{
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  pm.dispose();
+}
+const ENV_K = site.envIntensity ?? 0.25;
 
 // ---------- 模型 ----------
 setLoad(5, '下載模型…');
 // 沒有檔案大小資訊時，用 site.json 的 modelBytes（約 8.8 MB）估算
-const model = await loadModel(site.model || 'model/nkca.glb', (loaded, total) =>
-  setLoad(5 + 75 * Math.min(1, loaded / (total || site.modelBytes || 9e6)), loaded >= (total || Infinity) ? '解析模型…' : '下載模型…'));
+// 省電模式改載減面模型（site.json 的 modelLite，由 tools/build_lite.mjs 產生）；讀不到就用原模型
+const modelURL = LOW && site.modelLite ? site.modelLite : site.model || 'model/nkca.glb';
+const modelBytes = LOW && site.modelLite ? site.modelLiteBytes : site.modelBytes;
+const onModelProgress = (loaded, total) =>
+  setLoad(5 + 75 * Math.min(1, loaded / (total || modelBytes || 9e6)), loaded >= (total || Infinity) ? '解析模型…' : '下載模型…');
+const model = await loadModel(modelURL, onModelProgress).catch((e) => {
+  if (modelURL === (site.model || 'model/nkca.glb')) throw e;
+  console.warn('[model] 讀不到減面模型，改用原模型', e);
+  return loadModel(site.model || 'model/nkca.glb', onModelProgress);
+});
 setLoad(82, '整理模型…'); await paint();
 scene.add(model.root);
 const exclude = makeMatcher(modesCfg.exclude, modesCfg.groups);
@@ -117,6 +142,16 @@ for (const [pat, ref] of Object.entries(site.materialFrom || {})) {
   const re = new RegExp(pat);
   for (const m of model.meshes) if (m !== src && re.test(m.userData.fname)) { m.material = src.material; m.userData.origMaterial = src.material; }
 }
+// 色盤：site.json 的 materialColor 指定「材質名稱 → 顏色」，覆蓋 Fusion 匯出的顏色（草地、植栽等原本偏灰、偏土）
+{
+  const pal = Object.entries(site.materialColor || {}).filter(([k]) => !k.startsWith('_'));
+  const done = new Set();
+  for (const m of model.meshes) {
+    const mt = m.material; if (done.has(mt)) continue; done.add(mt);
+    const hit = pal.find(([k]) => mt.name === k); if (!hit) continue;
+    mt.color.set(hit[1]); if (mt.userData.base) mt.userData.base.color.copy(mt.color);
+  }
+}
 // 幾乎重疊的地面圖層上下錯開，避免閃爍（site.json 的 lift_cm）
 for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
   if (pat.startsWith('_')) continue;
@@ -129,9 +164,28 @@ for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
 // 地坪與周邊環境（高對比時淡化）；其他視為建築
 const groundRe = new RegExp(site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
 for (const m of model.meshes) m.userData.isGround = groundRe.test(m.userData.fname);
+// 建築是靜態的：不必每幀重算每個物件的矩陣（樓層升起動畫會自己更新）
+model.root.updateMatrixWorld(true);
+model.root.traverse((o) => { o.matrixAutoUpdate = false; });
+// 環境反射強度（夜間調低）：收集所有會用到環境貼圖的材質
+const envMats = new Set();
 
 setLoad(86, '佈置夜間燈光…'); await paint();
-const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
+const night = new NightLights(scene, model, lightsCfg, lawnsCfg, { spots: !LOW, area: !LOW });
+for (const m of model.meshes) { const mt = m.userData.origMaterial; if (mt?.isMeshStandardMaterial) envMats.add(mt); }
+let envKNow = -1, nightNow = -1;
+function setEnvK(k) {
+  if (Math.abs(k - envKNow) < 0.01) return; envKNow = k;
+  for (const mt of envMats) mt.envMapIntensity = k * (mt.userData.isGlassMat ? 2.2 : 1);
+}
+// 夜間降低彩度：月光下顏色會變淡（原本 ACES 色調映射會順便做到，Neutral 不會），草地才不會晚上還是鮮綠色
+const baseCol = new Map([...envMats].map((mt) => [mt, mt.color.clone()]));
+const NIGHT_DESAT = site.nightDesaturate ?? 0.6;
+function setNightTint(n) {
+  if (Math.abs(n - nightNow) < 0.01) return; nightNow = n;
+  const k = n * NIGHT_DESAT, g = new THREE.Color();
+  for (const [mt, c] of baseCol) { const l = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722; mt.color.copy(c).lerp(g.setRGB(l, l, l), k); }
+}
 night.addStreetLights(streetCfg);
 setLoad(93, '加入人車與噴泉…'); await paint();
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
@@ -202,7 +256,7 @@ function setHallFloor(h, fid) {
   const f = h.floorsM.find((x) => x.id === fid);
   if (f?.lift_m) {
     for (const m of model.meshes) if (f.showM(m.userData.fname) && m.visible) {
-      m.userData.y0 ??= m.position.y; m.position.y = m.userData.y0 - f.lift_m;
+      m.userData.y0 ??= m.position.y; m.position.y = m.userData.y0 - f.lift_m; m.updateMatrix();
       lifts.push({ m, t: 0 });
     }
   }
@@ -465,10 +519,15 @@ $('soundSw').onchange = (e) => { soundscape.setOn(e.target.checked); renderSound
 $('soundVol').oninput = (e) => { soundscape.setVolume(e.target.value); $('soundVolV').textContent = Math.round(e.target.value * 100); };
 renderSound();
 
-// ---------- 模型樣式：一般／高對比／線架構 ----------
-// 高對比：建築白色有明暗＋深色輪廓線，地坪與周邊淡成淺灰、不畫線，人車隱藏 → 凸顯建築
+// ---------- 模型樣式：彩色／彩色＋線／白模／線稿／線稿＋網點 ----------
+// normal 彩色、colorline 彩色＋線、contrast 白模（白色有明暗＋淡輪廓線）、wire 線稿（只有看得到的邊）、
+// tone 線稿＋網點（白模的明暗經後製換成漫畫網點，陰影也是網點）。
+// 白模／線稿／網點用固定的「攝影棚光」（site.json 的 studioLight），不受時間、天氣影響，教材截圖每次都一樣。
+const STYLES = ['normal', 'colorline', 'contrast', 'wire', 'tone'];
+const isPlain = (st) => st === 'contrast' || st === 'wire' || st === 'tone';
+const isColor = (st) => st === 'normal' || st === 'colorline';
 const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
-const groundMat = new THREE.MeshBasicMaterial({ color: 0xeceef1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+const groundMat = new THREE.MeshLambertMaterial({ color: 0xeceef1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
 const glassMat = new THREE.MeshLambertMaterial({ color: 0xbcd7e6, transparent: true, opacity: 0.35, depthWrite: false });
 // 線架構＝只顯示看得到的邊：面用不透明白色、往後推一點先寫入深度，把後面的邊遮住
 const hiddenFaceMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
@@ -484,31 +543,48 @@ function buildEdges() {
     const g = new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(m.geometry, 40));
     const ls = new LineSegments2(g, m.userData.isGround ? groundEdgeMat : edgeMat);
     ls.visible = false; ls.raycast = () => {}; ls.frustumCulled = false; m.add(ls); m.userData.edges = ls;
+    ls.matrixAutoUpdate = false;
   }
   resize();
 }
+const shadowsOK = renderer.shadowMap.enabled;
 function setStyle(style) {
+  if (!STYLES.includes(style)) style = 'normal';
   state.style = style; state.contrast = style === 'contrast'; state.wire = style === 'wire';
-  if (style !== 'normal') buildEdges();
+  if (style !== 'normal') {
+    if (!edgesBuilt && LOW) toast('正在產生線條…', 1500);
+    buildEdges();
+  }
   for (const m of model.meshes) {
     const g = m.userData.isGround, gl = m.userData.isGlass;
-    m.material = style === 'normal' ? m.userData.origMaterial
-      : style === 'contrast' ? (gl ? glassMat : g ? groundMat : whiteMat) : hiddenFaceMat;
-    if (m.userData.edges) m.userData.edges.visible = style === 'wire' || (style === 'contrast' && !g && !gl);
-    m.castShadow = style === 'normal' && !gl;
+    m.material = isColor(style) ? m.userData.origMaterial
+      : style === 'wire' ? hiddenFaceMat
+      : gl ? glassMat : g ? groundMat : whiteMat;
+    if (m.userData.edges) m.userData.edges.visible =
+      style === 'wire' || (style === 'tone' && !gl) || ((style === 'contrast' || style === 'colorline') && !g && !gl);
+    m.castShadow = shadowsOK && !gl && (isColor(style) || ((style === 'contrast' || style === 'tone') && !g));
   }
-  // 高對比的建築輪廓線較淡、較細，避免屋頂直立縫太密變成一片黑
-  edgeMat.color.set(style === 'contrast' ? 0x6b7077 : 0x1f2328);
+  // 線條顏色：白模較淡較細（避免屋頂直立縫太密變成一片黑）；彩色＋線半透明深灰；線稿、網點用黑
+  edgeMat.color.set(style === 'contrast' ? 0x6b7077 : style === 'colorline' ? 0x24282d : 0x15171a);
+  edgeMat.transparent = style === 'colorline'; edgeMat.opacity = style === 'colorline' ? 0.55 : 1; edgeMat.needsUpdate = true;
+  groundEdgeMat.color.set(style === 'tone' ? 0x26292d : 0x9aa0a6);
+  groundMat.color.set(style === 'tone' ? 0xf7f7f7 : 0xeceef1);
   setLineW(state.lineW);
-  night.group.visible = style === 'normal';
+  night.group.visible = isColor(style);
   applyTraffic();
   [...$('styleSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.style === style));
   $('lineRow').classList.toggle('dim', style === 'normal');
+  $('toneRow').classList.toggle('hidden', style !== 'tone');
 }
 function setLineW(v) {
-  state.lineW = +v; edgeMat.linewidth = state.lineW * (state.style === 'contrast' ? 0.5 : 1); groundEdgeMat.linewidth = Math.max(1, state.lineW * 0.5);
+  state.lineW = +v; edgeMat.linewidth = state.lineW * (state.style === 'contrast' ? 0.5 : state.style === 'colorline' ? 0.6 : 1); groundEdgeMat.linewidth = Math.max(1, state.lineW * 0.5);
   $('lineW').value = v; $('lineWv').textContent = v;
 }
+// 網點大小（螢幕像素，依裝置像素比放大，手機上看起來一樣大）
+function setToneSize(v) {
+  state.toneSize = +v; $('toneSize').value = v; $('toneSizeV').textContent = v;
+}
+state.toneSize = site.toneSize ?? 5;
 
 // ---------- 透視／等角（平行投影） ----------
 function setProj(p) {
@@ -530,7 +606,7 @@ function syncOrtho() {
 
 // ---------- 人車 ----------
 function applyTraffic() {
-  const on = state.traffic && state.style === 'normal';
+  const on = state.traffic && isColor(state.style);
   vehicles.setVisible(on); people.setVisible(on);
 }
 
@@ -561,6 +637,21 @@ $('settingsClose').onclick = () => $('settings').classList.add('hidden');
 $('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setStyle(s); };
 $('projSeg').onclick = (e) => { const p = e.target.dataset.proj; if (p) setProj(p); };
 $('lineW').oninput = (e) => setLineW(e.target.value);
+$('toneSize').oninput = (e) => setToneSize(e.target.value);
+setToneSize(state.toneSize);
+// 畫質：自動（手機省電、桌機高畫質）／高／省電；切換後重新載入（對數深度緩衝要重建畫布）
+function renderQuality() {
+  const p = qualityPref();
+  [...$('qualSeg').children].forEach((b) => b.classList.toggle('on', b.dataset.q === p));
+  $('qualNote').textContent = `目前：${quality === 'low' ? '省電' : '高畫質'}${p === 'auto' ? '（自動）' : ''}`;
+}
+$('qualSeg').onclick = (e) => {
+  const q = e.target.closest('[data-q]')?.dataset.q; if (!q || q === qualityPref()) return;
+  setQualityPref(q); renderQuality();
+  const u = new URL(location.href); u.searchParams.delete('q');
+  toast('重新載入以套用畫質設定…', 1500); setTimeout(() => location.replace(u), 600);
+};
+renderQuality();
 $('wxSeg').onclick = (e) => {
   const w = e.target.closest('[data-wx]')?.dataset.wx; if (!w) return;
   $('wxName').textContent = e.target.closest('[data-wx]').title;
@@ -714,7 +805,7 @@ function snapshotCode() {
   const s = {
     v: 2, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
     ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic, festival: state.festival },
-    style: state.style, lw: state.lineW, proj: state.ortho ? 'ortho' : 'persp',
+    style: state.style, lw: state.lineW, proj: state.ortho ? 'ortho' : 'persp', ...(state.style === 'tone' ? { ts: state.toneSize } : {}),
     tod: env.override, card: labels.openId(),
   };
   if (state.venue != null) s.vl = state.venue;
@@ -843,6 +934,7 @@ function goCue(i) {
   if (s.ui?.festival == null) setToggle('festival', false);   // 舊代碼沒有記錄：教材預設不顯示節慶物件
   setStyle(s.style || (s.ui?.wire ? 'wire' : s.ui?.contrast ? 'contrast' : 'normal'));
   if (s.lw) setLineW(s.lw);
+  if (s.ts) setToneSize(s.ts);
   setProj(s.proj || 'persp');
   env.override = s.tod ?? null;
   setVenue(s.vl ?? null);
@@ -1028,12 +1120,29 @@ function startOverview(c) {
 // ---------- 迴圈 ----------
 function resize() {
   const w = innerWidth, h = innerHeight;
+  composer.setPixelRatio(renderer.getPixelRatio());
   renderer.setSize(w, h, false); composer.setSize(w, h); bloom.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   const pr = renderer.getPixelRatio();
   edgeMat.resolution.set(w * pr, h * pr); groundEdgeMat.resolution.set(w * pr, h * pr);
 }
 addEventListener('resize', resize); resize();
+// 動態解析度：鏡頭在動而幀率不足時降低像素比（最低 1，省電模式 0.8），順了再升回來
+const adaptive = new AdaptiveRes({ min: Math.min(MAX_PR, LOW ? 0.8 : 1), max: MAX_PR, apply: (pr) => { renderer.setPixelRatio(pr); resize(); } });
+const lastCam = new THREE.Matrix4();
+// 白模／線稿／網點的固定光源（site.json 的 studioLight：方位角由北順時針、仰角，度）
+const SL = site.studioLight || {};
+const studioDir = (() => {
+  const a = THREE.MathUtils.degToRad(SL.az_deg ?? 300), e = THREE.MathUtils.degToRad(SL.alt_deg ?? 46);
+  return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e));
+})();
+const WHITE_BG = new THREE.Color(0xffffff);
+function studioLight() {
+  env.sun.position.copy(env.center).addScaledVector(studioDir, 400);
+  env.sun.color.set(0xffffff); env.sun.intensity = SL.sun ?? 2.6;
+  env.hemi.color.set(0xffffff); env.hemi.groundColor.set(0xb4b6b8); env.hemi.intensity = SL.ambient ?? 2.0;
+  if (env.flash) env.flash.intensity = 0;
+}
 
 const clock = new THREE.Clock();
 const hm = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
@@ -1044,7 +1153,7 @@ function buildingOpen(d) {
   const on = hm(BH.on ?? '05:00'), off = hm(BH.off);
   return on < off ? m >= on && m < off : m >= on || m < off;
 }
-let venueK = 1;
+let venueK = 1, simDt = 0, frameNo = 0;
 let lastUI = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), t = clock.elapsedTime;
@@ -1055,15 +1164,24 @@ renderer.setAnimationLoop(() => {
   }
   controls.update(dt);   // 傳入 dt：迎賓自轉速度與幀率無關
   if (camera.position.y < 1.2) camera.position.y = 1.2;
+  // 沒有對數深度時：near 跟著鏡頭距離放大，遠看時深度精度才夠，地面圖層不會閃
+  if (!renderer.capabilities.logarithmicDepthBuffer) {
+    const nr = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target) * 0.01, 0.3, 8);
+    if (Math.abs(nr - camera.near) > camera.near * 0.15) { camera.near = nr; camera.updateProjectionMatrix(); }
+  }
   camera.updateMatrixWorld();
+  const camMoving = !lastCam.equals(camera.matrixWorld); lastCam.copy(camera.matrixWorld);
+  adaptive.sample(dt * 1000, camMoving || !!fly);
   if (state.ortho) syncOrtho();
   const cam = viewCam();
   env.focus = camera.position;
   env.update(dt);
-  const plain = state.contrast || state.wire;
-  if (plain) { scene.background = new THREE.Color(0xffffff); env.sky.visible = env.dome.visible = env.stars.visible = false; scene.fog.density = 0; }
-  // 高對比／線架構不做色調映射，白就是純白（OutputPass 依 renderer.toneMapping 決定）
-  renderer.toneMapping = plain ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+  const plain = isPlain(state.style);
+  if (plain) { scene.background = WHITE_BG; env.sky.visible = env.dome.visible = env.stars.visible = false; scene.fog.density = 0; studioLight(); }
+  // 白模／線稿／網點不做色調映射，白就是純白
+  renderer.toneMapping = plain ? THREE.NoToneMapping : TONE;
+  setEnvK(plain ? 0 : ENV_K * (1 - env.night * 0.85));
+  if (!plain) setNightTint(env.night);
   const n = plain ? 0 : env.night;
   // 建築燈光營運時間（config/lights.json 的 buildingHours）：23:00 熄燈，路燈、車燈、道路標線不受影響
   const venueOn = state.venue ?? buildingOpen(env.now());
@@ -1078,15 +1196,25 @@ renderer.setAnimationLoop(() => {
   soundscape.update({ mode: state.mode, target: controls.target, camera: camera.position, dist: camera.position.distanceTo(controls.target), halls: state.halls, night: env.night, rainy: env.rainy, storm: !!env.storm });
   plan.update(dt);
   screenLayer.update(camera.position, controls.target, !!fly);
-  vehicles.update(dt, n);
-  people.update(dt);
+  // 省電模式：人車模擬隔一幀算一次（時間累加，速度不變）
+  simDt += dt;
+  if (!LOW || (frameNo & 1)) { vehicles.update(simDt, n); people.update(simDt); simDt = 0; }
+  frameNo++;
   for (let i = lifts.length - 1; i >= 0; i--) {
     const L = lifts[i]; L.t = Math.min(1, L.t + dt / 1.2);
     const f = halls.flatMap((h) => h.floorsM).find((x) => x.showM(L.m.userData.fname));
-    L.m.position.y = L.m.userData.y0 - (f?.lift_m || 0) * (1 - ease(L.t));
+    L.m.position.y = L.m.userData.y0 - (f?.lift_m || 0) * (1 - ease(L.t)); L.m.updateMatrix();
     if (L.t >= 1) lifts.splice(i, 1);
   }
-  composer.render();
+  // 需要後製（夜間光暈、線稿＋網點）才走 composer；否則直接畫，畫面有原生反鋸齒
+  const tone = state.style === 'tone', bloomOn = useBloom && !plain && bloom.strength > 0.01;
+  if (bloomOn || tone) {
+    bloom.enabled = bloomOn;
+    finalPass.uniforms.uTone.value = plain ? 0 : 1;
+    finalPass.uniforms.uDot.value = tone ? 1 : 0;
+    finalPass.uniforms.uCell.value = state.toneSize * renderer.getPixelRatio();
+    composer.render();
+  } else renderer.render(scene, cam);
   labels.update(cam, innerWidth, innerHeight);
   pois.update(cam, innerWidth, innerHeight);
   updateCube(camera);

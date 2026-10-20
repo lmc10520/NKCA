@@ -257,6 +257,8 @@ body.welcome #soundHint{display:none!important}
 .seg2.icons button .ms{font-size:20px;vertical-align:middle}
 .wxName{font-size:12px;color:var(--on-2);text-align:center;margin-top:4px}
 .seg2 button.on{background:var(--surface);color:var(--on);box-shadow:var(--elev1)}
+.seg2.five{flex-wrap:wrap;border-radius:18px}
+.seg2.five button{flex:1 1 30%;font-size:12.5px;padding:0 4px;white-space:nowrap}
 .setRow.dim{opacity:.45}
 #venueAuto{margin-left:auto;padding:4px 10px}
 #venueAuto:not(.hidden)+.sw{margin-left:0}

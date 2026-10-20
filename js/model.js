@@ -33,6 +33,7 @@ export async function loadModel(url, onProgress) {
       m.roughness = 0.08;
       m.metalness = 0.1;
       m.color.lerp(new THREE.Color('#9fc4d6'), 0.4);
+      m.userData.isGlassMat = true;   // 環境反射較強
       o.renderOrder = 2;
     } else {
       m.side = THREE.DoubleSide;

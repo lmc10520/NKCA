@@ -81,10 +81,14 @@
     <div class="seg2 icons" id="wxSeg"><button data-wx="live" class="on" title="即時天氣"><span class="ms">sensors</span></button><button data-wx="clear" title="晴"><span class="ms">sunny</span></button><button data-wx="cloudy" title="陰"><span class="ms">cloud</span></button><button data-wx="rain" title="雨"><span class="ms">rainy</span></button><button data-wx="snow" title="雪"><span class="ms">weather_snowy</span></button><button data-wx="storm" title="颱風（閃電）"><span class="ms">thunderstorm</span></button><button data-wx="aurora" title="極光"><span class="ms">auto_awesome</span></button></div>
     <div class="wxName" id="wxName">即時</div>
     <div class="setSec">模型樣式</div>
-    <div class="seg2" id="styleSeg"><button data-style="normal" class="on">一般</button><button data-style="contrast">高對比</button><button data-style="wire">線架構</button></div>
+    <div class="seg2 five" id="styleSeg"><button data-style="normal" class="on">彩色</button><button data-style="colorline">彩色＋線</button><button data-style="contrast">白模</button><button data-style="wire">線稿</button><button data-style="tone">線稿＋網點</button></div>
     <div class="setRow" id="lineRow"><span class="ms">line_weight</span>線條粗細<input type="range" id="lineW" min="1" max="6" step="0.5" value="2"><b id="lineWv">2</b></div>
+    <div class="setRow hidden" id="toneRow"><span class="ms">blur_on</span>網點大小<input type="range" id="toneSize" min="3" max="10" step="0.5" value="5"><b id="toneSizeV">5</b></div>
     <div class="setSec">投影</div>
     <div class="seg2" id="projSeg"><button data-proj="persp" class="on">透視</button><button data-proj="ortho">等角（平行）</button></div>
+    <div class="setSec">畫質</div>
+    <div class="seg2" id="qualSeg"><button data-q="auto" class="on">自動</button><button data-q="high">高畫質</button><button data-q="low">省電（流暢）</button></div>
+    <div class="wxName" id="qualNote"></div>
     <div class="setSec">簡報</div>
     <div class="presRow">
       <button class="iconBtn" id="snapBtn" title="記住目前畫面（複製代碼）"><span class="ms">bookmark_add</span></button>
