@@ -18,14 +18,31 @@ tools/              模型匯出與壓縮工具
 
 ## 更新模型（抽換檔案即可）
 
-1. 在 Fusion 360 執行 `tools/fusion_export_glb.py`。它會把整個設計匯出成 `文件/NKCA_data/nkca.glb`，物件名稱維持 Fusion 裡的 body 名稱。
-2. 用 `tools/build_model.sh 路徑/nkca.glb` 壓縮。約 240 MB 會壓到 9 MB 左右，壓縮後的檔案輸出到 `model/nkca.glb`。
+1. 在 Fusion 360 執行 `tools/fusion_export_glb.py`。它會把整個設計匯出成 `文件/NKCA_data/nkca.glb`（另有 `nkca_sets.json` 選取集、`nkca_manifest.json` 物件清單），物件名稱維持 Fusion 裡的 body 名稱。
+   - 面上另外套的外觀（例如戶外劇場的綠地）會一起匯出成獨立材質，網頁不會把它蓋掉。
+2. 用 `tools/build_model.sh 路徑/nkca.glb` 壓縮，輸出到 `model/nkca.glb`。
 3. 產生預設使用的減面模型：`node tools/build_lite.mjs`（讀 `model/nkca.glb`，輸出 `model/nkca_lite.glb`，約 2 秒）。
-4. 上傳覆蓋 `model/nkca.glb` 和 `model/nkca_lite.glb`。
+4. 有新增要在「樹冠大廳／榕樹廣場」模式隱藏的物件時：在 Fusion 把它加進選取集 `MODE_A_CanopyHall_hide`／`MODE_B_BanyanPlaza_hide`，匯出後執行 `python3 tools/sets_to_modes.py 路徑/nkca_sets.json`，會同步到 `config/modes.json` 並列出新增、移除的物件。
+5. 上傳覆蓋 `model/nkca.glb`、`model/nkca_lite.glb`（和更新過的 `config/modes.json`）。`site.json` 的 `modelBytes`／`modelLiteBytes` 只用來估算載入進度，可順手改成新檔案大小。
 
 減面只針對面數多、但看起來平或很小的物件（廣場地坪 32 萬面 → 1 萬、噴泉 LED、售票亭坡道、天花、電梯井…），外框邊界鎖住不動，欄杆不減。規則寫在 `tools/build_lite.mjs` 最上面。總面數約 150 萬 → 59 萬，檔案 8.8 MB → 5 MB。
 
-網頁功能都靠「物件名稱」對應：模式隱藏、燈光、廳院樓層、資訊卡都是。所以 Fusion 裡的 body 名稱保持一致，換模型後所有功能照常運作。
+### 換模型後哪些設定會沿用
+
+網頁功能都靠「物件名稱」「材質（外觀）名稱」和 Fusion 座標對應，跟模型檔本身分開，所以換模型後全部照常運作：
+
+| 依據 | 設定 |
+|---|---|
+| 物件名稱 | 模式隱藏（`modes.json`）、廳院樓層（`halls.json`）、夜間燈光（`lights.json`）、材質統一（`site.json` 的 `materialFrom`）、地面圖層錯開（`lift_cm`）、屋頂直立縫顏色（`Seam_*`）、減面規則（`build_lite.mjs`） |
+| 材質名稱 | 色盤 `materialColor`（草地、植栽、柏油、屋面…） |
+| Fusion 座標（cm） | 標籤、室內圖示、鋼琴、聲景區域、交通核、噴泉、車流路線、簡報代碼 |
+| 自動計算 | 地平線範圍（`Site_*` 物件的外框）、標籤高度、遮擋判斷 |
+
+要注意的只有：
+- **改名或刪除**：Fusion 裡改了 body 名稱、或換了外觀名稱，對應的設定要跟著改。
+- **新物件**：新畫的室內物件在所有模式都會顯示，要隱藏的請加進選取集（步驟 4）。新外觀會直接使用 Fusion 的顏色。
+- **大量新面數**：減面規則對 3,000 面以上、沒有特別規則的物件用預設的保守誤差。新增很細的室內物件後，建議在網頁看一下有沒有變形，有的話在 `build_lite.mjs` 加一條 `{ match: /^名稱/, skip: true }`。
+- **移動整個模型**：座標原點或單位不能改，否則所有座標類設定都會偏移。
 
 ## 操作
 

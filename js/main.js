@@ -144,7 +144,7 @@ for (const [pat, ref] of Object.entries(site.materialFrom || {})) {
   const src = model.meshes.find((m) => m.userData.fname === ref);
   if (!src) continue;
   const re = new RegExp(pat);
-  for (const m of model.meshes) if (m !== src && re.test(m.userData.fname)) { m.material = src.material; m.userData.origMaterial = src.material; }
+  for (const m of model.meshes) if (m !== src && re.test(m.userData.fname) && !m.userData.faceOverride) { m.material = src.material; m.userData.origMaterial = src.material; }
 }
 // 色盤：site.json 的 materialColor 指定「材質名稱 → 顏色」，覆蓋 Fusion 匯出的顏色（草地、植栽等原本偏灰、偏土）
 {

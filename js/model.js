@@ -19,6 +19,10 @@ export async function loadModel(url, onProgress) {
     // GLTFLoader 會把名稱中的空白換成底線；原始 Fusion 名稱保留在 userData.fname
     const fname = o.userData?.fname || o.parent?.userData?.fname || o.name;
     o.userData.fname = fname;
+    // 實體本身的外觀名稱（匯出時記在 extras.appearance）。Fusion 在「面」上另外套的外觀會成為另一個材質，
+    // 這些部分材質名稱和實體外觀不同 → faceOverride，網頁的統一材質規則（materialFrom）不會蓋掉它
+    const bodyAp = o.userData?.appearance ?? o.parent?.userData?.appearance;
+    o.userData.faceOverride = bodyAp != null && (o.material?.name || '') !== bodyAp;
     let m = o.material;
     const matGlass = /glass|玻璃/i.test(m.name || '');
     const isGlass = matGlass || /Glass/.test(fname);

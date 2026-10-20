@@ -20,16 +20,19 @@ def run(_c):
         while len(buf)%4: buf.append(0)
         off=len(buf); buf.extend(b)
         views.append({'buffer':0,'byteOffset':off,'byteLength':len(b),'target':target}); return len(views)-1
-    n=0; tri=0
-    for b in bodies:
-        try:
-            mc=b.meshManager.createMeshCalculator()
-            mc.surfaceTolerance=2.5; mc.maxNormalDeviation=0.35
-            m=mc.calculate()
-            P=m.nodeCoordinatesAsFloat; N=m.normalVectorsAsFloat; I=m.nodeIndices
-        except Exception as ex:
-            man.append({'name':b.name,'err':str(ex)[:80]}); continue
-        if len(I)==0: continue
+    def matidx(ap, an):
+        if an not in mi:
+            c=col(ap); mi[an]=len(mats)
+            mt={'name':an,'pbrMetallicRoughness':{'baseColorFactor':c,'metallicFactor':0.0,'roughnessFactor':0.8},'doubleSided':True}
+            if c[3]<1: mt['alphaMode']='BLEND'
+            mats.append(mt)
+        return mi[an]
+    def calc(ent):
+        mc=ent.meshManager.createMeshCalculator()
+        mc.surfaceTolerance=2.5; mc.maxNormalDeviation=0.35
+        m=mc.calculate()
+        return m.nodeCoordinatesAsFloat, m.normalVectorsAsFloat, m.nodeIndices
+    def prim(P,N,I,mat):
         nv=len(P)//3
         pa=array.array('f',[0.0])*(nv*3); na=array.array('f',[0.0])*(nv*3)
         mn=[1e9]*3; mx=[-1e9]*3
@@ -48,17 +51,39 @@ def run(_c):
         acc.append({'bufferView':vp,'componentType':5126,'count':nv,'type':'VEC3','min':mn,'max':mx})
         acc.append({'bufferView':vn,'componentType':5126,'count':nv,'type':'VEC3'})
         acc.append({'bufferView':vi,'componentType':5125,'count':len(I),'type':'SCALAR'})
-        ap=b.appearance; an=ap.name if ap else 'default'
-        if an not in mi:
-            c=col(ap); mi[an]=len(mats)
-            mt={'name':an,'pbrMetallicRoughness':{'baseColorFactor':c,'metallicFactor':0.0,'roughnessFactor':0.8},'doubleSided':True}
-            if c[3]<1: mt['alphaMode']='BLEND'
-            mats.append(mt)
         k=len(acc)
-        meshes.append({'name':b.name,'primitives':[{'attributes':{'POSITION':k-3,'NORMAL':k-2},'indices':k-1,'material':mi[an]}]})
+        return {'attributes':{'POSITION':k-3,'NORMAL':k-2},'indices':k-1,'material':mat}
+    n=0; tri=0
+    for b in bodies:
+        ap=b.appearance; an=ap.name if ap else 'default'
+        # 面上另外套的外觀（例如戶外劇場的綠地）：同一個實體依外觀分組，每組輸出成一個 primitive（各自的材質）
+        groups={}
+        try:
+            for f in b.faces:
+                fa=f.appearance; fn=fa.name if fa else an
+                if fn not in groups: groups[fn]=[fa,[]]
+                groups[fn][1].append(f)
+        except Exception:
+            groups={}
+        prims=[]; bt=0
+        try:
+            if len(groups)<=1:
+                P,N,I=calc(b)
+                if len(I): prims.append(prim(P,N,I,matidx(ap,an))); bt+=len(I)//3
+            else:
+                for fn,(fa,faces) in groups.items():
+                    P=[]; N=[]; I=[]
+                    for f in faces:
+                        p,nn,ii=calc(f); base=len(P)//3
+                        P.extend(p); N.extend(nn); I.extend([x+base for x in ii])
+                    if len(I): prims.append(prim(P,N,I,matidx(fa,fn))); bt+=len(I)//3
+        except Exception as ex:
+            man.append({'name':b.name,'err':str(ex)[:80]}); continue
+        if not prims: continue
+        meshes.append({'name':b.name,'primitives':prims})
         nodes.append({'name':b.name,'mesh':len(meshes)-1,'extras':{'visible':b.isLightBulbOn,'appearance':an}})
-        man.append({'name':b.name,'visible':b.isLightBulbOn,'appearance':an,'tris':len(I)//3})
-        n+=1; tri+=len(I)//3
+        man.append({'name':b.name,'visible':b.isLightBulbOn,'appearance':an,'faceAppearances':sorted(groups) if len(groups)>1 else None,'tris':bt})
+        n+=1; tri+=bt
         if n%40==0: A.add('v6','log','glb %d/%d tris %d %ds'%(n,len(bodies),tri,time.time()-t0))
     while len(buf)%4: buf.append(0)
     g={'asset':{'version':'2.0','generator':'NKCA Fusion exporter'},'scene':0,'scenes':[{'nodes':list(range(len(nodes)))}],
