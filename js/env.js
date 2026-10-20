@@ -58,8 +58,10 @@ export class Environment {
         uMid: { value: new THREE.Color(nightCfg.sky || '#1e3260') }, uHor: { value: new THREE.Color(nightCfg.horizon || '#4a5d86') } },
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
       fragmentShader: `varying vec3 vD; uniform float uOp; uniform vec3 uTop, uMid, uHor;
-        void main(){ float h = clamp(vD.y, -0.2, 1.0);
-          vec3 c = h < 0.12 ? mix(uHor, uMid, smoothstep(-0.05, 0.12, h)) : mix(uMid, uTop, smoothstep(0.12, 0.75, h));
+        void main(){ float h = clamp(vD.y, -1.0, 1.0);
+          vec3 c = h < 0.12 ? mix(uHor, uMid, smoothstep(0.0, 0.12, h)) : mix(uMid, uTop, smoothstep(0.12, 0.75, h));
+          // 地平線以下：從地平線光帶漸漸回到深色夜空（鳥瞰時地坪四周也是星空）
+          if (h < 0.0) c = mix(uHor, mix(uMid, uTop, 0.5), smoothstep(0.0, -0.18, h));
           gl_FragColor = vec4(c, uOp); }`,
     });
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 16), this.domeMat);
@@ -69,10 +71,11 @@ export class Environment {
     // 固定亂數種子：每次載入都是同一片星空
     let seed = 20261020;
     const rnd = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-    const N = 2200, sp = [], sz = [], br = [], ph = [], spd = [], col = [];
+    const N = 2800, sp = [], sz = [], br = [], ph = [], spd = [], col = [];
     const tints = [[0.75, 0.84, 1.0], [0.88, 0.92, 1.0], [1.0, 1.0, 1.0], [1.0, 0.95, 0.82], [1.0, 0.82, 0.62]];
     for (let i = 0; i < N; i++) {
-      const y = 0.06 + rnd() * 0.94, t = rnd() * Math.PI * 2, r = Math.sqrt(1 - y * y);
+      // 一路延伸到地平線以下約 30°（鳥瞰時地坪四周看得到星空），靠近地平線的星星多一些
+      const y = -0.5 + Math.pow(rnd(), 1.15) * 1.5, t = rnd() * Math.PI * 2, r = Math.sqrt(1 - y * y);
       sp.push(Math.cos(t) * r * 3900, y * 3900, Math.sin(t) * r * 3900);
       const b = 0.22 + Math.pow(rnd(), 8) * 2.6;
       br.push(b); sz.push(b > 2.3 ? 11 : 1.3 + b * 1.5);
@@ -100,7 +103,7 @@ export class Environment {
           gl_Position = projectionMatrix * mv;
           #include <logdepthbuf_vertex>
           float hz = normalize(position).y;
-          float amp = mix(0.6, 0.3, smoothstep(0.1, 0.8, hz));
+          float amp = mix(0.6, 0.3, smoothstep(0.1, 0.8, abs(hz)));
           float tw = 1.0 - amp * (0.5 + 0.5 * sin(uTime * aSpeed + aPhase)) * (0.65 + 0.35 * sin(uTime * aSpeed * 2.7 + aPhase * 1.7));
           vA = uOp * aBright * tw; vCol = aColor; vSpike = step(2.3, aBright) * tw;
           gl_PointSize = aSize * uPR * (0.75 + 0.35 * tw);
@@ -122,6 +125,7 @@ export class Environment {
         }`,
     });
     this.stars = new THREE.Points(sg, this.starMat); this.stars.frustumCulled = false;
+    this.stars.renderOrder = -0.8;   // 在夜空之後、地平線地坪之前畫：地坪遠處變透明時，星星從底下透出來
     scene.add(this.dome, this.stars);
 
     this.hemi = new THREE.HemisphereLight(0xdfe9f2, 0x5d6062, 0.9);   // 地面反光用中性灰（原本偏棕，整體會「土」）
@@ -207,6 +211,8 @@ export class Environment {
     this.dome.visible = night > 0.01;
     const so = Math.max(0, night - 0.3) * (1 - cloud) * 1.1, su = this.starMat.uniforms;
     su.uOp.value = so; su.uTime.value += dt; su.uPR.value = this.renderer.getPixelRatio();
+    // 星空、夜空跟著鏡頭（像天球），地平線永遠在鏡頭的水平方向，鳥瞰時也看得到低空的星星
+    if (this.focus) { this.stars.position.copy(this.focus); this.dome.position.copy(this.focus); }
     this.stars.visible = so > 0.01;
 
     // 白天是太陽；入夜後同一盞平行光改當月光（冷白、較弱，仍有柔和陰影）

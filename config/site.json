@@ -25,13 +25,16 @@
  "bloom": true,
  "envIntensity": 0.25,
  "skyBrightness": 0.62,
- "_畫面說明": "envIntensity＝環境反射強度（玻璃反光、白牆柔光，夜間自動調低）；skyBrightness＝天空亮度；materialColor＝覆蓋 Fusion 材質顏色（材質名稱 → 顏色），刪掉就恢復原色；studioLight＝白模／線稿／網點樣式的固定光源（az_deg 方位角由北順時針、alt_deg 仰角、sun 主光、ambient 環境光）；toneSize＝網點預設大小（px）；modelLite＝預設畫質載入的減面模型（高畫質用 model）。",
+ "_畫面說明": "envIntensity＝環境反射強度（玻璃反光、白牆柔光，夜間自動調低）；skyBrightness＝天空亮度；materialColor＝覆蓋 Fusion 材質顏色（材質名稱 → 顏色），刪掉就恢復原色；studioLight＝白模／線稿／網點樣式的固定光源（az_deg 方位角由北順時針、alt_deg 仰角、sun 主光、ambient 環境光）；toneSize＝網點預設大小（px）；Roof_White_Aluminum＝屋面顏色，seamColor＝屋頂直立縫顏色（越深線條越明顯）；horizon＝基地外延伸地坪與地平線霧帶的顏色（白天近／遠、夜晚近／遠），fadeStart_m／fadeEnd_m＝從基地中心多遠開始漸變到地平線色，nightFadeStart_m／nightFadeEnd_m＝夜晚地坪從多遠開始變透明（露出星空），enabled:false 可關閉；modelLite＝預設畫質載入的減面模型（高畫質用 model）。",
  "materialColor": {
   "Site_Grass": "#7fad5f",
   "Planting_Green": "#5e9443",
   "Site_Asphalt": "#5a5d63",
-  "Site_Fountain_Stone": "#4d5b6e"
+  "Site_Fountain_Stone": "#4d5b6e",
+  "Roof_White_Aluminum": "#d9dcdf"
  },
+ "seamColor": "#7d848c",
+ "horizon": { "dayNear": "#eeeeeb", "dayFar": "#d9e2e8", "nightNear": "#5a647b", "nightFar": "#2c3854", "fadeStart_m": 250, "fadeEnd_m": 2600, "nightFadeStart_m": 420, "nightFadeEnd_m": 1100 },
  "studioLight": { "az_deg": 300, "alt_deg": 46, "sun": 2.6, "ambient": 2.0 },
  "toneSize": 5,
  "modelLite": "model/nkca_lite.glb",

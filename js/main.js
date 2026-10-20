@@ -19,6 +19,7 @@ import { PlanOverlay, ScreenOverlay } from './overlay.js';
 import { Festival } from './festival.js';
 import { Piano } from './piano.js';
 import { Soundscape } from './soundscape.js';
+import { Horizon, siteRect } from './horizon.js';
 import { HIGH, quality, qualityPref, setQualityPref, TONE, FinalPass, AdaptiveRes } from './look.js';
 
 const $ = (id) => document.getElementById(id);
@@ -152,6 +153,16 @@ for (const [pat, ref] of Object.entries(site.materialFrom || {})) {
     mt.color.set(hit[1]); if (mt.userData.base) mt.userData.base.color.copy(mt.color);
   }
 }
+// 屋頂直立縫（Seam_*）：法線朝上後和屋面受光一樣，線條會淡掉，所以另外給較深的顏色（site.json 的 seamColor）
+if (site.seamColor) {
+  const seamMats = new Map();
+  for (const m of model.meshes) {
+    if (!/^Seam/.test(m.userData.fname)) continue;
+    let mt = seamMats.get(m.material);
+    if (!mt) { mt = m.material.clone(); mt.name = 'Seam_Color'; mt.color.set(site.seamColor); seamMats.set(m.material, mt); }
+    m.material = mt; m.userData.origMaterial = mt;
+  }
+}
 // 幾乎重疊的地面圖層上下錯開，避免閃爍（site.json 的 lift_cm）
 for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
   if (pat.startsWith('_')) continue;
@@ -171,7 +182,10 @@ model.root.traverse((o) => { o.matrixAutoUpdate = false; });
 const envMats = new Set();
 
 setLoad(86, '佈置夜間燈光…'); await paint();
-const night = new NightLights(scene, model, lightsCfg, lawnsCfg);   // 屋頂投射燈、廣場面光源都開
+const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
+// 地平線：基地外延伸的地坪＋地平線霧帶（site.json 的 horizon）
+const rect = site.horizon?.enabled === false ? null : siteRect(model);
+const horizon = rect ? new Horizon(scene, rect, site.horizon) : null;   // 屋頂投射燈、廣場面光源都開
 for (const m of model.meshes) { const mt = m.userData.origMaterial; if (mt?.isMeshStandardMaterial) envMats.add(mt); }
 let envKNow = -1, nightNow = -1;
 function setEnvK(k) {
@@ -1182,6 +1196,7 @@ renderer.setAnimationLoop(() => {
   renderer.toneMapping = plain ? THREE.NoToneMapping : TONE;
   setEnvK(plain ? 0 : ENV_K * (1 - env.night * 0.85));
   if (!plain) setNightTint(env.night);
+  horizon?.update(camera.position, plain ? 0 : env.night, plain);
   const n = plain ? 0 : env.night;
   // 建築燈光營運時間（config/lights.json 的 buildingHours）：23:00 熄燈，路燈、車燈、道路標線不受影響
   const venueOn = state.venue ?? buildingOpen(env.now());
