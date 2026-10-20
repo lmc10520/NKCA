@@ -44,7 +44,9 @@
   "^Roof_(South|Main_B13|Main_B14|Main_M15|Main_M16)$": "Roof_Main"
  },
  "night": {
-  "_說明": "夜間環境：月光方向與強度、夜空漸層顏色（天頂／天空／地平線）。不模擬周邊街區燈光。",
+  "_說明": "夜間環境：月光方向與強度、夜空漸層顏色（天頂／天空／地平線）、星星數量（stars 全部、brightStars 其中有十字星芒的亮星）。不模擬周邊街區燈光。",
+  "stars": 12800,
+  "brightStars": 70,
   "moonAz_deg": 145,
   "moonAlt_deg": 52,
   "moonlight": 0.9,

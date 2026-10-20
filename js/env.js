@@ -71,14 +71,16 @@ export class Environment {
     // 固定亂數種子：每次載入都是同一片星空
     let seed = 20261020;
     const rnd = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-    const N = 2800, sp = [], sz = [], br = [], ph = [], spd = [], col = [];
+    // 數量在 site.json 的 night.stars（全部星星）、night.brightStars（有十字星芒的亮星）
+    const N = Math.max(0, Math.round(nightCfg.stars ?? 2800)), BRIGHT = Math.min(N, Math.round(nightCfg.brightStars ?? 70));
+    const sp = [], sz = [], br = [], ph = [], spd = [], col = [];
     const tints = [[0.75, 0.84, 1.0], [0.88, 0.92, 1.0], [1.0, 1.0, 1.0], [1.0, 0.95, 0.82], [1.0, 0.82, 0.62]];
     for (let i = 0; i < N; i++) {
       // 一路延伸到地平線以下約 30°（鳥瞰時地坪四周看得到星空），靠近地平線的星星多一些
       const y = -0.5 + Math.pow(rnd(), 1.15) * 1.5, t = rnd() * Math.PI * 2, r = Math.sqrt(1 - y * y);
       sp.push(Math.cos(t) * r * 3900, y * 3900, Math.sin(t) * r * 3900);
-      const b = 0.22 + Math.pow(rnd(), 8) * 2.6;
-      br.push(b); sz.push(b > 2.3 ? 11 : 1.3 + b * 1.5);
+      const bright = i < BRIGHT, b = bright ? 2.3 + rnd() * 0.5 : 0.22 + Math.pow(rnd(), 8) * 2.0;
+      br.push(b); sz.push(bright ? 11 : 1.3 + b * 1.5);
       ph.push(rnd() * Math.PI * 2); spd.push(1.2 + rnd() * 3.5);
       const c = tints[Math.min(4, Math.floor(Math.pow(rnd(), 1.6) * 5))]; col.push(...c);
     }
