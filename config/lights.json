@@ -348,19 +348,21 @@
  },
  "vehicles": {
   "headlight": "#fff6dd",
-  "taillight": "#ff3b2f"
+  "taillight": "#ff3b2f",
+  "groundGlow": 0.4,
+  "_說明": "headlight／taillight＝車燈顏色；groundGlow＝夜間車燈照在路面的光暈強度（0–1）"
  },
  "markings": [
   {
-   "_說明": "道路標線夜間自發光（白線、黃線）",
+   "_說明": "道路標線夜間自發光（白線、黃線）。intensity 越小越暗，0＝不發光；超過約 0.6 會被夜間光暈（bloom）放大",
    "match": "^Site_Marking_White",
    "color": "#e8eef5",
-   "intensity": 0.88
+   "intensity": 0.3
   },
   {
    "match": "^Site_Marking_Yellow",
    "color": "#ffc94a",
-   "intensity": 0.96
+   "intensity": 0.35
   }
  ],
  "buildingHours": {

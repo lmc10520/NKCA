@@ -102,8 +102,11 @@ const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(innerW
   { type: THREE.HalfFloatType, samples: isMobile || !renderer.capabilities.isWebGL2 ? 0 : 4 }));
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
-const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.0, 0.5, 0.85);
-const useBloom = site.bloom !== false;   // 夜間光暈：預設與高畫質都有（白天自動跳過，不耗效能）
+// 夜間光暈（bloom）：比 threshold 亮的地方（燈具、車燈、號誌）向外暈開。site.json 的 bloom：
+// strength 強度（夜晚全暗時）、radius 擴散範圍 0–1、threshold 門檻（1＝比白色還亮才發光）；設 false 關閉
+const BL = typeof site.bloom === 'object' ? site.bloom : {};
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.0, BL.radius ?? 0.4, BL.threshold ?? 1.0);
+const useBloom = site.bloom !== false && BL.enabled !== false;   // 預設與高畫質都有（白天自動跳過，不耗效能）
 if (useBloom) composer.addPass(bloom);
 const finalPass = new FinalPass();
 composer.addPass(finalPass);
@@ -209,6 +212,12 @@ const screens = buildScreens(scene, screensCfg);
 const festival = new Festival(scene, festCfg, model);
 const piano = new Piano(scene, pianoCfg);
 piano.onMessage = (t) => toast(t, 4000);
+// 車輛、行人、路燈、鋼琴、節慶物件等的材質也納入環境反射的晝夜調整（否則晚上車身會亮到發光）
+scene.traverse((o) => {
+  if (!o.isMesh) return;
+  for (const mt of Array.isArray(o.material) ? o.material : [o.material]) if (mt?.isMeshStandardMaterial) envMats.add(mt);
+});
+envKNow = -1;
 // 建築聲景：依空間播放環境音；鋼琴彈奏時自動降低（ducking）
 const soundscape = new Soundscape(soundCfg);
 piano.onState = (on) => soundscape.duck(on);
@@ -1202,7 +1211,7 @@ renderer.setAnimationLoop(() => {
   const venueOn = state.venue ?? buildingOpen(env.now());
   venueK += ((venueOn ? 1 : 0) - venueK) * Math.min(1, dt * 1.5);
   night.update(n, n * venueK);
-  bloom.strength = n * 0.9 + (env.flashK || 0) * 0.6;
+  bloom.strength = n * (BL.strength ?? 0.75) + (env.flashK || 0) * 0.6;
   if (env.flashK) renderer.toneMappingExposure += env.flashK * 0.9;   // 閃電瞬間整個畫面亮一下
   fountain?.update(t, env.now(), n);
   festival.update(dt, n);

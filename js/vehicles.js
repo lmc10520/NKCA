@@ -67,7 +67,7 @@ export class Vehicles {
     const tailMat = new THREE.MeshBasicMaterial({ color: lightCfg?.taillight || '#ff3b2f', toneMapped: false });
     const glowMat = new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xfff4dc, transparent: true, opacity: 0,
       depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-    this.headMat = headMat; this.tailMat = tailMat; this.glowMat = glowMat;
+    this.headMat = headMat; this.tailMat = tailMat; this.glowMat = glowMat; this.glowK = lightCfg?.groundGlow ?? 0.4;
     this.headBase = headMat.color.clone(); this.tailBase = tailMat.color.clone();
     const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.25 });
     for (const [t, vs] of Object.entries(byType)) {
@@ -157,7 +157,7 @@ export class Vehicles {
     dt = Math.min(dt, 0.1);
     this.headMat.color.copy(this.headBase).multiplyScalar(0.35 + night * 2.5);
     this.tailMat.color.copy(this.tailBase).multiplyScalar(0.5 + night * 2.0);
-    this.glowMat.opacity = night * 0.55;
+    this.glowMat.opacity = night * (this.glowK ?? 0.4);   // 車燈照在路面的光（lights.json 的 vehicles.groundGlow）
     const m = this._m, p = this._p, q = this._q;
     this.time += dt;
     for (const h of this.heads) {
