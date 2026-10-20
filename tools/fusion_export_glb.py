@@ -1,7 +1,26 @@
-import adsk.core, adsk.fusion, json, struct, array, time, os
+# NKCA：把 Fusion 設計匯出成網頁用的 glb（Fusion →「公用程式」→「指令碼和增益集」→ fusion_export_glb → 執行）
+# 輸出到「文件」資料夾裡的 NKCA_data：nkca.glb、nkca_manifest.json（物件清單）、nkca_sets.json（選取集）
+# 實體的面若另外套了外觀（例如戶外劇場的綠地），會依外觀分組輸出成不同材質。
+import adsk.core, adsk.fusion, json, struct, array, time, os, sys
+def docs_dir():
+    # Windows 的「文件」可能被 OneDrive 移走（C:\Users\名稱\OneDrive\文件），向系統查實際位置
+    if sys.platform.startswith('win'):
+        try:
+            import ctypes
+            b=ctypes.create_unicode_buffer(260)
+            if ctypes.windll.shell32.SHGetFolderPathW(None,5,None,0,b)==0 and b.value: return b.value
+        except Exception: pass
+    return os.path.join(os.path.expanduser('~'),'Documents')
 def run(_c):
+    app=adsk.core.Application.get()
+    try:
+        info=export()
+        app.userInterface.messageBox('匯出完成：%d 個物件、%d 面、%.1f MB、%d 秒\n%s'%(info['bodies'],info['tris'],info['mb'],info['sec'],info['out']),'NKCA 匯出')
+    except Exception as ex:
+        app.userInterface.messageBox('匯出失敗：%s'%ex,'NKCA 匯出')
+def export():
     app=adsk.core.Application.get(); D=app.activeProduct; r=D.rootComponent; A=D.attributes
-    t0=time.time(); OUT=os.path.join(os.path.expanduser('~'),'Documents','NKCA_data'); os.makedirs(OUT,exist_ok=True)
+    t0=time.time(); OUT=os.path.join(docs_dir(),'NKCA_data'); os.makedirs(OUT,exist_ok=True)
     SKIP=('Print_Model','Plaza_Shell_Original','tmp_','Body62')
     bodies=[b for b in r.bRepBodies if not b.name.startswith(SKIP)]
     buf=bytearray(); views=[]; acc=[]; meshes=[]; nodes=[]; mats=[]; mi={}; man=[]
@@ -104,3 +123,4 @@ def run(_c):
         sets[s.name]=sorted(set(nm))
     with open(os.path.join(OUT,'nkca_sets.json'),'w',encoding='utf8') as f: json.dump(sets,f,ensure_ascii=False)
     A.add('v6','log','glb done %d bodies tris %d size %.1fMB %ds'%(n,tri,len(buf)/1e6,time.time()-t0))
+    return {'bodies':n,'tris':tri,'mb':len(buf)/1e6,'sec':int(time.time()-t0),'out':os.path.join(OUT,'nkca.glb')}

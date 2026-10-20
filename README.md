@@ -18,7 +18,7 @@ tools/              模型匯出與壓縮工具
 
 ## 更新模型（抽換檔案即可）
 
-1. 在 Fusion 360 執行 `tools/fusion_export_glb.py`。它會把整個設計匯出成 `文件/NKCA_data/nkca.glb`（另有 `nkca_sets.json` 選取集、`nkca_manifest.json` 物件清單），物件名稱維持 Fusion 裡的 body 名稱。
+1. 在 Fusion 360：「公用程式」→「指令碼和增益集」→ `fusion_export_glb` → 執行（腳本放在 `%APPDATA%\Autodesk\Autodesk Fusion 360\API\Scripts\fusion_export_glb\`，原始檔是 `tools/fusion_export_glb.py`）。它會把整個設計匯出到「文件」資料夾的 `NKCA_data\nkca.glb`（「文件」在 OneDrive 時也會自動找到；另有 `nkca_sets.json` 選取集、`nkca_manifest.json` 物件清單），物件名稱維持 Fusion 裡的 body 名稱，完成後跳出訊息顯示物件數、面數與檔案位置。
    - 面上另外套的外觀（例如戶外劇場的綠地）會一起匯出成獨立材質，網頁不會把它蓋掉。
 2. 用 `tools/build_model.sh 路徑/nkca.glb` 壓縮，輸出到 `model/nkca.glb`。
 3. 產生預設使用的減面模型：`node tools/build_lite.mjs`（讀 `model/nkca.glb`，輸出 `model/nkca_lite.glb`，約 2 秒）。
