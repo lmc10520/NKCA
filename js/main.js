@@ -180,8 +180,9 @@ for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
 // 地坪與周邊環境（高對比時淡化）；其他視為建築
 const groundRe = new RegExp(site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
 for (const m of model.meshes) m.userData.isGround = groundRe.test(m.userData.fname);
-// 剖面只切建築：符合 section.keep（預設同 groundMatch：地坪、道路、草地…）的物件不切
-const keepRe = new RegExp(site.section?.keep || site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
+// 剖面只切建築：符合 section.keep 的物件不切。預設只保留基地外圍的 Site_ 地面（道路、草地、鋪面），
+// 榕樹廣場地坪、戶外劇場座席、停車場坡道／卸貨碼頭的牆（Site_Ramp_／Site_Parking_／Site_Dock_）、之後的地下樓層都會切
+const keepRe = new RegExp(site.section?.keep || '^Site_(?!Ramp_|Parking_|Dock_)');
 const isCut = (m) => !m.userData.excluded && !keepRe.test(m.userData.fname);
 // 裁切設定在材質上：不切的物件若和建築共用材質，給它自己的一份（否則地面會跟著被切）
 {
@@ -207,7 +208,8 @@ const section = new Section({ model, cfg: site.section, isCut, scene });
 for (const m of model.meshes) if (isCut(m)) section.register(m.userData.origMaterial);
 // 地平線：基地外延伸的地坪＋地平線霧帶（site.json 的 horizon）
 const rect = site.horizon?.enabled === false ? null : siteRect(model);
-const horizon = rect ? new Horizon(scene, rect, site.horizon) : null;   // 屋頂投射燈、廣場面光源都開
+const horizon = rect ? new Horizon(scene, rect, site.horizon) : null;
+section.addBase(scene, rect || siteRect(model), site.section?.baseColor);   // 屋頂投射燈、廣場面光源都開
 for (const m of model.meshes) { const mt = m.userData.origMaterial; if (mt?.isMeshStandardMaterial) envMats.add(mt); }
 let envKNow = -1, nightNow = -1;
 function setEnvK(k) {
@@ -577,6 +579,14 @@ const hiddenFaceGroundMat = hiddenFaceMat.clone();   // 地面用（剖面不切
 // 粗線（LineSegments2）：線寬以螢幕像素計，可在設定中調整
 const edgeMat = new LineMaterial({ color: 0x1f2328, linewidth: state.lineW, worldUnits: false });
 const groundEdgeMat = new LineMaterial({ color: 0x9aa0a6, linewidth: 1, worldUnits: false });
+// 會被剖面切到的地坪（榕樹廣場等）用同樣外觀的另一份材質，才不會連基地外的道路草地一起切
+const groundCutMat = groundMat.clone(), groundEdgeCutMat = groundEdgeMat.clone();
+function syncGroundCut() {
+  groundCutMat.color.copy(groundMat.color);
+  groundEdgeCutMat.color.copy(groundEdgeMat.color); groundEdgeCutMat.linewidth = groundEdgeMat.linewidth;
+  groundEdgeCutMat.resolution.copy(groundEdgeMat.resolution);
+}
+section.register(groundCutMat); section.register(groundEdgeCutMat, { cap: false });
 for (const mt of [whiteMat, glassMat, hiddenFaceMat]) section.register(mt);
 section.register(edgeMat, { cap: false });
 let edgesBuilt = false;
@@ -586,7 +596,7 @@ function buildEdges() {
   for (const m of model.meshes) {
     if (skip.test(m.userData.fname)) continue;
     const g = new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(m.geometry, 40));
-    const ls = new LineSegments2(g, m.userData.isGround ? groundEdgeMat : edgeMat);
+    const ls = new LineSegments2(g, m.userData.isGround ? (isCut(m) ? groundEdgeCutMat : groundEdgeMat) : edgeMat);
     ls.visible = false; ls.raycast = () => {}; ls.frustumCulled = false; m.add(ls); m.userData.edges = ls;
     ls.matrixAutoUpdate = false;
   }
@@ -604,7 +614,7 @@ function setStyle(style) {
     const g = m.userData.isGround, gl = m.userData.isGlass;
     m.material = isColor(style) ? m.userData.origMaterial
       : style === 'wire' ? (isCut(m) ? hiddenFaceMat : hiddenFaceGroundMat)
-      : gl ? glassMat : g ? groundMat : whiteMat;
+      : gl ? glassMat : g ? (isCut(m) ? groundCutMat : groundMat) : whiteMat;
     if (m.userData.edges) m.userData.edges.visible =
       style === 'wire' || (style === 'tone' && !gl) || ((style === 'contrast' || style === 'colorline') && !g && !gl);
     m.castShadow = shadowsOK && !gl && (isColor(style) || ((style === 'contrast' || style === 'tone') && !g));
@@ -614,6 +624,7 @@ function setStyle(style) {
   edgeMat.transparent = style === 'colorline'; edgeMat.opacity = style === 'colorline' ? 0.55 : 1; edgeMat.needsUpdate = true;
   groundEdgeMat.color.set(style === 'tone' ? 0x26292d : 0x9aa0a6);
   groundMat.color.set(style === 'tone' ? 0xf7f7f7 : 0xeceef1);
+  syncGroundCut();
   // 剖面切口顏色：彩色、白模用灰，線稿、網點用深色（像圖面上塗黑的剖面）
   const SC = site.section?.capColors || {};
   section.setCapColor(SC[style] || (style === 'wire' || style === 'tone' ? '#2a2c30' : style === 'contrast' ? '#8d9196' : '#7a7e84'));
@@ -627,6 +638,7 @@ function setStyle(style) {
 function setLineW(v) {
   state.lineW = +v; edgeMat.linewidth = state.lineW * (state.style === 'contrast' ? 0.5 : state.style === 'colorline' ? 0.6 : 1); groundEdgeMat.linewidth = Math.max(1, state.lineW * 0.5);
   $('lineW').value = v; $('lineWv').textContent = v;
+  syncGroundCut();
 }
 // 網點大小（螢幕像素，依裝置像素比放大，手機上看起來一樣大）
 function setToneSize(v) {
@@ -1090,7 +1102,7 @@ function renderOffscreen(cam, W, H, noFog = false) {
   const pr = renderer.getPixelRatio(), fog = scene.fog;
   if (noFog) scene.fog = null;
   plan.visible = false;
-  edgeMat.resolution.set(W, H); groundEdgeMat.resolution.set(W, H);
+  edgeMat.resolution.set(W, H); groundEdgeMat.resolution.set(W, H); syncGroundCut();
   renderer.setPixelRatio(1); renderer.setSize(W, H, false);
   renderer.render(scene, cam);
   const out = document.createElement('canvas'); out.width = W; out.height = H;
@@ -1199,7 +1211,7 @@ function resize() {
   renderer.setSize(w, h, false); composer.setSize(w, h); bloom.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   const pr = renderer.getPixelRatio();
-  edgeMat.resolution.set(w * pr, h * pr); groundEdgeMat.resolution.set(w * pr, h * pr);
+  edgeMat.resolution.set(w * pr, h * pr); groundEdgeMat.resolution.set(w * pr, h * pr); syncGroundCut();
 }
 addEventListener('resize', resize); resize();
 // 動態解析度：鏡頭在動而幀率不足時降低像素比（電腦最低 1，手機 0.8），順了再升回來

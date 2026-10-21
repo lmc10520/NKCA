@@ -34,7 +34,23 @@ export class Section {
     this.guideBox = box.clone().expandByScalar(4);
     scene.add(this.guide);
     this.guideT = 0;
+    // 剖面底板：建築下方原本沒有地面，切掉榕樹廣場地坪後會直接看到天空；剖面開啟時在所有建築物件最低點下方鋪一層，
+    // 像剖開後露出的土層。之後加入地下樓層，高度會自動跟著往下。
+    this.baseY = box.min.y - 0.05;
+    this.base = null;
     this.installRaycastFilter();
+  }
+
+  // rect：基地範圍（網頁座標 m，同 horizon.js 的 siteRect）
+  addBase(scene, rect, color) {
+    if (!rect) return;
+    const w = rect.x1 - rect.x0, d = rect.z1 - rect.z0;
+    this.baseMat = new THREE.MeshLambertMaterial({ color: color || '#b9b3a8', side: THREE.DoubleSide });
+    this.base = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), this.baseMat);
+    this.base.position.set((rect.x0 + rect.x1) / 2, this.baseY, (rect.z0 + rect.z1) / 2);
+    this.base.name = 'SectionBase'; this.base.visible = false; this.base.raycast = () => {};
+    this.base.receiveShadow = true;
+    scene.add(this.base);
   }
 
   // 建築會用到的材質都要登記（模型材質、樣式材質、線條材質）
@@ -85,6 +101,7 @@ export class Section {
       if (a === 'z') { p.normal.set(0, sg, 0); p.constant = -sg * s.v; }
     });
     this.capU.on.value = this.on && this.capOn ? 1 : 0;
+    if (this.base) this.base.visible = this.on;
   }
   showGuide(axis) {
     const b = this.guideBox, s = this.state[axis], g = this.guide;
