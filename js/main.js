@@ -20,6 +20,7 @@ import { Festival } from './festival.js';
 import { Piano } from './piano.js';
 import { Soundscape } from './soundscape.js';
 import { Horizon, siteRect } from './horizon.js';
+import { Section } from './section.js';
 import { HIGH, quality, qualityPref, setQualityPref, TONE, FinalPass, AdaptiveRes } from './look.js';
 
 const $ = (id) => document.getElementById(id);
@@ -55,6 +56,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = TONE;   // Khronos PBR Neutral（look.js），保留材質原色，不像 ACES 那樣灰灰的
 renderer.toneMappingExposure = 1;
 renderer.shadowMap.enabled = !!site.shadows && HIGH;   // 陰影只在高畫質
+renderer.localClippingEnabled = true;   // 剖面（js/section.js）
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 // camera：透視鏡頭，也是操控的主體；orthoCam：等角（平行投影）時跟著 camera 的方向與距離換算畫面大小
@@ -178,6 +180,20 @@ for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
 // 地坪與周邊環境（高對比時淡化）；其他視為建築
 const groundRe = new RegExp(site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
 for (const m of model.meshes) m.userData.isGround = groundRe.test(m.userData.fname);
+// 剖面只切建築：符合 section.keep（預設同 groundMatch：地坪、道路、草地…）的物件不切
+const keepRe = new RegExp(site.section?.keep || site.groundMatch || '^(Site_|Plaza_Ground|Plaza_Wall_Patch|Theater_Seating)');
+const isCut = (m) => !m.userData.excluded && !keepRe.test(m.userData.fname);
+// 裁切設定在材質上：不切的物件若和建築共用材質，給它自己的一份（否則地面會跟著被切）
+{
+  const cutMats = new Set(model.meshes.filter(isCut).map((m) => m.material));
+  const clones = new Map();
+  for (const m of model.meshes) {
+    if (isCut(m) || !cutMats.has(m.material)) continue;
+    let c = clones.get(m.material);
+    if (!c) { c = m.material.clone(); clones.set(m.material, c); }
+    m.material = c; m.userData.origMaterial = c;
+  }
+}
 // 建築是靜態的：不必每幀重算每個物件的矩陣（樓層升起動畫會自己更新）
 model.root.updateMatrixWorld(true);
 model.root.traverse((o) => { o.matrixAutoUpdate = false; });
@@ -186,6 +202,9 @@ const envMats = new Set();
 
 setLoad(86, '佈置夜間燈光…'); await paint();
 const night = new NightLights(scene, model, lightsCfg, lawnsCfg);
+// 剖面：建築材質登記（夜間燈光會替玻璃等換成各自的材質，所以在它之後）
+const section = new Section({ model, cfg: site.section, isCut, scene });
+for (const m of model.meshes) if (isCut(m)) section.register(m.userData.origMaterial);
 // 地平線：基地外延伸的地坪＋地平線霧帶（site.json 的 horizon）
 const rect = site.horizon?.enabled === false ? null : siteRect(model);
 const horizon = rect ? new Horizon(scene, rect, site.horizon) : null;   // 屋頂投射燈、廣場面光源都開
@@ -554,9 +573,12 @@ const groundMat = new THREE.MeshLambertMaterial({ color: 0xeceef1, side: THREE.D
 const glassMat = new THREE.MeshLambertMaterial({ color: 0xbcd7e6, transparent: true, opacity: 0.35, depthWrite: false });
 // 線架構＝只顯示看得到的邊：面用不透明白色、往後推一點先寫入深度，把後面的邊遮住
 const hiddenFaceMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+const hiddenFaceGroundMat = hiddenFaceMat.clone();   // 地面用（剖面不切）
 // 粗線（LineSegments2）：線寬以螢幕像素計，可在設定中調整
 const edgeMat = new LineMaterial({ color: 0x1f2328, linewidth: state.lineW, worldUnits: false });
 const groundEdgeMat = new LineMaterial({ color: 0x9aa0a6, linewidth: 1, worldUnits: false });
+for (const mt of [whiteMat, glassMat, hiddenFaceMat]) section.register(mt);
+section.register(edgeMat, { cap: false });
 let edgesBuilt = false;
 function buildEdges() {
   if (edgesBuilt) return; edgesBuilt = true;
@@ -581,7 +603,7 @@ function setStyle(style) {
   for (const m of model.meshes) {
     const g = m.userData.isGround, gl = m.userData.isGlass;
     m.material = isColor(style) ? m.userData.origMaterial
-      : style === 'wire' ? hiddenFaceMat
+      : style === 'wire' ? (isCut(m) ? hiddenFaceMat : hiddenFaceGroundMat)
       : gl ? glassMat : g ? groundMat : whiteMat;
     if (m.userData.edges) m.userData.edges.visible =
       style === 'wire' || (style === 'tone' && !gl) || ((style === 'contrast' || style === 'colorline') && !g && !gl);
@@ -592,6 +614,9 @@ function setStyle(style) {
   edgeMat.transparent = style === 'colorline'; edgeMat.opacity = style === 'colorline' ? 0.55 : 1; edgeMat.needsUpdate = true;
   groundEdgeMat.color.set(style === 'tone' ? 0x26292d : 0x9aa0a6);
   groundMat.color.set(style === 'tone' ? 0xf7f7f7 : 0xeceef1);
+  // 剖面切口顏色：彩色、白模用灰，線稿、網點用深色（像圖面上塗黑的剖面）
+  const SC = site.section?.capColors || {};
+  section.setCapColor(SC[style] || (style === 'wire' || style === 'tone' ? '#2a2c30' : style === 'contrast' ? '#8d9196' : '#7a7e84'));
   setLineW(state.lineW);
   night.group.visible = isColor(style);
   applyTraffic();
@@ -661,6 +686,31 @@ $('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setSty
 $('projSeg').onclick = (e) => { const p = e.target.dataset.proj; if (p) setProj(p); };
 $('lineW').oninput = (e) => setLineW(e.target.value);
 $('toneSize').oninput = (e) => setToneSize(e.target.value);
+// ---------- 剖面：設定面板的 X／Y／Z 滑桿 ----------
+// 勾選要切的方向、拖滑桿決定位置（模型座標 m）、⇆ 翻轉保留的一側。只切建築。
+function renderSection() {
+  $('secSw').checked = section.on;
+  $('secRows').classList.toggle('hidden', !section.on);
+  $('capSw').checked = section.capOn;
+  for (const row of document.querySelectorAll('.secRow')) {
+    const a = row.dataset.ax, s = section.state[a], r = section.range[a];
+    const [cb, sl, val, flip] = [row.querySelector('input[type=checkbox]'), row.querySelector('input[type=range]'), row.querySelector('b'), row.querySelector('.flip')];
+    cb.checked = s.on; sl.min = r[0].toFixed(1); sl.max = r[1].toFixed(1); sl.value = s.v;
+    sl.disabled = !s.on; row.classList.toggle('dim', !s.on);
+    val.textContent = s.v.toFixed(1);
+    flip.classList.toggle('on', s.flip);
+    flip.title = s.flip ? `保留 ${a.toUpperCase()} 較大的一側` : `保留 ${a.toUpperCase()} 較小的一側`;
+  }
+}
+$('secSw').onchange = (e) => { section.setOn(e.target.checked); renderSection(); if (section.on) toast('剖面：拖動滑桿移動切面，⇆ 翻轉方向', 3000); };
+$('capSw').onchange = (e) => { section.setCap(e.target.checked); };
+for (const row of document.querySelectorAll('.secRow')) {
+  const a = row.dataset.ax;
+  row.querySelector('input[type=checkbox]').onchange = (e) => { section.set(a, { on: e.target.checked }, true); if (!['x', 'y', 'z'].some((k) => section.state[k].on)) section.setOn(false); renderSection(); };
+  row.querySelector('input[type=range]').oninput = (e) => { section.set(a, { v: +e.target.value }, true); row.querySelector('b').textContent = (+e.target.value).toFixed(1); };
+  row.querySelector('.flip').onclick = () => { section.set(a, { flip: !section.state[a].flip }, true); renderSection(); };
+}
+renderSection();
 setToneSize(state.toneSize);
 // 畫質：預設／高畫質；切換後重新載入（對數深度緩衝、模型都要重建）
 function renderQuality() {
@@ -828,6 +878,7 @@ function snapshotCode() {
   const s = {
     v: 2, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
     ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic, festival: state.festival },
+    ...(section.on ? { sec: section.toCode() } : {}),
     style: state.style, lw: state.lineW, proj: state.ortho ? 'ortho' : 'persp', ...(state.style === 'tone' ? { ts: state.toneSize } : {}),
     tod: env.override, card: labels.openId(),
   };
@@ -958,6 +1009,7 @@ function goCue(i) {
   setStyle(s.style || (s.ui?.wire ? 'wire' : s.ui?.contrast ? 'contrast' : 'normal'));
   if (s.lw) setLineW(s.lw);
   if (s.ts) setToneSize(s.ts);
+  section.fromCode(s.sec || null); renderSection();
   setProj(s.proj || 'persp');
   env.override = s.tod ?? null;
   setVenue(s.vl ?? null);
@@ -1126,7 +1178,7 @@ function startOverview(c) {
       base = { c: w2cm(cpos), t: p.pos_cm, m: p.modes?.[0] || c.mode || state.mode };
       if (p.hall) base.h = { ...state.halls, [p.hall]: p.floor };
     }
-    return { ...base, h1: c.name, h2: p.title && p.title !== c.name ? p.title : '', p: p.text ? String(p.text).split('\n') : [], svg: [], img: [], screen: [] };
+    return { ...base, sec: base.sec ?? section.toCode(), h1: c.name, h2: p.title && p.title !== c.name ? p.title : '', p: p.text ? String(p.text).split('\n') : [], svg: [], img: [], screen: [] };
   });
   pres.course = null;
   startCues(cues);
@@ -1216,6 +1268,7 @@ renderer.setAnimationLoop(() => {
   fountain?.update(t, env.now(), n);
   festival.update(dt, n);
   piano.update(dt);
+  section.tick(dt);
   updatePianoHint(t);
   soundscape.update({ mode: state.mode, target: controls.target, camera: camera.position, dist: camera.position.distanceTo(controls.target), halls: state.halls, night: env.night, rainy: env.rainy, storm: !!env.storm });
   plan.update(dt);
@@ -1270,4 +1323,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // 開發者用：在主控台 window.nkca 可以查物件
-window.nkca = { festival, pois, startOverview, ovCats, scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir, piano, soundscape };
+window.nkca = { festival, pois, startOverview, ovCats, scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir, piano, soundscape, section, renderSection };

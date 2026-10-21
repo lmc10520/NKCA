@@ -260,6 +260,16 @@ body.welcome #soundHint{display:none!important}
 .seg2.five{flex-wrap:wrap;border-radius:18px}
 .seg2.five button{flex:1 1 30%;font-size:12.5px;padding:0 4px;white-space:nowrap}
 .setRow.dim{opacity:.45}
+/* 剖面滑桿：勾選方向、位置（m）、翻轉 */
+.secRow{display:flex;align-items:center;gap:8px;min-height:40px;font-size:14px}
+.secRow label{display:flex;align-items:center;gap:4px;width:42px;font-weight:500;flex:none}
+.secRow label input{accent-color:var(--primary);width:16px;height:16px;margin:0}
+.secRow input[type=range]{flex:1;min-width:0;accent-color:var(--primary)}
+.secRow b{width:3.4em;text-align:right;font-weight:500;color:var(--on-2);font-variant-numeric:tabular-nums;font-size:13px}
+.secRow .flip{width:34px;height:34px;border-radius:50%;color:var(--on-2);font-size:20px;flex:none}
+.secRow .flip:hover{background:var(--surface-2)}
+.secRow .flip.on{background:var(--tonal);color:var(--on-tonal)}
+.secRow.dim input[type=range],.secRow.dim b,.secRow.dim .flip{opacity:.4}
 #venueAuto{margin-left:auto;padding:4px 10px}
 #venueAuto:not(.hidden)+.sw{margin-left:0}
 .presRow{display:flex;align-items:center;gap:8px;margin-top:4px}

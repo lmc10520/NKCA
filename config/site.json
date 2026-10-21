@@ -35,6 +35,7 @@
  },
  "seamColor": "#7d848c",
  "horizon": { "dayNear": "#eeeeeb", "dayFar": "#d9e2e8", "nightNear": "#5a647b", "nightFar": "#2c3854", "fadeStart_m": 250, "fadeEnd_m": 2600, "nightFadeStart_m": 420, "nightFadeEnd_m": 1100 },
+ "section": { "capFill": false, "capColors": { "normal": "#7a7e84", "colorline": "#7a7e84", "contrast": "#8d9196", "wire": "#2a2c30", "tone": "#2a2c30" }, "_說明": "剖面（設定 → 剖面）：只切建築，符合 keep（物件名稱規則，預設同 groundMatch）的地坪、道路、草地不切。capFill＝切口填色預設開或關（使用者可在設定切換）；capColors＝各模型樣式的切口顏色。" },
  "studioLight": { "az_deg": 300, "alt_deg": 46, "sun": 2.6, "ambient": 2.0 },
  "toneSize": 5,
  "modelLite": "model/nkca_lite.glb",

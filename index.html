@@ -84,6 +84,14 @@
     <div class="seg2 five" id="styleSeg"><button data-style="normal" class="on">彩色</button><button data-style="colorline">彩色＋線</button><button data-style="contrast">白模</button><button data-style="wire">線稿</button><button data-style="tone">線稿＋網點</button></div>
     <div class="setRow" id="lineRow"><span class="ms">line_weight</span>線條粗細<input type="range" id="lineW" min="1" max="6" step="0.5" value="2"><b id="lineWv">2</b></div>
     <div class="setRow hidden" id="toneRow"><span class="ms">blur_on</span>網點大小<input type="range" id="toneSize" min="3" max="10" step="0.5" value="5"><b id="toneSizeV">5</b></div>
+    <div class="setSec">剖面</div>
+    <div class="setRow"><span class="ms">content_cut</span>剖面（只切建築）<label class="sw"><input type="checkbox" id="secSw"><i></i></label></div>
+    <div id="secRows" class="hidden">
+      <div class="secRow" data-ax="x"><label><input type="checkbox">X</label><input type="range" step="0.1"><b>0</b><button class="flip ms" title="翻轉">swap_horiz</button></div>
+      <div class="secRow" data-ax="y"><label><input type="checkbox">Y</label><input type="range" step="0.1"><b>0</b><button class="flip ms" title="翻轉">swap_horiz</button></div>
+      <div class="secRow" data-ax="z"><label><input type="checkbox">Z</label><input type="range" step="0.1"><b>0</b><button class="flip ms" title="翻轉">swap_vert</button></div>
+      <div class="setRow"><span class="ms">format_color_fill</span>切口填色<label class="sw"><input type="checkbox" id="capSw"><i></i></label></div>
+    </div>
     <div class="setSec">投影</div>
     <div class="seg2" id="projSeg"><button data-proj="persp" class="on">透視</button><button data-proj="ortho">等角（平行）</button></div>
     <div class="setSec">畫質</div>
