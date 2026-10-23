@@ -5,6 +5,7 @@ import { cm2w } from './util.js';
 // 兩種寫法：
 //   corners_cm：四個角點（左下、右下、右上、左上，從觀看方向看）圍成的平面
 //   path_cm + z_cm：沿著一條折線（例如轉角 L 型）由左到右展開，高度 z_cm = [下緣, 上緣]
+//   rows_cm：弧面（例如貼著傾斜、彎曲的玻璃帷幕），[下緣點列, …, 上緣點列]，每列由左到右、點數相同，每點 [x, y, z]
 // kind："led"（自己發光，沒有圖片時顯示成關機的黑色面板）或 "sticker"（透明貼紙，受光影響，沒有圖片就不顯示）
 // 網址加 ?screens=test 會用 template 指定的範本圖（標出玻璃接縫）檢查位置。
 export function buildScreens(scene, cfg) {
@@ -14,7 +15,7 @@ export function buildScreens(scene, cfg) {
   const test = /[?&]screens=test\b/.test(location.search);
   for (const s of cfg?.screens || []) {
     if (!s.enabled) continue;
-    const g = s.path_cm ? pathGeometry(s.path_cm, s.z_cm) : quadGeometry(s.corners_cm);
+    const g = s.rows_cm ? rowsGeometry(s.rows_cm) : s.path_cm ? pathGeometry(s.path_cm, s.z_cm) : quadGeometry(s.corners_cm);
     if (!g) continue;
     const sticker = s.kind === 'sticker';
     const mat = sticker
@@ -59,6 +60,25 @@ function pathGeometry(path, z) {
     uv.push(len[i] / L, 0, len[i] / L, 1);
     if (i) { const a = (i - 1) * 2; idx.push(a, a + 2, a + 3, a, a + 3, a + 1); }
   });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+
+// 弧面：多列點（下 → 上），u 依每列的弧長比例、v 依列與列的距離比例，所以圖片沿弧面平均展開不變形
+function rowsGeometry(rows) {
+  if (!rows || rows.length < 2 || rows.some((r) => r.length !== rows[0].length || r.length < 2)) return null;
+  const P = rows.map((r) => r.map(cm2w)), n = P[0].length, m = P.length;
+  const ulen = P.map((r) => { const a = [0]; for (let i = 1; i < n; i++) a.push(a[i - 1] + r[i].distanceTo(r[i - 1])); return a; });
+  const vlen = [0]; for (let j = 1; j < m; j++) vlen.push(vlen[j - 1] + P[j][n >> 1].distanceTo(P[j - 1][n >> 1]));
+  const pos = [], uv = [], idx = [];
+  for (let j = 0; j < m; j++) for (let i = 0; i < n; i++) {
+    pos.push(...P[j][i].toArray());
+    uv.push(ulen[j][i] / ulen[j][n - 1], vlen[j] / vlen[m - 1]);
+    if (i && j) { const a = (j - 1) * n + i - 1, b = a + n; idx.push(a, a + 1, b + 1, a, b + 1, b); }
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));

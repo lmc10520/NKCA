@@ -198,6 +198,7 @@ const isCut = (m) => !m.userData.excluded && !keepRe.test(m.userData.fname);
 // 建築是靜態的：不必每幀重算每個物件的矩陣（樓層升起動畫會自己更新）
 model.root.updateMatrixWorld(true);
 model.root.traverse((o) => { o.matrixAutoUpdate = false; });
+env.setRoofMap(model.meshes);   // 雨、雪在屋頂底下不畫
 // 環境反射強度（夜間調低）：收集所有會用到環境貼圖的材質
 const envMats = new Set();
 

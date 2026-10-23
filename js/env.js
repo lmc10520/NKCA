@@ -145,6 +145,8 @@ export class Environment {
     this.fog = new THREE.FogExp2(0xbfc8cf, 0.0);
     scene.fog = this.fog;
     this.rain = null;
+    // 屋頂高度圖（setRoofMap）：雨、雪在屋頂、樹冠底下不畫
+    this.roof = { map: { value: null }, mat: { value: new THREE.Matrix4() }, on: { value: 0 }, bias: { value: 0.3 } };
     this.fetchWeather();
     setInterval(() => this.fetchWeather(), 15 * 60 * 1000);
   }
@@ -236,6 +238,56 @@ export class Environment {
     this.updateAurora(dt, aurora ? night : 0);
   }
 
+  // 屋頂高度圖：從正上方把建築畫一次深度（只做一次），雨、雪的每個片段跟它比較，
+  // 在最上層表面（屋頂、樹冠、樓板）底下的就不畫 → 建築內、樹冠大廳下不會下雨；戶外最上層是地面，照常下
+  setRoofMap(meshes) {
+    const list = meshes.filter((m) => !m.userData.excluded);
+    if (!list.length) return;
+    const box = new THREE.Box3(); for (const m of list) box.expandByObject(m);
+    const c = box.getCenter(new THREE.Vector3()), h = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2 + 2;
+    const far = box.max.y - box.min.y + 20, N = 2048;   // 約 0.15 m 一格
+    const cam = new THREE.OrthographicCamera(-h, h, h, -h, 1, far + 10);
+    cam.position.set(c.x, box.max.y + 10, c.z); cam.up.set(0, 0, -1); cam.lookAt(c.x, box.min.y, c.z);
+    cam.updateMatrixWorld(); cam.layers.set(7);
+    // 顏色記錄「最上層表面的高度（m）」（高畫質用對數深度緩衝，深度值不是線性的，所以不用深度貼圖）
+    const rt = new THREE.WebGLRenderTarget(N, N, { type: THREE.HalfFloatType });
+    const hmat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      vertexShader: 'varying float vY; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vY = w.y; gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: 'varying float vY; void main() { gl_FragColor = vec4(vY, 0.0, 0.0, 1.0); }',
+    });
+    const r = this.renderer, sc = this.scene, cc = r.getClearColor(new THREE.Color()), ca = r.getClearAlpha();
+    const vis = list.map((m) => m.visible), prev = { rt: r.getRenderTarget(), ov: sc.overrideMaterial, bg: sc.background, fog: sc.fog, sh: r.shadowMap.autoUpdate };
+    list.forEach((m) => { m.visible = true; m.layers.enable(7); });   // 各模式暫時隱藏的物件也算（玻璃屋頂也擋雨）
+    sc.overrideMaterial = hmat; sc.background = null; sc.fog = null; r.shadowMap.autoUpdate = false;
+    r.setRenderTarget(rt); r.setClearColor(new THREE.Color(-1000, 0, 0), 1); r.clear(); r.render(sc, cam);
+    r.setRenderTarget(prev.rt); r.setClearColor(cc, ca);
+    sc.overrideMaterial = prev.ov; sc.background = prev.bg; sc.fog = prev.fog; r.shadowMap.autoUpdate = prev.sh;
+    list.forEach((m, i) => { m.visible = vis[i]; m.layers.disable(7); });
+    hmat.dispose();
+    this.roof.map.value = rt.texture;
+    this.roof.mat.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    this.roof.bias.value = 0.3;   // 0.3 m 的容許誤差（落在屋面上方的雨不會被切掉）
+    this.roof.on.value = 1;
+  }
+  // 雨、雪材質：片段在屋頂高度圖的表面底下就丟掉
+  roofClip(mat) {
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, { roofMap: this.roof.map, roofMat: this.roof.mat, roofOn: this.roof.on, roofBias: this.roof.bias });
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\nvRoofW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW; uniform sampler2D roofMap; uniform mat4 roofMat; uniform float roofOn, roofBias;')
+        .replace('void main() {', `void main() {
+  if (roofOn > 0.5) {
+    vec4 q = roofMat * vec4(vRoofW, 1.0); vec3 rc = q.xyz / q.w * 0.5 + 0.5;
+    if (rc.x > 0.0 && rc.x < 1.0 && rc.y > 0.0 && rc.y < 1.0 && vRoofW.y < texture2D(roofMap, rc.xy).r - roofBias) discard;
+  }`);
+    };
+    return mat;
+  }
+
   // 雨：細長、半透明、尾端淡出的雨絲（垂直漸層），颱風時更密、斜飄；雪：柔和的小雪花緩慢飄落
   updatePrecip(kind, dt, wind = 0, storm = 0) {
     const R = 140, H = 60;
@@ -251,7 +303,7 @@ export class Environment {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(p, 3));
       g.setAttribute('color', new THREE.BufferAttribute(c, 4));
-      this.rain = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, fog: true }));
+      this.rain = new THREE.LineSegments(g, this.roofClip(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, fog: true })));
       this.rain.userData.len = len;
       this.rain.position.copy(this.center); this.rain.frustumCulled = false; this.scene.add(this.rain);
     }
@@ -263,7 +315,7 @@ export class Environment {
       const x = cv.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
       gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.35, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
-      this.snow = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.32, map: new THREE.CanvasTexture(cv), transparent: true, opacity: 0.85, depthWrite: false, color: 0xffffff }));
+      this.snow = new THREE.Points(g, this.roofClip(new THREE.PointsMaterial({ size: 0.32, map: new THREE.CanvasTexture(cv), transparent: true, opacity: 0.85, depthWrite: false, color: 0xffffff })));
       this.snow.position.copy(this.center); this.snow.frustumCulled = false; this.scene.add(this.snow);
     }
     // 跟著鏡頭：粒子只在鏡頭附近 140 m 的範圍內，密度才夠
