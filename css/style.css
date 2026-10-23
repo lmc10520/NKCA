@@ -133,6 +133,7 @@ body.presenting #settingsBtn,body.presenting #settings,body.presenting #modeBar,
 .lbl.clickable .lblText::after{content:"";position:absolute;right:10px;top:50%;width:6px;height:6px;border-right:2px solid var(--on-2);border-bottom:2px solid var(--on-2);transform:translateY(-70%) rotate(45deg);transition:transform .2s}
 .lbl.liftable .lblText{pointer-events:auto;cursor:pointer}
 .lblDot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
+.lbl.open{z-index:10}
 .lbl.open .lblText{background:var(--primary);color:#fff}
 .lbl.open .lblText::after{border-color:#fff;transform:translateY(-25%) rotate(-135deg)}
 .lblCard{position:absolute;left:0;top:4px;transform:translateX(-50%);width:min(320px,calc(100vw - 32px));pointer-events:auto;
