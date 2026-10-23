@@ -39,7 +39,8 @@ export class Soundscape {
     this.defaultId = cfg.default || this.zones.find((z) => !z.layer)?.id;
     this.xfade = cfg.crossfade_s ?? 2.5;
     this.loopX = cfg.loopCrossfade_s ?? 3;
-    this.hold = cfg.hold_s ?? 0.6;
+    this.hold = cfg.hold_s ?? 10;
+    this.modeHold = cfg.modeHold_s ?? 0.6;
     this.duckCfg = { level: 0, attack_s: 0.8, release_s: 2.5, ...(cfg.duck || {}) };
     this.cacheBytes = (cfg.cacheMB ?? (isMobile ? 80 : 180)) * 1048576;
     const saved = store.get(STORE), vol = parseFloat(store.get(STORE_VOL));
@@ -205,11 +206,12 @@ export class Soundscape {
     this.lastEval = now;
     const bed = this.pickBed(info);
     const id = bed?.id || null;
-    // 停留 hold_s 秒才切換（快速掃過時不會一直換）
+    // 移動到新區域後停留 hold_s 秒才切換（移動途中經過的區域不會一直換）；切換模式或廳院樓層是使用者主動操作，只等 modeHold_s 秒
     if (id !== this.bed) {
       if (this.pending?.id !== id) this.pending = { id, since: now };
       const ready = !bed || bed.status !== 'listing';
-      if (ready && (this.bed == null || now - this.pending.since >= this.hold * 1000)) this.switchBed(id);
+      const hold = this.ctxKey(info) !== this.bedKey ? this.modeHold : this.hold;
+      if (ready && (this.bed == null || now - this.pending.since >= hold * 1000)) this.switchBed(id);
     } else this.pending = null;
     if (bed) this.listZone(bed);
     // 疊加層
@@ -231,7 +233,7 @@ export class Soundscape {
     if (this.bed) { const z = this.byId.get(this.bed), o = this.modeOpts(z, info.mode); this.players.get(this.bed)?.setLevel(o.volume, this.xfade, o.lowpass_hz, true); }
   }
   switchBed(id) {
-    this.bed = id; this.pending = null;
+    this.bed = id; this.pending = null; this.bedKey = this.ctxKey(this.ctxInfo);
     const out = () => { for (const [pid, p] of this.players) if (!p.zone.layer && pid !== this.bed) p.setLevel(0, this.xfade); };
     if (id) {
       const z = this.byId.get(id), o = this.modeOpts(z, this.info?.mode || this.ctxInfo?.mode);
@@ -244,6 +246,7 @@ export class Soundscape {
     } else out();
     this.emit();
   }
+  ctxKey(info) { return info ? info.mode + JSON.stringify(info.halls || {}) : ''; }
   player(z) { const p = new ZonePlayer(this, z); this.players.set(z.id, p); return p; }
 
   // 排程：每 0.4 秒檢查一次，把下一段音檔提前排好
