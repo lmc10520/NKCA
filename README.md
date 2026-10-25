@@ -23,6 +23,7 @@ tools/              模型匯出與壓縮工具
 2. 用 `tools/build_model.sh 路徑/nkca.glb` 壓縮，輸出到 `model/nkca.glb`。
 3. 產生預設使用的減面模型：`node tools/build_lite.mjs`（讀 `model/nkca.glb`，輸出 `model/nkca_lite.glb`，約 2 秒）。
 4. 有新增要在「樹冠大廳／榕樹廣場」模式隱藏的物件時：在 Fusion 把它加進選取集 `MODE_A_CanopyHall_hide`／`MODE_B_BanyanPlaza_hide`，匯出後執行 `python3 tools/sets_to_modes.py 路徑/nkca_sets.json`，會同步到 `config/modes.json` 並列出新增、移除的物件。
+   - 選取集 `ARCHIVE` 裡的物件（舊版、重複的實體）不會匯出。`AboveGround_hide`、`B1_hide`、`OH_*F_hide` 也會由 `sets_to_modes.py` 同步（地下停車場模式、歌劇院樓層）。
 5. 上傳覆蓋 `model/nkca.glb`、`model/nkca_lite.glb`（和更新過的 `config/modes.json`）。`site.json` 的 `modelBytes`／`modelLiteBytes` 只用來估算載入進度，可順手改成新檔案大小。
 
 減面只針對面數多、但看起來平或很小的物件（廣場地坪 32 萬面 → 1 萬、噴泉 LED、售票亭坡道、天花、電梯井…），外框邊界鎖住不動，欄杆不減。規則寫在 `tools/build_lite.mjs` 最上面。總面數約 150 萬 → 59 萬，檔案 8.8 MB → 5 MB。
@@ -54,8 +55,8 @@ tools/              模型匯出與壓縮工具
 | 取座標 | Shift＋點擊（座標會複製到剪貼簿，單位 cm、Fusion 座標） | — |
 
 - **模式按鈕**（右側）：外觀／樹冠大廳／榕樹廣場。隱藏清單來自 Fusion 的選取集 `MODE_A_CanopyHall_hide`、`MODE_B_BanyanPlaza_hide`。
-- **交通核電梯**：把畫面中心移到交通核附近並拉近鏡頭，右側就會出現樓層按鈕。按 3F 切到樹冠大廳模式，按 1F／2F 切到榕樹廣場模式，按 B1／B2 會彈出地下停車場平面圖。
-- **廳院樓層**：在榕樹廣場模式中靠近表演廳、戲劇院，右側會出現該廳的樓層按鈕。上層會以「升起」動畫顯示。
+- **交通核電梯**：把畫面中心移到交通核附近並拉近鏡頭，右側就會出現樓層按鈕。按 3F 切到樹冠大廳模式，按 1F／2F 切到榕樹廣場模式，按 B1／B2 切到地下停車場：地面以上的物件隱藏（Fusion 選取集 `AboveGround_hide`），B2 另外隱藏 B1 樓層（`B1_hide`），該層地板上貼著 `img/parking_B1.svg`／`parking_B2.svg` 平面圖（`modes.json` 的 `plan`：`viewBox` 是 SVG 裡建築外框的範圍，`frame` 是對應的 Fusion 座標）。
+- **廳院樓層**：在榕樹廣場模式中靠近歌劇院（1F–4F）、音樂廳（1F–3F）、戲劇院（1F–3F）、表演廳（1F–2F），右側會出現該廳的樓層按鈕；歌劇院、音樂廳、戲劇院的電梯直通 B1、B2，按 B1／B2 切到地下停車場。歌劇院各層依 Fusion 選取集 `OH_2F_hide`／`OH_3F_hide`／`OH_4F_hide` 隱藏上方樓層；音樂廳、戲劇院目前還沒有分層物件，各樓層畫面相同（之後在 Fusion 建立分層選取集即可接上）。表演廳上層會以「升起」動畫顯示。
 - **左上**：指北針只指真北（模型 +Y 軸順時針 23°，`site.json` 的 `northOffset_deg`），點一下轉成北朝上。下方的視角方塊依建築 X-Y-Z 軸（紅 X、綠 Y、藍 Z）：點面＝俯視或該面立面，點上方四個角＝等角視角，左上的小房子＝回到起始視角。
 - **標籤與資料卡**：標籤放在該位置最上層表面上方，被建築擋住時自動隱藏。有資料卡的標籤帶小箭頭，點一下往下展開。內容寫在 `labels.json` 的 `card`。
 - **室內標示**（`pois.json`）：建築物裡面（四個廳院樓面、3F 樹冠大廳）的小圖示或地點文字，立在樓面上，只在指定模式／廳院樓層出現。圖示在 `img/icons/`。新增方法：在網頁按住 Shift 點樓面，會複製一行設定，填上 `icon`（或 `text`）後貼進 `items`。

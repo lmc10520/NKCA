@@ -1,6 +1,101 @@
 {
- "_說明": "廳院內的局部樓層：在榕樹廣場模式中靠近廳院時出現。每層 show/hide 為物件名稱規則；lift_m 為升起展示的高度。",
+ "_說明": "廳院內的局部樓層：在榕樹廣場模式中靠近廳院時出現。每層 show/hide 為物件名稱規則（'@' 開頭引用 modes.json 的 groups）；lift_m 為升起展示的高度。action:\"mode\" 的樓層（B1、B2）直接切到地下停車場模式：電梯直通 B2。panelModes＝在哪些模式中顯示這個廳院的樓層按鈕。",
  "halls": [
+  {
+   "id": "OH",
+   "label": "歌劇院",
+   "center_cm": [
+    13580,
+    17480,
+    500
+   ],
+   "radius_cm": 4800,
+   "default": "4F",
+   "modes": [
+    "plaza"
+   ],
+   "panelModes": [
+    "plaza",
+    "b1",
+    "b2"
+   ],
+   "floors": [
+    {
+     "id": "4F"
+    },
+    {
+     "id": "3F",
+     "hide": [
+      "@oh4F"
+     ]
+    },
+    {
+     "id": "2F",
+     "hide": [
+      "@oh3F",
+      "@oh4F"
+     ]
+    },
+    {
+     "id": "1F",
+     "hide": [
+      "@oh2F",
+      "@oh3F",
+      "@oh4F"
+     ]
+    },
+    {
+     "id": "B1",
+     "action": "mode",
+     "mode": "b1"
+    },
+    {
+     "id": "B2",
+     "action": "mode",
+     "mode": "b2"
+    }
+   ]
+  },
+  {
+   "id": "CH",
+   "label": "音樂廳",
+   "center_cm": [
+    20900,
+    12560,
+    500
+   ],
+   "radius_cm": 3400,
+   "default": "1F",
+   "modes": [
+    "plaza"
+   ],
+   "panelModes": [
+    "plaza",
+    "b1",
+    "b2"
+   ],
+   "floors": [
+    {
+     "id": "3F"
+    },
+    {
+     "id": "2F"
+    },
+    {
+     "id": "1F"
+    },
+    {
+     "id": "B1",
+     "action": "mode",
+     "mode": "b1"
+    },
+    {
+     "id": "B2",
+     "action": "mode",
+     "mode": "b2"
+    }
+   ]
+  },
   {
    "id": "RH",
    "label": "表演廳",
@@ -16,18 +111,18 @@
    ],
    "floors": [
     {
-     "id": "1F",
-     "hide": [
-      "^RH2F_",
-      "^RH_Escalator"
-     ]
-    },
-    {
      "id": "2F",
      "show": [
       "^RH2F_"
      ],
      "lift_m": 3
+    },
+    {
+     "id": "1F",
+     "hide": [
+      "^RH2F_",
+      "^RH_Escalator"
+     ]
     }
    ]
   },
@@ -44,19 +139,30 @@
    "modes": [
     "plaza"
    ],
+   "panelModes": [
+    "plaza",
+    "b1",
+    "b2"
+   ],
    "floors": [
     {
-     "id": "1F",
-     "hide": [
-      "^PH3F_"
-     ]
+     "id": "3F"
     },
     {
-     "id": "3F",
-     "show": [
-      "^PH3F_"
-     ],
-     "lift_m": 3
+     "id": "2F"
+    },
+    {
+     "id": "1F"
+    },
+    {
+     "id": "B1",
+     "action": "mode",
+     "mode": "b1"
+    },
+    {
+     "id": "B2",
+     "action": "mode",
+     "mode": "b2"
     }
    ]
   }
