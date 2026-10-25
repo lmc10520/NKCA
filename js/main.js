@@ -247,6 +247,9 @@ piano.muted = !soundscape.on;
 const labels = new Labels(labelsCfg, model);
 const pois = new Pois(poisCfg, model, labels);
 const plan = new PlanOverlay(scene, renderer, site);
+const parkingPlan = new PlanOverlay(scene, renderer, site);   // B1／B2 地板上的停車場平面圖
+parkingPlan.onError = (src) => toast(`讀不到停車場平面圖 ${decodeURIComponent(src.split('/').pop())}`);
+let parkingKey = '';
 plan.onError = (src) => toast(`讀不到圖層 ${decodeURIComponent(src.split('/').pop())}`);
 const screenLayer = new ScreenOverlay($('screenLayers'));
 screenLayer.onError = plan.onError;
@@ -262,7 +265,7 @@ const state = {
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
-const halls = (hallsCfg.halls || []).map((h) => ({ ...h, floorsM: h.floors.map((f) => ({ ...f, hideM: makeMatcher(f.hide), showM: makeMatcher(f.show) })) }));
+const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups) })) }));
 halls.forEach((h) => (state.halls[h.id] = h.default));
 
 function applyVisibility() {
@@ -279,6 +282,7 @@ function applyVisibility() {
     m.visible = v;
   }
   night.roofOn = !!model.byName.get('Roof_Main')?.some((m) => m.visible);
+  showParkingPlan();
   labels.reanchor();
   pois.setContext(state);
 }
@@ -289,15 +293,24 @@ function setMode(id, quiet) {
   if (!quiet) { const m = modesCfg.modes.find((x) => x.id === id); toast(`切換到「${m?.label || id}」`); }
 }
 for (const m of modesCfg.modes || []) {
+  if (m.button === false) continue;   // B1、B2 地下停車場：由電梯／廳院樓層按鈕切換
   const b = document.createElement('button'); b.textContent = m.label; b.dataset.mode = m.id;
   b.onclick = () => setMode(m.id); $('modeBar').appendChild(b);
 }
-setMode(state.mode, true);
+// 地下停車場平面圖：B1／B2 模式時把 parking_B1／B2.svg 貼在該層地板上（modes.json 的 plan）
+function showParkingPlan() {
+  const m = modesCfg.modes.find((x) => x.id === state.mode), L = m?.plan;
+  const key = L ? L.src : '';
+  if (key === parkingKey) return;
+  parkingKey = key;
+  parkingPlan.show(L ? [{ ...L, depth: true }] : []);
+}
 
 // 廳院樓層升起動畫
 const lifts = [];
 function setHallFloor(h, fid) {
-  state.halls[h.id] = fid; applyVisibility();
+  state.halls[h.id] = fid;
+  if (h.modes && !h.modes.includes(state.mode)) setMode(h.modes[0], true); else applyVisibility();
   const f = h.floorsM.find((x) => x.id === fid);
   if (f?.lift_m) {
     for (const m of model.meshes) if (f.showM(m.userData.fname) && m.visible) {
@@ -315,7 +328,7 @@ labels.onLift = (ref) => {
   const [type, id] = ref.split(':');
   const c = type === 'hall' ? halls.find((h) => h.id === id) : (coresCfg.cores || []).find((x) => x.id === id);
   if (!c) return;
-  if (type === 'hall' && c.modes && !c.modes.includes(state.mode)) setMode(c.modes[0]);
+  if (type === 'hall' && c.panelModes && !c.panelModes.includes(state.mode)) setMode(c.modes[0]);
   liftPin = { type, c };
   const p = cm2w(c.center_cm), t = controls.target, off = camera.position.clone().sub(t);
   const d = Math.min(off.length(), 140);
@@ -326,7 +339,7 @@ function nearest() {
   if (liftPin) {
     // 鏡頭離開該處（目標點移出兩倍範圍）就取消固定
     const p = cm2w(liftPin.c.center_cm), t = fly ? fly.t1 : controls.target;
-    if (Math.hypot(p.x - t.x, p.z - t.z) < (liftPin.c.radius_cm / 100) * 2 && !(liftPin.c.modes && !liftPin.c.modes.includes(state.mode))) return liftPin;
+    if (Math.hypot(p.x - t.x, p.z - t.z) < (liftPin.c.radius_cm / 100) * 2 && !(liftPin.c.panelModes && !liftPin.c.panelModes.includes(state.mode))) return liftPin;
     liftPin = null;
   }
   const t = controls.target, d = camera.position.distanceTo(t);
@@ -338,7 +351,7 @@ function nearest() {
     if (dist < c.radius_cm / 100 && (!best || dist < best.dist)) best = { type: 'core', c, dist };
   }
   for (const h of halls) {
-    if (h.modes && !h.modes.includes(state.mode)) continue;
+    if (h.panelModes && !h.panelModes.includes(state.mode)) continue;
     const p = cm2w(h.center_cm), dist = Math.hypot(p.x - t.x, p.z - t.z);
     if (dist < h.radius_cm / 100 && (!best || dist < best.dist)) best = { type: 'hall', c: h, dist };
   }
@@ -353,10 +366,10 @@ function renderLiftPanel(force) {
   if (!n) return;
   $('liftTitle').textContent = n.c.label;
   const box = $('liftButtons'); box.innerHTML = '';
-  const cur = n.type === 'hall' ? state.halls[n.c.id] : currentCoreFloor(n.c);
+  const cur = currentCoreFloor(n.c) ?? (n.type === 'hall' ? state.halls[n.c.id] : null);
   for (const f of n.c.floors) {
     const b = document.createElement('button'); b.textContent = f.id; b.classList.toggle('on', f.id === cur);
-    b.onclick = () => (n.type === 'hall' ? setHallFloor(n.c, f.id) : coreAction(n.c, f));
+    b.onclick = () => (n.type === 'hall' && f.action !== 'mode' ? setHallFloor(n.c, f.id) : coreAction(n.c, f));
     box.appendChild(b);
   }
 }
@@ -1284,7 +1297,7 @@ renderer.setAnimationLoop(() => {
   section.tick(dt);
   updatePianoHint(t);
   soundscape.update({ mode: state.mode, target: controls.target, camera: camera.position, dist: camera.position.distanceTo(controls.target), halls: state.halls, night: env.night, rainy: env.rainy, storm: !!env.storm });
-  plan.update(dt);
+  plan.update(dt); parkingPlan.update(dt);
   screenLayer.update(camera.position, controls.target, !!fly);
   // 手機平板：人車模擬隔一幀算一次（時間累加，速度不變）
   simDt += dt;

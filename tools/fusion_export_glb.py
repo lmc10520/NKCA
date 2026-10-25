@@ -22,7 +22,14 @@ def export():
     app=adsk.core.Application.get(); D=app.activeProduct; r=D.rootComponent; A=D.attributes
     t0=time.time(); OUT=os.path.join(docs_dir(),'NKCA_data'); os.makedirs(OUT,exist_ok=True)
     SKIP=('Print_Model','Plaza_Shell_Original','tmp_','Body62')
-    bodies=[b for b in r.bRepBodies if not b.name.startswith(SKIP)]
+    # 選取集 ARCHIVE 裡的物件（舊版、重複或暫時保留的實體）一律不匯出，網頁上不會出現重疊的三角紋
+    arch=set()
+    for s in D.selectionSets:
+        if s.name=='ARCHIVE':
+            for e in s.entities:
+                try: arch.add(e.entityToken)
+                except: pass
+    bodies=[b for b in r.bRepBodies if not b.name.startswith(SKIP) and b.entityToken not in arch]
     buf=bytearray(); views=[]; acc=[]; meshes=[]; nodes=[]; mats=[]; mi={}; man=[]
     def col(ap):
         if ap is None: return [0.7,0.7,0.7,1.0]

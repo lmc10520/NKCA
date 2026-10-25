@@ -17,7 +17,7 @@ export class PlanOverlay {
     this.seq = 0;
   }
 
-  // layers：[{ src, frame, z, depth }]；換頁時整組替換
+  // layers：[{ src, frame, z, depth, viewBox }]；換頁時整組替換（viewBox＝只取 SVG 畫板的某一塊 [x, y, w, h]）
   async show(layers) {
     const seq = ++this.seq;
     this.clear();
@@ -49,6 +49,7 @@ export class PlanOverlay {
     const svg = doc.documentElement;
     if (svg.nodeName !== 'svg') throw new Error('不是 SVG');
     svg.querySelectorAll('image').forEach((n) => n.remove());   // 底圖不要
+    if (L.viewBox) svg.setAttribute('viewBox', L.viewBox.join(' '));   // 只取畫板的一部分（例如停車場圖只取建築範圍）
     if (!svg.getAttribute('viewBox')) {
       const w = parseFloat(svg.getAttribute('width')) || W, h = parseFloat(svg.getAttribute('height')) || H;
       svg.setAttribute('viewBox', `0 0 ${w} ${h}`);

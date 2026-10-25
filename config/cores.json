@@ -1,5 +1,5 @@
 {
- "_說明": "交通核：畫面中心（旋轉中心）落在 center 半徑 radius 內、且鏡頭距離小於 showWithin_cm 時，右側出現電梯按鈕。action: mode=切換模式, popup=彈出平面圖。位置請用 Shift+點擊 取座標後修正。",
+ "_說明": "交通核：畫面中心（旋轉中心）落在 center 半徑 radius 內、且鏡頭距離小於 showWithin_cm 時，右側出現電梯按鈕。action: mode=切換模式, popup=彈出平面圖（B1、B2 改為 mode=b1／b2：隱藏地面以上、顯示該層模型與貼在地板的停車場平面圖）。位置請用 Shift+點擊 取座標後修正。",
  "showWithin_cm": 25000,
  "cores": [
   {
@@ -25,15 +25,13 @@
     },
     {
      "id": "B1",
-     "action": "popup",
-     "img": "img/parking_B1.svg",
-     "title": "B1 地下停車場"
+     "action": "mode",
+     "mode": "b1"
     },
     {
      "id": "B2",
-     "action": "popup",
-     "img": "img/parking_B2.svg",
-     "title": "B2 地下停車場"
+     "action": "mode",
+     "mode": "b2"
     }
    ]
   },
@@ -60,9 +58,8 @@
     },
     {
      "id": "B2",
-     "action": "popup",
-     "img": "img/parking_B2.svg",
-     "title": "B2 地下停車場"
+     "action": "mode",
+     "mode": "b2"
     }
    ]
   },
@@ -84,15 +81,13 @@
     },
     {
      "id": "B1",
-     "action": "popup",
-     "img": "img/parking_B1.svg",
-     "title": "B1 地下停車場"
+     "action": "mode",
+     "mode": "b1"
     },
     {
      "id": "B2",
-     "action": "popup",
-     "img": "img/parking_B2.svg",
-     "title": "B2 地下停車場"
+     "action": "mode",
+     "mode": "b2"
     }
    ],
    "_說明": "南側玻璃門 Door1F_D36（1F），可前往 B1、B2"
