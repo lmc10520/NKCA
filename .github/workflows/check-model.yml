@@ -1,0 +1,17 @@
+# 模型或設定有變動時自動執行 tools/check_model.mjs（北側土丘等必須隱藏的物件）
+name: 檢查模型
+on:
+  push:
+    paths: ['model/**', 'config/modes.json', 'tools/check_model.mjs', '.github/workflows/check-model.yml']
+  pull_request:
+    paths: ['model/**', 'config/modes.json', 'tools/check_model.mjs', '.github/workflows/check-model.yml']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm i --no-save @gltf-transform/core @gltf-transform/extensions meshoptimizer
+      - run: node tools/check_model.mjs model/nkca.glb model/nkca_lite.glb
