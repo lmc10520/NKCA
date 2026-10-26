@@ -1,5 +1,5 @@
 {
- "_說明": "廳院內的局部樓層：在榕樹廣場模式中靠近廳院時出現。每層 show/hide 為物件名稱規則（'@' 開頭引用 modes.json 的 groups）；lift_m 為升起展示的高度。action:\"mode\" 的樓層（B1、B2）直接切到地下停車場模式：電梯直通 B2。panelModes＝在哪些模式中顯示這個廳院的樓層按鈕。",
+ "_說明": "廳院內的局部樓層：在榕樹廣場模式中靠近廳院時出現。每層 show/hide/reveal 為物件名稱規則（'@' 開頭引用 modes.json 的 groups）；reveal＝把模式藏起來的物件重新顯示（歌劇院 3F／4F 在榕樹廣場的隱藏清單內，選 3F／4F 時叫回來）；lift_m 為升起展示的高度。action:\"mode\" 的樓層（B1、B2）直接切到地下停車場模式：電梯直通 B2。panelModes＝在哪些模式中顯示這個廳院的樓層按鈕。",
  "halls": [
   {
    "id": "OH",
@@ -10,7 +10,7 @@
     500
    ],
    "radius_cm": 4800,
-   "default": "4F",
+   "default": "1F",
    "modes": [
     "plaza"
    ],
@@ -21,10 +21,17 @@
    ],
    "floors": [
     {
-     "id": "4F"
+     "id": "4F",
+     "reveal": [
+      "@oh3F",
+      "@oh4F"
+     ]
     },
     {
      "id": "3F",
+     "reveal": [
+      "@oh3F"
+     ],
      "hide": [
       "@oh4F"
      ]
