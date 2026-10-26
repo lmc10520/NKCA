@@ -36,6 +36,9 @@ export class Vehicles {
     this.list = []; this.groups = {}; this.visible = true;
     // 號誌燈桿立在路面／人行道／分隔島上
     this.ground = (model?.meshes || []).filter((m) => /^Site_(Road_Base|Sidewalk|Campus_Paving|Park_Paving|Grass)/.test(m.userData.fname));
+    // 停車場坡道正上方的地面（*_RampCover）：B1／B2 模式會收起來，地面車輛不能開上去
+    this.covers = (model?.meshes || []).filter((m) => /_RampCover$/.test(m.userData.fname));
+    this.under = false;
     if (!cfg?.enabled) return;
     const k = isMobile ? 0.5 : 1;
     const byType = {};
@@ -55,6 +58,7 @@ export class Vehicles {
       const rt = { curve, len, entries: [], vs: [], modes: r.modes || null, hideModes: r.hideModes || [], off: !!r.modes };
       this.routes.push(rt);
       this.findEntries(rt);
+      if (!r.modes) this.findGaps(rt);
       const n = Math.max(1, Math.round((r.count || 1) * k));
       for (let i = 0; i < n; i++) {
         const v = { type: r.type, rt, curve, len, loop: !!r.loop, park: r.kind !== 'road', cur: 0, half: { car: 2.3, scooter: 1, bus: 6.1 }[r.type] || 2.3,
@@ -116,6 +120,28 @@ export class Vehicles {
     }
     rt.entries.sort((a, b) => a.u - b.u);
   }
+  // 地面路線經過坡道上蓋的區段（u 範圍）：B1／B2 模式時車輛停在區段前，區段內的車輛收起來（不會懸空在坡道上方）
+  findGaps(rt) {
+    rt.gaps = [];
+    if (!this.covers.length) return;
+    const box = new THREE.Box3();
+    for (const m of this.covers) box.expandByObject(m);
+    box.expandByScalar(1);
+    const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), p = new THREE.Vector3();
+    const step = 0.5 / rt.len;
+    let start = null;
+    for (let u = 0; u <= 1 + step / 2; u += step) {
+      rt.curve.getPointAt(Math.min(1, u), p);
+      let on = false;
+      if (p.x > box.min.x && p.x < box.max.x && p.z > box.min.z && p.z < box.max.z) {
+        ray.set(p.clone().setY(p.y + 20), down);
+        on = ray.intersectObjects(this.covers, false).length > 0;
+      }
+      if (on && start == null) start = u;
+      if (!on && start != null) { rt.gaps.push([start, u]); start = null; }
+    }
+    if (start != null) rt.gaps.push([start, 1]);
+  }
   // 相位狀態：'g' 綠、'y' 黃、'r' 紅
   phaseState(sg, ph) {
     const G = sg.green_s ?? 20, Y = sg.yellow_s ?? 3, A = sg.allred_s ?? 2, slot = G + Y + A;
@@ -154,12 +180,19 @@ export class Vehicles {
   }
   setVisible(v) { this.visible = v; for (const g of Object.values(this.groups)) g.meshes.forEach((m) => (m.visible = v)); }  // 號誌燈保留
   // 切換模式：不屬於這個模式的路線，車輛收起來、也不移動；回到該模式時從頭開始
-  setMode(mode) {
+  // under：地下停車場模式，坡道上蓋收起來，地面車輛在上蓋前停下
+  setMode(mode, under = false) {
+    this.under = under;
     for (const rt of this.routes || []) {
       const off = (rt.modes && !rt.modes.includes(mode)) || rt.hideModes.includes(mode);
       if (off && !rt.off) for (const v of rt.vs) { v.wait = 0; v.u = v.park ? Math.random() * 0.3 : v.u; }
       rt.off = off;
     }
+  }
+  // 車身（前後 half 公尺）有沒有壓在坡道上蓋區段
+  inGap(v) {
+    const h = (v.half + 0.5) / v.len;
+    return !!v.rt.gaps?.some(([a, b]) => v.u > a - h && v.u < b + h);
   }
   update(dt, night) {
     if (!this.headMat || !this.visible) return;
@@ -180,6 +213,15 @@ export class Vehicles {
       const act = rt.vs.filter((v) => !(v.wait > 0)).sort((a, b) => b.u - a.u);
       act.forEach((v, idx) => {
         let lim = v.speed;
+        if (this.under && rt.gaps?.length) {
+          if (this.inGap(v)) { v.cur = 0; return; }
+          // 下一段坡道上蓋：像紅燈一樣停在前面（環狀路線要看回到起點後的第一段）
+          const g = rt.gaps.find(([a]) => a > v.u) || (v.loop ? [rt.gaps[0][0] + 1] : null);
+          if (g) {
+            const dist = (g[0] - v.u) * rt.len - v.half - 1.5;
+            if (dist < 60) lim = Math.min(lim, Math.sqrt(2 * DEC * 0.6 * Math.max(0, dist)));
+          }
+        }
         const lead = act[idx - 1];
         if (lead) {
           const gap = (lead.u - v.u) * rt.len - lead.half - v.half - 2;
@@ -198,6 +240,7 @@ export class Vehicles {
       g.vs.forEach((v, i) => {
         let hidden = false;
         if (v.rt.off) hidden = true;
+        else if (this.under && this.inGap(v)) hidden = true;   // 停在坡道上方的車先不畫，回到外觀模式再出現
         else if (v.wait > 0) { v.wait -= dt; hidden = true; if (v.wait <= 0) v.cur = v.speed; }
         else {
           v.u += (v.cur * dt) / v.len;

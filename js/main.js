@@ -282,14 +282,15 @@ function applyVisibility() {
     m.visible = v;
   }
   night.roofOn = !!model.byName.get('Roof_Main')?.some((m) => m.visible);
-  // 地下停車場（B1／B2）：地面上的螢幕／貼紙、公共鋼琴、節慶物件、站在建築上方的行人收起來；車輛換成進出停車場的路線
+  // 地下停車場（B1／B2）：地面上的螢幕／貼紙、公共鋼琴、節慶物件、站在建築上方的行人收起來；車輛換成進出停車場的路線，
+  // 地面車輛停在坡道上蓋前、不開到坡道正上方
   const under = !!modesCfg.modes.find((x) => x.id === state.mode)?.underground;
   screens.visible = !under;
   if (under && piano.playing) piano.stop();
   piano.group.visible = !under;
   festival.hidden = under;
   people.setHidden(under ? modesCfg.undergroundHide_cm : null);
-  vehicles.setMode(state.mode);
+  vehicles.setMode(state.mode, under);
   showParkingPlan();
   labels.reanchor();
   pois.setContext(state);

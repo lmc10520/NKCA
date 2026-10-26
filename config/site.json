@@ -39,7 +39,7 @@
  "studioLight": { "az_deg": 300, "alt_deg": 46, "sun": 2.6, "ambient": 2.0 },
  "toneSize": 5,
  "modelLite": "model/nkca_lite.glb",
- "modelLiteBytes": 5663228,
+ "modelLiteBytes": 5844864,
  "materialFrom": {
   "_說明": "名稱規則 → 參照物件：符合規則的物件改用參照物件的材質。南側屋頂和幾片屋頂補片在 Fusion 用了灰色 Steel - Satin，這裡統一成屋頂白鋁。",
   "^Roof_(South|Main_B13|Main_B14|Main_M15|Main_M16)$": "Roof_Main"
@@ -66,7 +66,7 @@
  },
  "welcome": true,
  "welcomeRotateSpeed": 0.5,
- "modelBytes": 10510796,
+ "modelBytes": 10512692,
  "_welcome說明": "welcome：載入後先顯示迎賓畫面（時間天氣大字置中、模型自轉），使用者點擊或拖曳後結束；welcomeRotateSpeed 為自轉速度（0.5 約 2 分鐘一圈）。modelBytes：模型檔大小，用來估算下載進度。",
  "planFrame_cm": [
   -4000,
