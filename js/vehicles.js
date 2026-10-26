@@ -51,7 +51,8 @@ export class Vehicles {
       const len = curve.getLength();
       curve.arcLengthDivisions = Math.max(200, Math.round(len / 2));
       curve.updateArcLengths();
-      const rt = { curve, len, entries: [], vs: [] };
+      // modes：只在這些模式出現（地下停車場的進出路線）；hideModes：在這些模式隱藏（地面版的進出停車場路線）
+      const rt = { curve, len, entries: [], vs: [], modes: r.modes || null, hideModes: r.hideModes || [], off: !!r.modes };
       this.routes.push(rt);
       this.findEntries(rt);
       const n = Math.max(1, Math.round((r.count || 1) * k));
@@ -152,6 +153,14 @@ export class Vehicles {
     }
   }
   setVisible(v) { this.visible = v; for (const g of Object.values(this.groups)) g.meshes.forEach((m) => (m.visible = v)); }  // 號誌燈保留
+  // 切換模式：不屬於這個模式的路線，車輛收起來、也不移動；回到該模式時從頭開始
+  setMode(mode) {
+    for (const rt of this.routes || []) {
+      const off = (rt.modes && !rt.modes.includes(mode)) || rt.hideModes.includes(mode);
+      if (off && !rt.off) for (const v of rt.vs) { v.wait = 0; v.u = v.park ? Math.random() * 0.3 : v.u; }
+      rt.off = off;
+    }
+  }
   update(dt, night) {
     if (!this.headMat || !this.visible) return;
     dt = Math.min(dt, 0.1);
@@ -167,6 +176,7 @@ export class Vehicles {
     // 速度：跟車（同一路線前車）＋紅燈停在停止線前；加速 2.5、減速 6 m/s²
     const ACC = 2.5, DEC = 6;
     for (const rt of this.routes) {
+      if (rt.off) continue;
       const act = rt.vs.filter((v) => !(v.wait > 0)).sort((a, b) => b.u - a.u);
       act.forEach((v, idx) => {
         let lim = v.speed;
@@ -187,7 +197,8 @@ export class Vehicles {
     for (const g of Object.values(this.groups)) {
       g.vs.forEach((v, i) => {
         let hidden = false;
-        if (v.wait > 0) { v.wait -= dt; hidden = true; if (v.wait <= 0) v.cur = v.speed; }
+        if (v.rt.off) hidden = true;
+        else if (v.wait > 0) { v.wait -= dt; hidden = true; if (v.wait <= 0) v.cur = v.speed; }
         else {
           v.u += (v.cur * dt) / v.len;
           if (v.u >= 1) {
@@ -284,6 +295,10 @@ export class People {
   }
   get body() { return this.parts?.torso; }
   setVisible(v) { this.visible = v; (this.meshes || []).forEach((m) => (m.visible = v)); }
+  // 地下停車場模式：建築與坡道上蓋都收起來了，站在這些範圍（Fusion cm 的 [x0, y0, x1, y1]）上的人先不畫
+  setHidden(rects) {
+    this.hideRects = rects?.length ? rects.map(([x0, y0, x1, y1]) => [x0 / 100, -y1 / 100, x1 / 100, -y0 / 100]) : null;
+  }
 
   next(p) {
     // 傾向直走，偶爾轉彎；盡量不走回頭路
@@ -326,6 +341,7 @@ export class People {
       lm.makeRotationX(rx); lm.setPosition(lx, ly, lz);
       tmp.multiplyMatrices(m, lm); mesh.setMatrixAt(i, tmp);
     };
+    const hideAt = (pos) => this.hideRects?.some(([x0, z0, x1, z1]) => pos.x > x0 && pos.x < x1 && pos.z > z0 && pos.z < z1);
     this.list.forEach((p, i) => {
       const run = p.run > 0; if (run) p.run -= dt;
       let moving = false;
@@ -354,6 +370,12 @@ export class People {
         p.yaw += d * Math.min(1, dt * (run ? 10 : 5));
       }
       p.moving = moving;
+      if (hideAt(p.pos)) {
+        for (const k of ['torso', 'head', 'hair', 'cap', 'legL', 'legR', 'armL', 'armR']) P[k].setMatrixAt(i, this._zero);
+        if (p.chair != null) P.chair.setMatrixAt(p.chair, this._zero);
+        if (p.dog != null) P.dog.setMatrixAt(p.dog, this._zero);
+        return;
+      }
       const sw = moving ? Math.sin(p.ph) * (run ? 0.9 : 0.45) : 0;                 // 手腳擺動角度
       const bob = moving && p.kind !== 'wheelchair' ? Math.abs(Math.sin(p.ph)) * (run ? 0.08 : 0.025) : 0;
       const leanT = (run ? 0.25 : 0) + (p.kind === 'elder' ? 0.14 : 0);

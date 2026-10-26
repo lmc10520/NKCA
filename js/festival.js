@@ -16,6 +16,7 @@ export class Festival {
     this.scene = scene; this.cfg = cfg || {}; this.model = model;
     this.root = new THREE.Group(); this.root.name = 'Festival'; scene.add(this.root);
     this.on = true; this.k = 0; this.t = 0;
+    this.hidden = false;   // 地下停車場模式：地面上的節慶物件收起來
     this.items = []; this.lights = [];
     const force = new URLSearchParams(location.search).get('festival');
     const ids = force ? force.split(',') : null;   // 可以一次預覽多個：?festival=halloween,xmas
@@ -219,7 +220,7 @@ export class Festival {
     if (!this.active) return;
     this.t += dt;
     this.k += ((this.on ? 1 : 0) - this.k) * Math.min(1, dt * 3);
-    this.root.visible = this.k > 0.01;
+    this.root.visible = this.k > 0.01 && !this.hidden;
     const t = this.t;
     for (const it of this.items) {
       it.g.scale.setScalar(Math.max(0.001, this.k));   // 開關時長出／收起

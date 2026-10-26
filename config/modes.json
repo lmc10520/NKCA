@@ -1,5 +1,11 @@
 {
  "_說明": "模式按鈕。hide 內為要隱藏的物件名稱：'=' 開頭為完整名稱、其他為正規表示式、'@' 開頭引用 groups。groups.canopyHide／plazaHide 由 Fusion 的選取集 MODE_A／MODE_B 匯出。 groups.aboveGround／b1Level 由 AboveGround_hide／B1_hide 匯出，用在 B1、B2 地下停車場模式（button:false＝不在右側模式列出現，由電梯／廳院樓層按鈕切換）。",
+ "_地下停車場": "underground:true 的模式（B1、B2）會收起地面上的螢幕／貼紙、公共鋼琴、節慶物件；站在 undergroundHide_cm 範圍（建築、東西兩側坡道上蓋，Fusion cm 的 [x0, y0, x1, y1]）內的行人也先不畫。車輛改走 roads.json 裡 modes 指定為 b1／b2 的路線。",
+ "undergroundHide_cm": [
+  [2620, 7519, 24871, 23206],
+  [-2103, 8103, 2620, 13255],
+  [24871, 8103, 28861, 13255]
+ ],
  "default": "exterior",
  "exclude": [
   "=Body62",
@@ -33,6 +39,7 @@
    "label": "B1 地下停車場",
    "floor": "B1",
    "button": false,
+   "underground": true,
    "hide": [
     "@aboveGround"
    ],
@@ -58,6 +65,7 @@
    "label": "B2 地下停車場",
    "floor": "B2",
    "button": false,
+   "underground": true,
    "hide": [
     "@aboveGround",
     "@b1Level"
