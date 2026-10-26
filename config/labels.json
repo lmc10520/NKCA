@@ -266,6 +266,22 @@
     ]
    },
    "venue": "public"
+  },
+  {
+   "id": "piano",
+   "text": "公共鋼琴",
+   "pos_cm": [
+    19883,
+    16750,
+    520
+   ],
+   "anchor": false,
+   "show": true,
+   "card": {
+    "h1": "公共鋼琴",
+    "p": "開放時間：08:00~23:00"
+   },
+   "venue": "public"
   }
  ]
 }
