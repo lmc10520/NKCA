@@ -265,17 +265,18 @@ const state = {
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
-const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups) })) }));
+const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups), revealM: makeMatcher(f.reveal, modesCfg.groups) })) }));
 halls.forEach((h) => (state.halls[h.id] = h.default));
 
 function meshVisible(n) {
-  if (modeHide[state.mode]?.(n)) return false;
+  let v = !modeHide[state.mode]?.(n);
   for (const h of halls) {
     if (h.modes && !h.modes.includes(state.mode)) continue;
     const f = h.floorsM.find((x) => x.id === state.halls[h.id]);
+    if (f?.revealM(n)) v = true;   // 模式藏起來的樓層（如歌劇院 3F／4F 在榕樹廣場的隱藏清單內）由樓層按鈕叫回來
     if (f?.hideM(n)) return false;
   }
-  return true;
+  return v;
 }
 function applyVisibility() {
   for (const m of model.meshes) {
