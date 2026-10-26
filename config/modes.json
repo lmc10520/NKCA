@@ -7,10 +7,12 @@
   [24871, 8103, 28861, 13255]
  ],
  "default": "exterior",
+ "_exclude說明": "exclude：所有模式都不顯示的物件。Site_North_Mound_Solid（北側土丘）和 Site_Campus_Paving 重疊會產生殘影，固定隱藏；每次匯出後 tools/check_model.mjs 會檢查。",
  "exclude": [
   "=Body62",
   "^Print_Model",
-  "^Plaza_Shell_Original"
+  "^Plaza_Shell_Original",
+  "=Site_North_Mound_Solid"
  ],
  "modes": [
   {

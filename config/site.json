@@ -61,7 +61,6 @@
   "_說明": "幾乎重疊的地面圖層會互相閃爍（z-fighting），網頁把它們上下錯開（cm，正值往上）。",
   "^Site_Marking": 5,
   "^Site_Grass$": 3,
-  "^Site_North_Mound_Solid$": -4,
   "^(Site_Dry_Fountain|Site_Fountain_)": 2
  },
  "welcome": true,
