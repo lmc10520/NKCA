@@ -1,26 +1,33 @@
-# 地下停車場 B1／B2 的車輛進出路線 → 寫進 config/roads.json
+# 地下停車場 B1／B2 的車流 → 寫進 config/roads.json
 #
 # 地面上原本的進出停車場路線（car_00、car_08 西側；car_09、car_10 東側）只開到坡道上蓋底下就消失，
 # 在 B1／B2 模式上蓋收起來後會看到車開到一半懸空消失，所以：
 #   - 這四條加上 hideModes: ["b1", "b2"]（地下停車場模式時不出現）
-#   - 另外產生 pk_* 路線（modes: ["b1"] 或 ["b2"]）：接在原本路線後面，沿坡道開進該層，再沿停車場車道開到停車位附近；
-#     出場則反過來，從車道開出、爬坡道，接回原本的出場路線。
+#   - 另外產生 pk_* 路線（modes: ["b1"] 或 ["b2"]），車輛持續進出（不在停車場內消失）：
+#     地面道路（原本進場路線）→ 坡道下到該層 → 停車場內依車流動線圖行駛 → 坡道上來 → 地面道路（原本出場路線）
 #
-# 行車方向（右側通行，依停車場平面圖入口箭頭與坡道位置）：
-#   西側：進場走南側（往東），出場走北側（往西）。B1 坡道從地面兩條車道下來：西邊斜坡＝進、北邊＝出；
-#         B2：南側坡道（Ramp_W_B2_Down）往東下到 B2＝進，北側坡道（Ramp_W_B2_Up）往西爬回 B1＝出。
-#   東側：進場走北側（往西），出場走南側（往東）。B1 坡道：北邊車道＝進、東邊車道＝出；
-#         B2：北側坡道（Ramp_E_B2_Up）往南再往西下到 B2＝進，南側坡道（Ramp_E_B2_Down）往東爬回 B1＝出。
+# 停車場內動線：tools/data/parking_flow.json（20261023 地下停車場車流動線 PDF 的黑線，B1 4 條、B2 5 條，繪製方向＝行車方向）。
+# PDF 與 img/parking_B1／B2.svg 同一張畫板：x 66～1124 pt ＝ Fusion 2620～24871 cm；y 由畫板上緣 105（B1）／94（B2）往下，
+# 726 pt ＝ 15687 cm（與 config/modes.json 的 plan.viewBox／frame 相同）。
 #
-# 停車場內雙向車道：進場、出場各靠自己的右側（相距約 3 m）。
+# 坡道（右側通行，坡道牆位置由模型量測）：
+#   西側：進場從西邊斜坡下來。到 B1 的車靠內側（東北側）、從島的南邊進 B1；到 B2 的車靠外側、走南側坡道（Ramp_W_B2_Down）往東下。
+#         出場：B1 從島的北邊出、在島與北側 B2 坡道西牆之間往北；B2 走北側坡道（Ramp_W_B2_Up）往西再往北爬；
+#         兩者在坡道頂端會合，沿北邊車道東側（東牆內）往北接回地面。
+#   東側：進場從北邊車道下來。到 B2 的車進北側坡道（Ramp_E_B2_Up，兩側有牆）往南再往西下；到 B1 的車走坡道東牆與島之間，
+#         從島尾的北半邊往西進 B1。出場：B1 從島尾的南半邊往東、繞過南側 B2 坡道北牆；B2 走南側坡道（Ramp_E_B2_Down）往東爬；
+#         兩者在島的東側會合往北，接東邊車道回地面。
+#
 # 坡道路面高度：tools/data/ramp_heights.json（由網頁模型量測）；建築內 B1 地板 -450、B2 地板 -800（cm）。
 # 用法：python3 tools/parking_routes.py（tools/traffic_to_config.py 重新產生 roads.json 後要再執行一次）
 import json, math, os
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 H = json.load(open(os.path.join(ROOT, 'tools/data/ramp_heights.json'), encoding='utf-8'))
+FLOW = json.load(open(os.path.join(ROOT, 'tools/data/parking_flow.json'), encoding='utf-8'))
 FLOOR = {'B1': -450, 'B2': -800}
 BX0, BX1 = 2620, 24871          # 建築（停車場）東西邊界
+PLAN_Y0 = {'B1': 105, 'B2': 94}
 
 
 def ramp_z(x, y, k):
@@ -62,7 +69,7 @@ def catmull(pts, step=250):
 
 
 def build(way, level):
-    """航點 (x, y, 路面) → [x, y, z]；路面：F／D／U＝坡道、None＝建築內（該層地板）或沿用給定高度"""
+    """航點 (x, y, 路面) → [x, y, z]；路面：F／D／U＝坡道、數字＝沿用該高度、None＝建築內該層地板"""
     smp = catmull(way)
     res = []
     for x, y, i in smp:
@@ -88,69 +95,84 @@ def build(way, level):
     return res
 
 
+def flow_path(level, color, trim=700):
+    """車流動線（PDF pt）→ Fusion cm；去掉靠近出入口的頭尾（由坡道航點接上），直角轉彎修圓（約 3 m）"""
+    y0 = PLAN_Y0[level]
+    P = [(BX0 + (u - 66) / 1058 * (BX1 - BX0), 23206 - (v - y0) / 726 * 15687) for u, v in FLOW[level][color]]
+    near = lambda p: p[0] < BX0 + trim or p[0] > BX1 - trim
+    a = next(i for i, p in enumerate(P) if not near(p))
+    b = len(P) - next(i for i, p in enumerate(reversed(P)) if not near(p))
+    P = P[a:b]
+    # 每 50 cm 重新取樣 → 高斯平滑（σ 約 2.5 m）→ 每 250 cm 取一點
+    L = [0]
+    for i in range(1, len(P)): L.append(L[-1] + math.dist(P[i - 1], P[i]))
+    def at(s):
+        j = max(1, min(len(P) - 1, next((k for k in range(1, len(L)) if L[k] >= s), len(L) - 1)))
+        t = (s - L[j - 1]) / max(1e-6, L[j] - L[j - 1])
+        return (P[j - 1][0] + (P[j][0] - P[j - 1][0]) * t, P[j - 1][1] + (P[j][1] - P[j - 1][1]) * t)
+    S = [at(i * 50) for i in range(int(L[-1] // 50) + 1)]
+    sig = 5; w = [math.exp(-k * k / (2 * sig * sig)) for k in range(-3 * sig, 3 * sig + 1)]
+    sm = []
+    for i in range(len(S)):
+        sx = sy = sw = 0
+        for k, wk in enumerate(w):
+            j = min(len(S) - 1, max(0, i + k - 3 * sig)); sx += S[j][0] * wk; sy += S[j][1] * wk; sw += wk
+        sm.append((sx / sw, sy / sw))
+    sm = sm[::5] + [sm[-1]]
+    return [(round(x), round(y), None) for x, y in sm]
+
+
 roads_f = os.path.join(ROOT, 'config/roads.json')
 roads = json.load(open(roads_f, encoding='utf-8'))
 R = {r['id']: r for r in roads['routes']}
-w_in, w_out, e_in, e_out = (R[k]['pts_cm'] for k in ('car_00', 'car_08', 'car_09', 'car_10'))
+ROAD = {'w_in': R['car_00']['pts_cm'], 'w_out': R['car_08']['pts_cm'], 'e_in': R['car_09']['pts_cm'], 'e_out': R['car_10']['pts_cm']}
 
-# ---------- 航點（Fusion cm）----------
-# 西側坡道：進場（西邊斜坡往東南下到 B1 平台，從島的南側進）
-W_RAMP_IN = [(-1750, 11650, 'F'), (-1300, 11150, 'F'), (-800, 10550, 'F'), (-350, 9950, 'F'), (50, 9450, 'F')]
-W_B1_IN = [(450, 9000, 'F'), (1000, 8790, 'F'), (1800, 8750, 'F'),
-           (2620, 8750, None), (3200, 8620, None), (3800, 8450, None), (6000, 8450, None), (10000, 8450, None), (14500, 8450, None)]
-W_B2_IN = [(400, 9050, 'F'), (750, 8730, 'D'), (1200, 8520, 'D'), (1800, 8460, 'D'),
-           (2620, 8450, None), (3500, 8420, None), (7500, 8420, None), (8800, 8550, None), (9370, 9150, None), (9370, 12000, None), (9370, 15000, None)]
-# 西側出場：從 B1 西側車道往南、往西出，經島與北側 B2 坡道之間往北爬，接原本出場路線
-W_RAMP_OUT = [(870, 9750, 'F'), (870, 10350, 'F'), (900, 10900, 'F'), (980, 11500, 'F'), (1080, 12000, 'F'), (1250, 12350, 'F')]
-W_B1_OUT = [(3400, 15500, None), (3400, 12000, None), (3400, 10300, None), (3300, 9700, None), (3000, 9250, None),
-            (2620, 9130, None), (2000, 9120, 'F'), (1350, 9150, 'F'), (950, 9350, 'F')]
-W_B2_OUT = [(9070, 15000, None), (9070, 9300, None), (8700, 8720, None), (7500, 8620, None), (3600, 8620, None), (3050, 9100, None),
-            (2620, 9470, None), (2000, 9460, 'U'), (1500, 9470, 'U'), (1250, 9700, 'U'), (1200, 10150, 'U'), (1160, 10600, 'U'),
-            (1060, 11100, 'F')]
-# 東側坡道：進場（北邊車道往南下）
-E_RAMP_IN = [(26200, 12550, 'F'), (26300, 12000, 'F'), (26500, 11400, 'F')]
-E_B1_IN = [(26650, 10800, 'F'), (26650, 10100, 'F'), (26550, 9550, 'F'), (26150, 9170, 'F'), (25500, 9120, 'F'),
-           (24871, 9120, None), (24300, 9250, None), (23970, 9800, None), (23970, 12000, None), (23970, 15500, None)]
-E_B2_IN = [(26350, 10800, 'F'), (26300, 10300, 'U'), (26280, 9850, 'U'), (26050, 9500, 'U'), (25500, 9440, 'U'), (25100, 9430, 'U'),
-           (24871, 9450, None), (24000, 9470, None), (21000, 9470, None), (18600, 9470, None), (18000, 9850, None), (17950, 11000, None), (17950, 13500, None)]
-# 東側出場：從南側出、沿島的東側往北爬到東邊車道
-E_RAMP_OUT = [(27250, 9500, 'F'), (27400, 10200, 'F'), (27600, 10900, 'F'), (27900, 11400, 'F'), (28250, 11750, 'F')]
-E_B1_OUT = [(14000, 8350, None), (20000, 8350, None), (23000, 8380, None), (23900, 8550, None),
-            (24871, 8700, None), (25500, 8700, 'F'), (26300, 8700, 'F'), (26900, 8950, 'F')]
-E_B2_OUT = [(17550, 13500, None), (17550, 9300, None), (17750, 8650, None), (18600, 8400, None), (24000, 8400, None),
-            (24871, 8420, None), (25500, 8450, 'D'), (26000, 8550, 'D'), (26500, 8650, 'D'), (26850, 8820, 'D'), (27100, 9150, 'F')]
+# ---------- 坡道航點（Fusion cm）：進場到建築邊界為止、出場從建築邊界開始 ----------
+W_DIAG = [(-1750, 11650, 'F'), (-1300, 11150, 'F'), (-800, 10550, 'F')]
+RAMP = {
+    # 西側進場：B1 靠內側（東北），從島尾南邊進；B2 靠外側，進南側坡道
+    ('w_in', 'B1'): W_DIAG + [(-300, 9950, 'F'), (200, 9500, 'F'), (600, 9200, 'F'), (900, 8990, 'F'), (1300, 8820, 'F'), (1700, 8740, 'F'), (2620, 8730, None)],
+    ('w_in', 'B2'): W_DIAG + [(-380, 9880, 'F'), (80, 9330, 'F'), (450, 9000, 'F'), (750, 8760, 'D'), (1100, 8590, 'D'), (1600, 8460, 'D'), (2620, 8420, None)],
+    # 西側出場：B1 從島尾北邊往西、在島與 B2 坡道西牆（x≈1020）之間往北；B2 走北側坡道往西再往北；坡道頂端沿北邊車道東側往北
+    ('w_out', 'B1'): [(2620, 9130, None), (2000, 9120, 'F'), (1350, 9150, 'F'), (950, 9350, 'F'), (860, 9750, 'F'), (860, 10350, 'F'),
+                      (930, 10700, 'F'), (1100, 10980, 'F'), (1200, 11400, 'F'), (1250, 11900, 'F'), (1310, 12250, 'F')],
+    ('w_out', 'B2'): [(2620, 9450, None), (2000, 9450, 'U'), (1500, 9460, 'U'), (1260, 9650, 'U'), (1230, 10100, 'U'), (1220, 10600, 'U'),
+                      (1210, 11000, 'F'), (1240, 11450, 'F'), (1260, 11900, 'F'), (1310, 12250, 'F')],
+    # 東側進場：B2 進北側坡道（兩側牆之間）往南再往西；B1 走坡道東牆與島之間，從島尾北半邊往西
+    ('e_in', 'B1'): [(26200, 12550, 'F'), (26350, 12000, 'F'), (26550, 11400, 'F'), (26620, 10700, 'F'), (26620, 10000, 'F'), (26520, 9550, 'F'),
+                     (26250, 9220, 'F'), (25800, 9050, 'F'), (24871, 9030, None)],
+    ('e_in', 'B2'): [(26200, 12550, 'F'), (26300, 12000, 'F'), (26300, 11300, 'F'), (26280, 10600, 'U'), (26280, 10000, 'U'), (26200, 9650, 'U'),
+                     (25900, 9450, 'U'), (25400, 9420, 'U'), (24871, 9420, None)],
+    # 東側出場：B2 沿南側坡道往東爬（使用者標示的黃線）；B1 從島尾南半邊往東、繞到 B2 坡道北牆的北邊；兩者在島的東側會合往北
+    ('e_out', 'B1'): [(24871, 8690, None), (25500, 8690, 'F'), (26150, 8720, 'F'), (26600, 8930, 'F'), (27000, 9200, 'F'), (27330, 9500, 'F'),
+                      (27480, 10000, 'F'), (27600, 10700, 'F'), (27780, 11250, 'F'), (28250, 11750, 'F')],
+    ('e_out', 'B2'): [(24871, 8270, None), (25500, 8290, 'D'), (26100, 8330, 'D'), (26680, 8580, 'D'), (27180, 8920, 'F'), (27430, 9330, 'F'),
+                      (27520, 10000, 'F'), (27620, 10700, 'F'), (27780, 11250, 'F'), (28250, 11750, 'F')],
+}
 
-
-def road(p): return (p[0], p[1], p[2])
-
-
-def join_in(prefix, way, level):
-    # 接在原本進場路線後面：用最後兩點當起始方向
-    pts = build([road(prefix[-2]), road(prefix[-1])] + way, level)
-    return prefix[:-2] + pts
+# ---------- 停車場內動線（PDF 顏色）：從哪側進、從哪側出 ----------
+FLOWS = {
+    'B1': {'red': ('e', 'w'), 'green': ('w', 'e'), 'blue': ('w', 'w'), 'magenta': ('e', 'w')},
+    'B2': {'red': ('e', 'e'), 'green': ('w', 'e'), 'blue': ('e', 'w'), 'magenta': ('w', 'w'), 'orange': ('e', 'w')},
+}
 
 
-def join_out(way, suffix, level):
-    pts = build(way + [road(suffix[0]), road(suffix[1])], level)
-    return pts[:-2] + suffix
+def route(level, color, side_in, side_out):
+    rin, rout = ROAD[side_in + '_in'], ROAD[side_out + '_out']
+    way = ([tuple(rin[-2]), tuple(rin[-1])] + RAMP[(side_in + '_in', level)] + flow_path(level, color)
+           + RAMP[(side_out + '_out', level)] + [tuple(rout[0]), tuple(rout[1])])
+    pts = build(way, level)
+    return rin[:-2] + pts[:-2] + rout
 
-
-ROUTES = [
-    ('pk_b1_w_in', 'park_in', 'b1', join_in(w_in, W_RAMP_IN + W_B1_IN, 'B1')),
-    ('pk_b1_w_out', 'park_out', 'b1', join_out(W_B1_OUT + W_RAMP_OUT, w_out, 'B1')),
-    ('pk_b2_w_in', 'park_in', 'b2', join_in(w_in, W_RAMP_IN + W_B2_IN, 'B2')),
-    ('pk_b2_w_out', 'park_out', 'b2', join_out(W_B2_OUT + W_RAMP_OUT[2:], w_out, 'B2')),
-    ('pk_b1_e_in', 'park_in', 'b1', join_in(e_in, E_RAMP_IN + E_B1_IN, 'B1')),
-    ('pk_b1_e_out', 'park_out', 'b1', join_out(E_B1_OUT + E_RAMP_OUT, e_out, 'B1')),
-    ('pk_b2_e_in', 'park_in', 'b2', join_in(e_in, E_RAMP_IN + E_B2_IN, 'B2')),
-    ('pk_b2_e_out', 'park_out', 'b2', join_out(E_B2_OUT + E_RAMP_OUT, e_out, 'B2')),
-]
 
 roads['routes'] = [r for r in roads['routes'] if not r['id'].startswith('pk_')]
 for k in ('car_00', 'car_08', 'car_09', 'car_10'): R[k]['hideModes'] = ['b1', 'b2']
-for rid, kind, mode, pts in ROUTES:
-    roads['routes'].append({'id': rid, 'type': 'car', 'kind': kind, 'count': 2, 'speed_kmh': 12, 'modes': [mode], 'pts_cm': pts})
-    print(rid, len(pts), 'pts', 'z', min(p[2] for p in pts), '→', pts[-1][2] if kind == 'park_in' else pts[0][2])
+for level, fl in FLOWS.items():
+    for color, (si, so) in fl.items():
+        pts = route(level, color, si, so)
+        rid = f'pk_{level.lower()}_{color}'
+        roads['routes'].append({'id': rid, 'type': 'car', 'kind': 'road', 'count': 3, 'speed_kmh': 15, 'modes': [level.lower()], 'pts_cm': pts})
+        print(rid, f'{si}→{so}', len(pts), 'pts', 'zmin', min(p[2] for p in pts))
 
 NOTE = '地下停車場：modes＝只在這些模式出現（pk_* 進出 B1／B2 的路線）、hideModes＝在這些模式隱藏，由 tools/parking_routes.py 產生（重新執行 traffic_to_config.py 後要再執行一次）。'
 if NOTE not in roads['_說明']: roads['_說明'] += NOTE
