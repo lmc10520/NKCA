@@ -10,3 +10,4 @@ npx gltf-transform quantize /tmp/c.glb /tmp/d.glb
 npx gltf-transform meshopt /tmp/d.glb /tmp/e.glb
 node tools/names.mjs /tmp/e.glb model/nkca.glb  # 保留 Fusion 原始物件名稱
 ls -la model/nkca.glb
+node tools/check_model.mjs model/nkca.glb       # 必須隱藏的物件（北側土丘等）有沒有被 exclude
