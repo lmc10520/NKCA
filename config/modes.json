@@ -12,7 +12,9 @@
   "=Body62",
   "^Print_Model",
   "^Plaza_Shell_Original",
-  "=Site_North_Mound_Solid"
+  "=Site_North_Mound_Solid",
+  "^SW_EV07_Shaft_B2",
+  "^SW_EV07_Shaft_B1"
  ],
  "modes": [
   {

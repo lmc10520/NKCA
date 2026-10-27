@@ -11,6 +11,8 @@ import { MeshoptDecoder } from 'meshoptimizer';
 
 const MUST_HIDE = {
   Site_North_Mound_Solid: '北側土丘和 Site_Campus_Paving 重疊，顯示時鋪面上會有殘影',
+  SW_EV07_Shaft_B2: '西南交通核電梯井 B2 段：B2 平面圖已有電梯圖示，James 決定不顯示實體（2026-10-27）',
+  SW_EV07_Shaft_B1: '西南交通核電梯井 B1 段：B1 平面圖已有電梯圖示，James 決定不顯示實體（2026-10-27）',
 };
 
 // 和 js/util.js 的 makeMatcher 同一套規則：'=' 完整名稱、'@' 引用 groups、其他為正規表示式
