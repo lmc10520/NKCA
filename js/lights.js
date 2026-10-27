@@ -106,6 +106,39 @@ export class NightLights {
       }
     }
 
+    // 3b. 樹冠大廳、廳院內的地板：整片均勻的暖光（只處理朝上的面，不建光源、不畫光點）。
+    // 做法是把地板亮度「墊高」到 底色 × 燈色 × intensity：本來就夠亮的白色座位不會再加亮（不會被 bloom 打成一片白），
+    // 暗灰地板則整片提亮。依物件名稱＋材質自動判斷，Fusion 重新匯出只要命名不變就會套用
+    if (c.floors?.rules?.length) {
+      const rules = c.floors.rules.map((r) => ({ name: makeMatcher(r.match), mat: r.material ? new RegExp(r.material) : null }));
+      const col = new THREE.Color(c.floors.color), u = this.ceilUniform, k = c.floors.intensity ?? 0.6;
+      const frag = `float upF=smoothstep(0.55,0.85,normalize(vFWN).y);
+        outgoingLight=max(outgoingLight,diffuseColor.rgb*vec3(${col.r.toFixed(3)},${col.g.toFixed(3)},${col.b.toFixed(3)})*(upF*uNight*${k.toFixed(3)}));`;
+      const clones = new Map();   // 同一個原材質只複製一次，地板共用同一個 shader
+      for (const m of model.meshes) {
+        const n = m.userData.fname, mn = m.material?.name || '';
+        if (m.userData.isGlass || !rules.some((r) => r.name(n) && (!r.mat || r.mat.test(mn)))) continue;
+        let mat = clones.get(m.material);
+        if (!mat) {
+          // 先保留原材質的 shader 修改（廳院裝修紋理，js/finishes.js），再加照明
+          const prev = m.material.onBeforeCompile, prevKey = m.material.customProgramCacheKey?.() || '';
+          mat = m.material.clone();
+          mat.onBeforeCompile = (sh, r) => {
+            prev?.call(mat, sh, r);
+            sh.uniforms.uNight = u;
+            sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;')
+              .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvFWN=mat3(modelMatrix)*objectNormal;');
+            sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;uniform float uNight;')
+              .replace('#include <opaque_fragment>', frag + '\n#include <opaque_fragment>');
+          };
+          mat.customProgramCacheKey = () => prevKey + 'floorGlow';
+          clones.set(m.material, mat);
+        }
+        m.material = mat; m.userData.origMaterial = mat;
+      }
+      this.floorMats = clones.size;
+    }
+
     // 4. 屋頂投射燈（有方向性）：貼在屋面上，低角度掠過屋頂凸顯起伏
     this.spots = [];
     const rs = c.roofSpots;

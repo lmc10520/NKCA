@@ -63,6 +63,34 @@
    "intensity": 0.7
   }
  },
+ "floors": {
+  "_說明": "樹冠大廳與廳院內的地板夜間照明：地板朝上的面整片均勻提亮成暖光（不建光源、不畫光點，手機與精簡模型都沒有額外負擔）。rules 每條為 match（物件名稱規則）＋ material（材質名稱正規表示式，可省略），符合任一條就亮。和其他建築燈光一樣，白天與熄燈後自動關掉。intensity 為地板被照亮的程度（底色 × 燈色 × intensity），本來就比這亮的白色座位不會再加亮。",
+  "color": "#ffe6c4",
+  "intensity": 0.6,
+  "rules": [
+   {
+    "_說明": "樹冠大廳 3F：L3_ 開頭、材質 L3_Floor 的地板（L3_Floor (n)、L3_Floor_OH_Band、露臺等）",
+    "match": [
+     "^L3_"
+    ],
+    "material": "^L3_Floor$"
+   },
+   {
+    "_說明": "歌劇院觀眾席與樓梯平台",
+    "match": [
+     "^OH_Aud_.*(Floor|Stalls|Tiers|Balcony)",
+     "^OH_Stair_Landing_"
+    ]
+   },
+   {
+    "_說明": "各廳觀眾席、舞台；表演廳 1F／2F 樓板",
+    "match": [
+     "^Hall_.*_(Stalls|Balcony|Stage)$",
+     "^RH[12]F_Floor$"
+    ]
+   }
+  ]
+ },
  "roofSpots": {
   "_說明": "屋頂投射燈（依 20261011_屋頂投射燈位置.pdf 的黃點自動換算）。pos_cm 的高度留 null 會自動貼在屋頂表面上方 60cm；dir_deg 為照射方向（0=東、90=北），燈會以低角度掠過屋面、凸顯起伏。max 為同時亮的上限，手機自動減半。",
   "max": 25,
