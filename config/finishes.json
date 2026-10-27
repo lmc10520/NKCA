@@ -18,7 +18,7 @@
    "id": "WallGray",
    "_說明": "灰色牆面：表演廳、歌劇院廳內牆面與包廂矮牆（原為黑色，太暗難以分辨，2026-10-27 改灰）",
    "pattern": "plain",
-   "color": "#7a7c80",
+   "color": "#a9abaf",
    "roughness": 0.85,
    "match": ["=RH2F_HallWalls", "=RH_Hall_LowWall", "^OH_Aud_Wall_", "^OH_Aud_.*PonyWall"]
   },
