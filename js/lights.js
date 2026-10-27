@@ -120,15 +120,18 @@ export class NightLights {
         if (m.userData.isGlass || !rules.some((r) => r.name(n) && (!r.mat || r.mat.test(mn)))) continue;
         let mat = clones.get(m.material);
         if (!mat) {
+          // 先保留原材質的 shader 修改（廳院裝修紋理，js/finishes.js），再加照明
+          const prev = m.material.onBeforeCompile, prevKey = m.material.customProgramCacheKey?.() || '';
           mat = m.material.clone();
-          mat.onBeforeCompile = (sh) => {
+          mat.onBeforeCompile = (sh, r) => {
+            prev?.call(mat, sh, r);
             sh.uniforms.uNight = u;
             sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;')
               .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvFWN=mat3(modelMatrix)*objectNormal;');
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;uniform float uNight;')
               .replace('#include <opaque_fragment>', frag + '\n#include <opaque_fragment>');
           };
-          mat.customProgramCacheKey = () => 'floorGlow';
+          mat.customProgramCacheKey = () => prevKey + 'floorGlow';
           clones.set(m.material, mat);
         }
         m.material = mat; m.userData.origMaterial = mat;

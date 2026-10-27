@@ -1,0 +1,43 @@
+{
+ "_說明": "廳院裝修材質：依物件名稱（'=' 完整名稱、其他為正規表示式、'@' 引用 modes.json 的 groups）換成指定顏色與紋理。pattern：wood 木板、stone 石板、plain 素面；size_m 為 [長, 寬]（木板長×寬、石板邊長），variation 為每塊明暗差異。紋理由網頁依世界座標產生，不需 UV、不需貼圖檔，Fusion 重新匯出只要命名不變就會套用。由上往下比對，先符合的先用；玻璃不會被換。整個物件會換成同一種材質：若同一個 body 的內外兩面要不同材質，要在 Fusion 拆開。",
+ "finishes": [
+  {
+   "id": "WoodNatural",
+   "_說明": "原木：表演廳觀眾席地板；音樂廳觀眾席與廳內牆面（Hall_Concert_Balcony 是 2F 座席＋牆＋矮牆同一個 body，整個換原木）",
+   "pattern": "wood",
+   "color": "#b3834f",
+   "roughness": 0.55,
+   "size_m": [2.4, 0.18],
+   "variation": 0.22,
+   "match": ["=Hall_Recital_Stalls", "^Hall_Concert_(Stalls|Balcony|3F)"]
+  },
+  {
+   "id": "WoodBlack",
+   "_說明": "木頭漆黑：戲劇院、歌劇院觀眾席地板（含階梯座席、走道半階）",
+   "pattern": "wood",
+   "color": "#2a2522",
+   "roughness": 0.35,
+   "size_m": [2.4, 0.18],
+   "variation": 0.18,
+   "match": ["^Hall_Play_(Stalls|Balcony)", "^OH_Aud_.*(Stalls|Tiers|Balcony|HalfSteps)"]
+  },
+  {
+   "id": "WallBlack",
+   "_說明": "黑色牆面：表演廳、歌劇院廳內牆面與包廂矮牆",
+   "pattern": "plain",
+   "color": "#1d1d20",
+   "roughness": 0.85,
+   "match": ["=RH2F_HallWalls", "=RH_Hall_LowWall", "^OH_Aud_Wall_", "^OH_Aud_.*PonyWall"]
+  },
+  {
+   "id": "Stone",
+   "_說明": "石紋：廳外地板（表演廳 1F／2F 大廳、歌劇院各層大廳與樓梯平台）",
+   "pattern": "stone",
+   "color": "#d8d2c6",
+   "roughness": 0.4,
+   "size_m": [1.2, 0.8],
+   "variation": 0.1,
+   "match": ["=RH1F_Floor", "=RH2F_Floor", "^OH_Aud_.*Floor", "^OH_Stair_Landing_", "=L3_Opera_2F_Floor_Ext"]
+  }
+ ]
+}

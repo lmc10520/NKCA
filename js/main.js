@@ -22,6 +22,7 @@ import { Soundscape } from './soundscape.js';
 import { Horizon, siteRect } from './horizon.js';
 import { Section } from './section.js';
 import { HIGH, quality, qualityPref, setQualityPref, TONE, FinalPass, AdaptiveRes } from './look.js';
+import { applyFinishes } from './finishes.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -40,8 +41,8 @@ const paint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r,
 setLoad(2, '讀取設定…');
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg, pianoCfg, soundCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview', 'piano', 'soundscape']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg, pianoCfg, soundCfg, finishesCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview', 'piano', 'soundscape', 'finishes']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -168,6 +169,8 @@ if (site.seamColor) {
     m.material = mt; m.userData.origMaterial = mt;
   }
 }
+// 廳院裝修材質：黑牆、原木、木頭漆黑、石紋（config/finishes.json）
+applyFinishes(model, finishesCfg, modesCfg.groups);
 // 幾乎重疊的地面圖層上下錯開，避免閃爍（site.json 的 lift_cm）
 for (const [pat, cm] of Object.entries(site.lift_cm || {})) {
   if (pat.startsWith('_')) continue;
