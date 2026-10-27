@@ -1,5 +1,5 @@
 {
- "_說明": "室內標示（只在建築物裡面：四個廳院的樓面、3F 樹冠大廳）。每一項可以是圖示（icon）或地點文字（text）。pos_cm 是樓地板上的點（Fusion 座標，cm）；圖示會立在它上方 pole_m 公尺的細桿頂端。modes 指定在哪些模式出現（exterior 外觀／canopy 樹冠大廳／plaza 榕樹廣場）；hall＋floor 指定廳院樓層（例如表演廳 RH 的 2F）。取得座標：在網頁按住 Shift 點樓面，會複製一行可以直接貼進來的設定。 cat 為右側「概覽」的分類 id（overview.json），同一分類的圖示會在概覽導覽時依序走過並框上顏色。z 省略或不確定時填 0（地面）。",
+ "_說明": "室內標示（只在建築物裡面：四個廳院的樓面、3F 樹冠大廳）。每一項可以是圖示（icon）或地點文字（text）。pos_cm 是樓地板上的點（Fusion 座標，cm）；圖示會立在它上方 pole_m 公尺的細桿頂端。modes 指定在哪些模式出現（exterior 外觀／canopy 樹冠大廳／plaza 榕樹廣場／b1、b2 地下停車場）；hall＋floor 指定廳院樓層（例如表演廳 RH 的 2F）。取得座標：在網頁按住 Shift 點樓面，會複製一行可以直接貼進來的設定。 cat 為右側「概覽」的分類 id（overview.json），同一分類的圖示會在概覽導覽時依序走過並框上顏色。z 省略或不確定時填 0（地面）。",
  "icons": {
   "restroom": "img/icons/restroom.svg",
   "men": "img/icons/men.svg",
@@ -21,7 +21,9 @@
   "bike_parking": "img/icons/bike_parking.svg",
   "scooter_parking": "img/icons/scooter_parking.svg",
   "car_temp": "img/icons/car_temp.svg",
-  "coach_temp": "img/icons/coach_temp.svg"
+  "coach_temp": "img/icons/coach_temp.svg",
+  "stairs": "img/icons/stairs.svg",
+  "atm": "img/icons/atm.svg"
  },
  "pole_m": 3,
  "showWithin_m": 220,
@@ -59,6 +61,30 @@
   { "icon": "parking", "text": "汽車停車場", "cat": "parking", "pos_cm": [26920, 14190, 4] },
   { "icon": "scooter_parking", "text": "機車停放處", "cat": "scooter", "pos_cm": [31864, 14141, 0] },
   { "icon": "taxi", "text": "計程車招呼站", "cat": "taxi", "pos_cm": [26129, 10768, 0] },
-  { "icon": "taxi", "text": "計程車招呼站", "cat": "taxi", "pos_cm": [1437, 10096, 0] }
+  { "icon": "taxi", "text": "計程車招呼站", "cat": "taxi", "pos_cm": [1437, 10096, 0] },
+  { "icon": "elevator", "text": "西南交通核電梯，抵達樓層B2、B1、1F、3F", "pos_cm": [6216, 9700, -800], "modes": ["b2"] },
+  { "icon": "escalator", "text": "西南交通核電扶梯，抵達樓層B2、B1、1F、3F", "pos_cm": [4879, 10392, -800], "modes": ["b2"] },
+  { "icon": "elevator", "text": "戲劇院B2入口電梯（廳院內電梯僅於演出期間開放）", "pos_cm": [8570, 13872, -800], "modes": ["b2"] },
+  { "icon": "elevator", "text": "歌劇院B2入口電梯（廳院內電梯僅於演出期間開放）", "pos_cm": [16017, 17075, -800], "modes": ["b2"] },
+  { "icon": "elevator", "text": "音樂廳B2西側入口電梯（廳院內電梯僅於演出期間開放）", "pos_cm": [18140, 11914, -800], "modes": ["b2"] },
+  { "icon": "elevator", "text": "音樂廳B2東側入口電梯（廳院內電梯僅於演出期間開放）", "pos_cm": [23432, 11603, -800], "modes": ["b2"] },
+  { "icon": "stairs", "text": "東南交通核樓梯，抵達樓層B2、B1、1F、3F", "pos_cm": [21269, 9193, -800], "modes": ["b2"] },
+  { "icon": "elevator", "text": "東北交通核電梯，抵達樓層B2、2F、3F", "pos_cm": [19371, 19519, -800], "modes": ["b2"] },
+  { "icon": "restroom", "text": "國泰路側停車場辦公室旁洗手間", "pos_cm": [24644, 10280, -450], "modes": ["b1"] },
+  { "icon": "stairs", "text": "東南交通核樓梯，抵達樓層B2、B1、1F、3F", "pos_cm": [21269, 9193, -450], "modes": ["b1"] },
+  { "icon": "water", "text": "西側公共空間飲水機", "pos_cm": [8715, 21223, 1200], "modes": ["canopy"] },
+  { "icon": "water", "text": "東側公共空間飲水機", "pos_cm": [17354, 18872, 1470], "modes": ["canopy"] },
+  { "icon": "nursing", "text": "哺乳室", "pos_cm": [6818, 10246, -450], "modes": ["b1"] },
+  { "icon": "restroom", "text": "洗手間", "pos_cm": [6813, 10770, -450], "modes": ["b1"] },
+  { "icon": "men", "text": "男廁", "pos_cm": [5474, 9036, 1200], "modes": ["canopy"] },
+  { "icon": "women", "text": "女廁", "pos_cm": [4590, 9149, 1200], "modes": ["canopy"] },
+  { "icon": "accessible", "text": "無障礙廁所", "pos_cm": [4955, 9280, 1200], "modes": ["canopy"] },
+  { "icon": "men", "text": "男廁", "pos_cm": [6142, 11077, 1200], "modes": ["canopy"] },
+  { "icon": "women", "text": "女廁", "pos_cm": [6126, 10694, 1200], "modes": ["canopy"] },
+  { "icon": "atm", "text": "提款機", "pos_cm": [6621, 11817, 1200], "modes": ["canopy"] },
+  { "icon": "men", "text": "男廁", "pos_cm": [8890, 21699, 1200], "modes": ["canopy"] },
+  { "icon": "women", "text": "女廁", "pos_cm": [9319, 21586, 1200], "modes": ["canopy"] },
+  { "icon": "men", "text": "男廁", "pos_cm": [17025, 19278, 1470], "modes": ["canopy"] },
+  { "icon": "women", "text": "女廁", "pos_cm": [16844, 17968, 1470], "modes": ["canopy"] }
  ]
 }
