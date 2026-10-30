@@ -48,6 +48,7 @@ body.night #clock{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 .liftButtons button{width:48px;height:40px;border-radius:12px;font-weight:500;font-size:15px;color:var(--on)}
 .liftButtons button:hover{background:var(--surface-2)}
 .liftButtons button.on{background:var(--primary);color:var(--on-primary)}
+.liftButtons button.toggle{height:auto;min-height:40px;padding:4px 2px;margin-top:6px;font-size:11px;line-height:1.25;word-break:keep-all;border:1px solid var(--outline)}
 
 
 .sheet{background:var(--surface);border-radius:20px;box-shadow:var(--elev2)}
