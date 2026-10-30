@@ -78,7 +78,6 @@
    ],
    "panelModes": [
     "plaza",
-    "b1",
     "b2"
    ],
    "floors": [
@@ -86,15 +85,18 @@
      "id": "3F"
     },
     {
-     "id": "2F"
+     "id": "2F",
+     "hide": [
+      "=Hall_Concert_3F"
+     ]
     },
     {
-     "id": "1F"
-    },
-    {
-     "id": "B1",
-     "action": "mode",
-     "mode": "b1"
+     "id": "1F",
+     "hide": [
+      "=Hall_Concert_3F",
+      "=Hall_Concert_Balcony",
+      "^Hall_Concert_CtrlGlass_"
+     ]
     },
     {
      "id": "B2",
