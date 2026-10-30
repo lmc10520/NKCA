@@ -2,6 +2,31 @@
  "_說明": "廳院裝修材質：依物件名稱（'=' 完整名稱、其他為正規表示式、'@' 引用 modes.json 的 groups）換成指定顏色與紋理。pattern：wood 木板、stone 石板、plain 素面；size_m 為 [長, 寬]（木板長×寬、石板邊長），variation 為每塊明暗差異。紋理由網頁依世界座標產生，不需 UV、不需貼圖檔，Fusion 重新匯出只要命名不變就會套用。except_cm（可省略）＝不套用的範圍，Fusion 平面座標 cm 多邊形，範圍內維持原本顏色。由上往下比對，先符合的先用；玻璃不會被換。整個物件會換成同一種材質：若同一個 body 的內外兩面要不同材質，要在 Fusion 拆開。",
  "finishes": [
   {
+   "id": "ConcertWallWhite",
+   "_說明": "音樂廳廳內牆面白色（Hall_Concert_Wall，Fusion 從 Hall_Concert_Balcony 拆出，2026-10-30 James 要求，和木地板區分）",
+   "pattern": "plain",
+   "color": "#f2f0eb",
+   "roughness": 0.85,
+   "match": [
+    "=Hall_Concert_Wall"
+   ]
+  },
+  {
+   "id": "ConcertLowWallWood",
+   "_說明": "音樂廳斜矮牆：整片淺色木紋（大尺寸、幾乎看不到板縫）（Hall_Concert_LowWall，2026-10-30 James 要求）",
+   "pattern": "wood",
+   "color": "#efdcb6",
+   "roughness": 0.5,
+   "size_m": [
+    8.0,
+    2.4
+   ],
+   "variation": 0.06,
+   "match": [
+    "=Hall_Concert_LowWall"
+   ]
+  },
+  {
    "id": "WoodNatural",
    "_說明": "原木：表演廳觀眾席地板；音樂廳觀眾席與廳內牆面（Hall_Concert_Balcony 是 2F 座席＋牆＋矮牆同一個 body，整個換原木）",
    "pattern": "wood",
@@ -12,7 +37,10 @@
     0.18
    ],
    "variation": 0.16,
-   "match": ["=Hall_Recital_Stalls", "^Hall_Concert_(Stalls|Balcony|3F)"]
+   "match": [
+    "=Hall_Recital_Stalls",
+    "^Hall_Concert_(Stalls|Balcony|3F)"
+   ]
   },
   {
    "id": "WallGray",
@@ -20,7 +48,12 @@
    "pattern": "plain",
    "color": "#a9abaf",
    "roughness": 0.85,
-   "match": ["=RH2F_HallWalls", "=RH_Hall_LowWall", "^OH_Aud_Wall_", "^OH_Aud_.*PonyWall"]
+   "match": [
+    "=RH2F_HallWalls",
+    "=RH_Hall_LowWall",
+    "^OH_Aud_Wall_",
+    "^OH_Aud_.*PonyWall"
+   ]
   },
   {
    "id": "Stone",
@@ -33,27 +66,81 @@
     0.8
    ],
    "variation": 0.1,
-   "match": ["=RH1F_Floor", "=RH2F_Floor", "^OH_Aud_.*Floor", "^OH_Stair_Landing_", "=L3_Opera_2F_Floor_Ext"],
+   "match": [
+    "=RH1F_Floor",
+    "=RH2F_Floor",
+    "^OH_Aud_.*Floor",
+    "^OH_Stair_Landing_",
+    "=L3_Opera_2F_Floor_Ext"
+   ],
    "except_cm": [
     [
-     [12200, 18700],
-     [14800, 18700],
-     [14900, 18000],
-     [15300, 17000],
-     [15650, 15800],
-     [15600, 14700],
-     [15000, 14450],
-     [12000, 14450],
-     [11400, 14700],
-     [11350, 15800],
-     [11700, 17000],
-     [12100, 18000]
+     [
+      12200,
+      18700
+     ],
+     [
+      14800,
+      18700
+     ],
+     [
+      14900,
+      18000
+     ],
+     [
+      15300,
+      17000
+     ],
+     [
+      15650,
+      15800
+     ],
+     [
+      15600,
+      14700
+     ],
+     [
+      15000,
+      14450
+     ],
+     [
+      12000,
+      14450
+     ],
+     [
+      11400,
+      14700
+     ],
+     [
+      11350,
+      15800
+     ],
+     [
+      11700,
+      17000
+     ],
+     [
+      12100,
+      18000
+     ]
     ],
     [
-     [20940, 21500],
-     [23150, 21500],
-     [23150, 18550],
-     [20940, 18550]
+     [
+      20940,
+      21500
+     ],
+     [
+      23150,
+      21500
+     ],
+     [
+      23150,
+      18550
+     ],
+     [
+      20940,
+      18550
+     ]
     ]
    ]
   }
