@@ -15,10 +15,17 @@ function cardHTML(l) {
   let h = `<h1>${esc(c.h1 ?? l.text)}</h1>`;
   if (c.h2) h += `<h2>${esc(c.h2)}</h2>`;
   if (c.p) h += `<p>${esc(c.p)}</p>`;
-  for (const s of c.sections || []) {
-    if (s.title) h += `<h3>${esc(s.title)}</h3>`;
-    if (s.p) h += `<p>${esc(s.p)}</p>`;
-    if (s.items?.length) h += '<ul>' + s.items.map((i) => `<li>${esc(i)}</li>`).join('') + '</ul>';
+  // 各段落放進格線：卡片夠寬時兩欄並排，卡片不必拉長到出現捲軸
+  if (c.sections?.length) {
+    h += '<div class="secs">';
+    for (const s of c.sections) {
+      h += '<section>';
+      if (s.title) h += `<h3>${esc(s.title)}</h3>`;
+      if (s.p) h += `<p>${esc(s.p)}</p>`;
+      if (s.items?.length) h += '<ul>' + s.items.map((i) => `<li>${esc(i)}</li>`).join('') + '</ul>';
+      h += '</section>';
+    }
+    h += '</div>';
   }
   if (c.img) h += `<img src="${esc(c.img)}" alt="">`;
   return h;
