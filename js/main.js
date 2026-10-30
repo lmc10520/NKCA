@@ -320,29 +320,9 @@ function showParkingPlan() {
   parkingPlan.show(L ? [{ ...L, depth: true }] : []);
 }
 
-// 廳院樓層升起／降下動畫：切到有 lift_m 的樓層時，新出現的物件從下方升起；離開該樓層時，要收起的物件先降下再隱藏
-const lifts = [];
-function liftTo(m, to, hideEnd) {
-  m.userData.y0 ??= m.position.y;
-  const i = lifts.findIndex((L) => L.m === m); if (i >= 0) lifts.splice(i, 1);
-  lifts.push({ m, from: m.position.y - m.userData.y0, to, hideEnd, t: 0 });
-}
 function setHallFloor(h, fid) {
-  const prev = h.floorsM.find((x) => x.id === state.halls[h.id]);
-  const was = new Set(model.meshes.filter((m) => m.visible));
   state.halls[h.id] = fid;
   if (h.modes && !h.modes.includes(state.mode)) setMode(h.modes[0], true); else applyVisibility();
-  const f = h.floorsM.find((x) => x.id === fid);
-  if (f?.lift_m) {
-    for (const m of model.meshes) {
-      if (!f.showM(m.userData.fname) || !m.visible) continue;
-      if (!was.has(m)) { m.userData.y0 ??= m.position.y; m.position.y = m.userData.y0 - f.lift_m; m.updateMatrix(); liftTo(m, 0); }
-      else if (lifts.some((L) => L.m === m && L.hideEnd)) liftTo(m, 0);   // 降到一半又切回來：從目前位置升回去
-    }
-  }
-  if (prev?.lift_m && prev !== f) {
-    for (const m of was) if (!m.visible && prev.showM(m.userData.fname)) { m.visible = true; liftTo(m, -prev.lift_m, true); }
-  }
   renderLiftPanel(true);
 }
 
@@ -1328,15 +1308,6 @@ renderer.setAnimationLoop(() => {
   simDt += dt;
   if (!isMobile || (frameNo & 1)) { vehicles.update(simDt, n); people.update(simDt); simDt = 0; }
   frameNo++;
-  for (let i = lifts.length - 1; i >= 0; i--) {
-    const L = lifts[i]; L.t = Math.min(1, L.t + dt / 1.2);
-    L.m.position.y = L.m.userData.y0 + L.from + (L.to - L.from) * ease(L.t);
-    if (L.t >= 1) {
-      lifts.splice(i, 1);
-      if (L.hideEnd) { L.m.visible = meshVisible(L.m.userData.fname); L.m.position.y = L.m.userData.y0; }
-    }
-    L.m.updateMatrix();
-  }
   // 需要後製（夜間光暈、線稿＋網點）才走 composer；否則直接畫，畫面有原生反鋸齒
   const tone = state.style === 'tone', bloomOn = useBloom && !plain && bloom.strength > 0.01;
   if (bloomOn || tone) {
