@@ -256,8 +256,27 @@ let parkingKey = '';
 plan.onError = (src) => toast(`讀不到圖層 ${decodeURIComponent(src.split('/').pop())}`);
 const screenLayer = new ScreenOverlay($('screenLayers'));
 screenLayer.onError = plan.onError;
+// 預先編譯 shader：材質、燈光一多，第一次畫出來時要編譯幾十支 shader，畫面會凍住好幾秒（晚上燈多更久）。
+// shader 會因「夜間光源開／關」與「直接畫到畫面／經過後製（夜間光暈）」而不同，共三種組合：
+// 白天（光源關、直接畫）、黃昏與熄燈後（光源關、後製）、夜晚（光源開、後製）。
+// 載入畫面先編好目前要用的那一種（包含目前模式隱藏的物件，切換模式時不必再編），其他兩種在畫面出現後於背景編好，
+// 黃昏轉夜間、23:00 熄燈、拖動時間時就不會卡住
+function precompile(lightsOn, post) {
+  const prev = night.setLightsOn(lightsOn), rt = renderer.getRenderTarget();
+  if (post) renderer.setRenderTarget(composer.readBuffer);
+  const p = renderer.compileAsync(scene, camera).catch((e) => console.warn('[precompile]', e));
+  renderer.setRenderTarget(rt);
+  night.setLightsOn(prev);
+  return p;
+}
+setLoad(96, '準備畫面…'); await paint();
+env.update(0);
+const VARIANTS = [[false, false], [false, true], [true, true]];
+const startVariant = env.night > 0.05 ? 2 : env.night * (BL.strength ?? 0.75) > 0.01 && useBloom ? 1 : 0;
+await precompile(...VARIANTS[startVariant]);
 setLoad(100, '完成'); await paint(); await new Promise((r) => setTimeout(r, 250));
 $('loading').classList.add('hidden');
+setTimeout(async () => { for (let i = 0; i < VARIANTS.length; i++) if (i !== startVariant) await precompile(...VARIANTS[i]); }, 2000);
 
 // ---------- 可見性：模式 + 廳院樓層 ----------
 const state = {
