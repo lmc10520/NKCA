@@ -269,14 +269,33 @@ function precompile(lightsOn, post) {
   night.setLightsOn(prev);
   return p;
 }
+// 建築燈光營運時間（config/lights.json 的 buildingHours）
+const hm = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const BH = lightsCfg.buildingHours || {};
+function buildingOpen(d) {
+  if (!BH.off) return true;
+  const tp = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Taipei' })), m = tp.getHours() * 60 + tp.getMinutes();
+  const on = hm(BH.on ?? '05:00'), off = hm(BH.off);
+  return on < off ? m >= on && m < off : m >= on || m < off;
+}
 setLoad(96, '準備畫面…'); await paint();
 env.update(0);
-const VARIANTS = [[false, false], [false, true], [true, true]];
-const startVariant = env.night > 0.05 ? 2 : env.night * (BL.strength ?? 0.75) > 0.01 && useBloom ? 1 : 0;
-await precompile(...VARIANTS[startVariant]);
+// 開場的日夜狀態要和第一個畫面完全一致（23:00 熄燈後：夜間光暈有、建築光源關），否則第一個畫面又要重新編譯
+const venueAtStart = buildingOpen(env.now()) ? 1 : 0;
+const startLights = env.night * venueAtStart > 0.05;
+const startPost = useBloom && env.night * (BL.strength ?? 0.75) > 0.01;
+const VARIANTS = (useBloom ? [[false, false], [false, true], [true, true]] : [[false, false], [true, false]])
+  .filter(([l, p]) => l !== startLights || p !== startPost);
+await precompile(startLights, startPost);
+night.setLightsOn(startLights);
+// 在載入畫面後面先畫一次：模型的頂點資料傳到顯示卡、後製光暈的 shader 也在這時編好，畫面出現後第一格就不會卡
+if (startPost) composer.render(); else renderer.render(scene, camera);
 setLoad(100, '完成'); await paint(); await new Promise((r) => setTimeout(r, 250));
 $('loading').classList.add('hidden');
-setTimeout(async () => { for (let i = 0; i < VARIANTS.length; i++) if (i !== startVariant) await precompile(...VARIANTS[i]); }, 2000);
+// 其他日夜組合等畫面穩定後再一種一種編（每種之間讓出幾格畫面）
+setTimeout(async () => {
+  for (const v of VARIANTS) { await precompile(...v); await new Promise((r) => setTimeout(r, 500)); }
+}, 3000);
 
 // ---------- 可見性：模式 + 廳院樓層 ----------
 const state = {
@@ -1270,15 +1289,7 @@ function studioLight() {
 }
 
 const clock = new THREE.Clock();
-const hm = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
-const BH = lightsCfg.buildingHours || {};
-function buildingOpen(d) {
-  if (!BH.off) return true;
-  const tp = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Taipei' })), m = tp.getHours() * 60 + tp.getMinutes();
-  const on = hm(BH.on ?? '05:00'), off = hm(BH.off);
-  return on < off ? m >= on && m < off : m >= on || m < off;
-}
-let venueK = 1, simDt = 0, frameNo = 0;
+let venueK = venueAtStart, simDt = 0, frameNo = 0;
 let lastUI = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), t = clock.elapsedTime;
