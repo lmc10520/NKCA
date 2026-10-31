@@ -1,5 +1,5 @@
 {
- "_說明": "廳院內的局部樓層：在榕樹廣場模式中靠近廳院時出現。每層 show/hide/reveal 為物件名稱規則（'@' 開頭引用 modes.json 的 groups）；reveal＝把模式藏起來的物件重新顯示（歌劇院 3F／4F 在榕樹廣場的隱藏清單內，選 3F／4F 時叫回來）；lift_m 為升起展示的高度（切到該層時升起、離開時降下）。表演廳 1F 不藏 2F 北側外緣的門與玻璃帷幕（RH2F_N_、Door_9～15、45～59），它們是外牆的一部分。action:\"mode\" 的樓層（B1、B2）直接切到地下停車場模式：電梯直通 B2。panelModes＝在哪些模式中顯示這個廳院的樓層按鈕。",
+ "_說明": "廳院內的局部樓層：在榕樹廣場模式中靠近廳院時出現。每層 show/hide/reveal 為物件名稱規則（'@' 開頭引用 modes.json 的 groups）；reveal＝把模式藏起來的物件重新顯示（歌劇院 3F／4F 在榕樹廣場的隱藏清單內，選 3F／4F 時叫回來）。表演廳 1F 不藏 2F 北側外緣的門與玻璃帷幕、北側那段樓板（RH2F_N_、Door_9～15），它們是外牆的一部分；2F 後台天花板（RH2F_BackstageCeiling*）與觀眾席牆（RH2F_HallWalls）也保留，才看得出 1F 的頂和牆。action:\"mode\" 的樓層（B1、B2）直接切到地下停車場模式：電梯直通 B2。panelModes＝在哪些模式中顯示這個廳院的樓層按鈕。",
  "halls": [
   {
    "id": "OH",
@@ -78,7 +78,6 @@
    ],
    "panelModes": [
     "plaza",
-    "b1",
     "b2"
    ],
    "floors": [
@@ -86,15 +85,18 @@
      "id": "3F"
     },
     {
-     "id": "2F"
+     "id": "2F",
+     "hide": [
+      "=Hall_Concert_3F"
+     ]
     },
     {
-     "id": "1F"
-    },
-    {
-     "id": "B1",
-     "action": "mode",
-     "mode": "b1"
+     "id": "1F",
+     "hide": [
+      "=Hall_Concert_3F",
+      "=Hall_Concert_Balcony",
+      "^Hall_Concert_CtrlGlass_"
+     ]
     },
     {
      "id": "B2",
@@ -121,13 +123,12 @@
      "id": "2F",
      "show": [
       "^RH2F_"
-     ],
-     "lift_m": 3
+     ]
     },
     {
      "id": "1F",
      "hide": [
-      "^RH2F_(?!N_|Door_(9|11|13|15|45|47|49|51|53|55|57|59)(_|$))",
+      "^RH2F_(?!N_|Door_(9|11|13|15)(_|$)|BackstageCeiling|HallWalls(_|$))",
       "^RH_Escalator"
      ]
     }
