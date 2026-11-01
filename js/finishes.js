@@ -67,29 +67,31 @@ function finishMaterial(base, spec) {
   mat.map = null;
   mat.userData.base = { color: mat.color.clone(), emissive: mat.emissive.clone(), ei: mat.emissiveIntensity };
   const pat = PATTERNS[spec.pattern] || PATTERNS.plain;
-  const f = (v) => Number(v).toFixed(3);
   const [len, w] = spec.size_m || [1.2, 0.15];
   // 原材質顏色（except_cm 範圍內用）用 uniform 傳入：同一種裝修材質不論原本是哪個材質，都共用同一支 shader，
   // 不必各自編譯（之前把顏色寫死在 shader 裡，每個原材質各編一支，載入時第一個畫面會卡很久）
-  const uOrig = { value: orig };
+  // 紋理尺寸與明暗差也走 uniform：同一種紋理（木紋、素面…）的不同裝修項目共用同一支 shader
+  const uOrig = { value: orig }, uFin = { value: new THREE.Vector3(len, w, spec.variation ?? 0.25) };
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uFinOrig = uOrig;
+    sh.uniforms.uFinOrig = uOrig; sh.uniforms.uFin = uFin;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFinWP; varying vec3 vFinWN;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvFinWP=(modelMatrix*vec4(transformed,1.0)).xyz; vFinWN=mat3(modelMatrix)*objectNormal;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uFinOrig;' + COMMON + exceptGLSL(spec.except_cm))
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uFinOrig; uniform vec3 uFin;' + COMMON + exceptGLSL(spec.except_cm))
       .replace('#include <color_fragment>', `#include <color_fragment>
       {
         vec3 an = abs(normalize(vFinWN));
         // 地板：xz；牆：依法線主軸選投影面，木紋／石縫在牆上沿水平方向延伸
         vec2 fp = an.y > 0.7 ? vFinWP.${spec.along === 'z' ? 'zx' : 'xz'} : (an.x > an.z ? vFinWP.zy : vFinWP.xy);
         ${spec.wallVertical ? 'if (an.y <= 0.7) fp = fp.yx;' : ''}
-        float fLen = ${f(len)}, fW = ${f(w)}, fVar = ${f(spec.variation ?? 0.25)}, tint = 1.0;
+        float fLen = uFin.x, fW = uFin.y, fVar = uFin.z, tint = 1.0;
         ${pat}
         diffuseColor.rgb *= clamp(tint, 0.0, 2.0);
         if (finExcept(vFinWP.xz)) diffuseColor.rgb = uFinOrig;
       }`);
   };
-  mat.customProgramCacheKey = () => 'finish_' + spec.id;
+  // shader 只隨紋理種類、投影方向與 except_cm 範圍不同；顏色、尺寸都是 uniform
+  const key = 'finish_' + [spec.pattern || 'plain', spec.along || '', spec.wallVertical ? 'v' : '', JSON.stringify(spec.except_cm || [])].join('|');
+  mat.customProgramCacheKey = () => key;
   return mat;
 }
 
