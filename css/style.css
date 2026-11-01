@@ -219,6 +219,9 @@ body.presenting #pianoBar{bottom:84px}
 body.presenting #pianoTip.anchor,body.welcome #pianoTip{display:none!important}
 
 /* 建築聲景開關（右下）與第一次互動提示 */
+#mapAttrib{right:6px;bottom:4px;font-size:10px;line-height:1.4;color:#3c4043;background:rgba(255,255,255,.7);padding:0 6px;border-radius:4px;text-decoration:none;z-index:5}
+#mapAttrib:hover{text-decoration:underline}
+body.welcome #mapAttrib{opacity:.6}
 #soundBtn{right:16px;bottom:26px;transition:bottom .3s,opacity .6s}
 #soundBtn.off{color:#9aa0a6}
 #soundBtn.locked::after{content:"";position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--primary);animation:sdPulse 1.6s ease-in-out infinite}
