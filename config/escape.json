@@ -8,7 +8,8 @@
     "^RH\\dF_EscapeStair$"
   ],
   "doors": [
-    "^SW_Core_1F_EscapeDoor"
+    "^SW_Core_1F_EscapeDoor",
+    "^EmergencyStair_\\d+_Door"
   ],
   "hide": [
     "=SW_Core_1F_EscapeStair_Wall",
