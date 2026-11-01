@@ -306,8 +306,10 @@ const state = {
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
-const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups), revealM: makeMatcher(f.reveal, modesCfg.groups) })) }));
+const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups), revealM: makeMatcher(f.reveal, modesCfg.groups) })),
+  togglesM: (h.toggles || []).map((t) => ({ ...t, hideM: makeMatcher(t.hide, modesCfg.groups) })) }));
 halls.forEach((h) => (state.halls[h.id] = h.default));
+state.hallToggles = {};   // 廳院面板的開關（halls.json toggles）：key 為「廳院:開關」，true＝隱藏該開關的物件
 
 function meshVisible(n) {
   let v = !modeHide[state.mode]?.(n);
@@ -316,6 +318,7 @@ function meshVisible(n) {
     const f = h.floorsM.find((x) => x.id === state.halls[h.id]);
     if (f?.revealM(n)) v = true;   // 模式藏起來的樓層（如歌劇院 3F／4F 在榕樹廣場的隱藏清單內）由樓層按鈕叫回來
     if (f?.hideM(n)) return false;
+    for (const t of h.togglesM) if (state.hallToggles[h.id + ':' + t.id] && t.hideM(n)) return false;
   }
   return v;
 }
@@ -402,7 +405,7 @@ function nearest() {
 }
 function renderLiftPanel(force) {
   const n = state.presenting ? null : nearest();
-  const key = n ? n.type + n.c.id + state.mode + JSON.stringify(state.halls) : '';
+  const key = n ? n.type + n.c.id + state.mode + JSON.stringify(state.halls) + JSON.stringify(state.hallToggles) : '';
   if (!force && key === liftCtx) return;
   liftCtx = key;
   $('liftPanel').classList.toggle('hidden', !n);
@@ -413,6 +416,13 @@ function renderLiftPanel(force) {
   for (const f of n.c.floors) {
     const b = document.createElement('button'); b.textContent = f.id; b.classList.toggle('on', f.id === cur);
     b.onclick = () => (n.type === 'hall' && f.action !== 'mode' ? setHallFloor(n.c, f.id) : coreAction(n.c, f));
+    box.appendChild(b);
+  }
+  // 廳院開關：例如歌劇院「露出樓梯」，隱藏擋住樓梯的牆面
+  for (const t of n.type === 'hall' ? n.c.togglesM : []) {
+    const k = n.c.id + ':' + t.id, b = document.createElement('button');
+    b.className = 'toggle'; b.textContent = t.label; b.title = t.title || t.label; b.classList.toggle('on', !!state.hallToggles[k]);
+    b.onclick = () => { state.hallToggles[k] = !state.hallToggles[k]; if (n.c.modes && !n.c.modes.includes(state.mode)) setMode(n.c.modes[0], true); else applyVisibility(); renderLiftPanel(true); };
     box.appendChild(b);
   }
 }
