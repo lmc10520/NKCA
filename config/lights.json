@@ -49,6 +49,8 @@
   "dotSpacing_m": 3.2,
   "dotRadius_m": 0.09,
   "color": "#fff6ea",
+  "topNightColor": "#2a2a2a",
+  "_topNightColor說明": "天花頂面（樹冠大廳沒有 3F 樓板處往下看得到的部分）夜間的顏色：非開放區、不畫燈點",
   "area": {
    "_說明": "頂光範圍避開南側戶外劇場（座位會頂到天花附近，會被打成一片白）",
    "center_cm": [

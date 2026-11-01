@@ -83,15 +83,22 @@ export class NightLights {
       for (const m of model.meshes.filter((x) => cm(x.userData.fname))) {
         m.material = m.material.clone(); m.userData.origMaterial = m.material;
         const u = this.ceilUniform, sp = c.plaza.dotSpacing_m, r = c.plaza.dotRadius_m;
+        // 光點只畫在朝下的面；朝上的頂面（樹冠大廳沒有 3F 樓板處往下看得到）夜間改成深色非開放區，
+        // 否則從上面看會像樓板破洞透出下方燈光
+        const top = new THREE.Color(c.plaza.topNightColor || '#2a2a2a');
         m.material.onBeforeCompile = (sh) => {
           sh.uniforms.uNight = u;
-          sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
+          sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;')
+            .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvCWN=mat3(modelMatrix)*objectNormal;')
             .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;uniform float uNight;`)
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;`)
             .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+              float ny=normalize(vCWN).y;
               vec2 cell=fract(vWP.xz/${sp.toFixed(2)})-0.5; float d=length(cell)*${sp.toFixed(2)};
-              float dotm=1.0-smoothstep(${(r * 0.6).toFixed(3)},${r.toFixed(3)},d);
-              totalEmissiveRadiance+=vec3(${col.r.toFixed(3)},${col.g.toFixed(3)},${col.b.toFixed(3)})*dotm*uNight*6.0;`);
+              float dotm=(1.0-smoothstep(${(r * 0.6).toFixed(3)},${r.toFixed(3)},d))*(1.0-smoothstep(-0.6,-0.3,ny));
+              totalEmissiveRadiance+=vec3(${col.r.toFixed(3)},${col.g.toFixed(3)},${col.b.toFixed(3)})*dotm*uNight*6.0;`)
+            .replace('#include <opaque_fragment>', `outgoingLight=mix(outgoingLight,vec3(${top.r.toFixed(3)},${top.g.toFixed(3)},${top.b.toFixed(3)}),smoothstep(0.3,0.6,ny)*uNight);
+              #include <opaque_fragment>`);
         };
         m.material.needsUpdate = true;
       }
