@@ -178,8 +178,9 @@ export class Environment {
   }
 
   update(dt) {
-    const { alt, az } = sunPosition(this.now(), this.lat, this.lon);
-    // 網頁座標：北 = -Z、東 = +X
+    const { alt, az: az0 } = sunPosition(this.now(), this.lat, this.lon);
+    // 網頁座標：模型 +Y = -Z、+X = +X；真北 = 模型 +Y 順時針轉 northOffset_deg
+    const az = az0 + THREE.MathUtils.degToRad(this.site.northOffset_deg ?? 23);
     const dir = new THREE.Vector3(Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt));
     this.sunDir.copy(dir);
     const night = smooth(0.10, -0.10, alt);      // 太陽仰角 +6° → -6° 由日轉夜
