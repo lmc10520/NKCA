@@ -10,6 +10,7 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dequantize, simplifyPrimitive, weldPrimitive, quantize, reorder, prune } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const IN = process.argv[2] || 'model/nkca.glb', OUT = process.argv[3] || 'model/nkca_lite.glb';
 
@@ -57,4 +58,4 @@ for (const [n, a, b] of report.slice(0, 20)) console.log(`${n.padEnd(28)} ${Stri
 console.log(`總面數 ${Math.round(before).toLocaleString()} → ${Math.round(after).toLocaleString()}（${Math.round((after / before) * 100)}%）`);
 
 // 匯出後檢查（北側土丘等必須隱藏的物件）：兩個模型都檢查，沒通過會失敗
-execFileSync(process.execPath, [new URL('check_model.mjs', import.meta.url).pathname, IN, OUT], { stdio: 'inherit' });
+execFileSync(process.execPath, [fileURLToPath(new URL('check_model.mjs', import.meta.url)), IN, OUT], { stdio: 'inherit' });
