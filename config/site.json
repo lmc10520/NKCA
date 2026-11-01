@@ -41,7 +41,7 @@
   "attribution": "© OpenStreetMap 貢獻者",
   "attributionUrl": "https://www.openstreetmap.org/copyright",
   "anchor": { "lat": 22.6236, "lon": 120.3407, "at_cm": [13700, 15300] },
-  "rotate_deg": -43.8, "scale": 1.0829, "shift_m": [-163, 93],
+  "rotate_deg": 0, "scale": 1.0829, "shift_m": [-163, 93],
   "layers": [ { "z": 16, "tiles": 8 }, { "z": 14, "tiles": 6 } ],
   "fadeStart_m": 1500, "fadeEnd_m": 4500, "saturation": 0.55, "lighten": 0.2, "night": 0.75
  },
@@ -66,8 +66,8 @@
   "sky": "#1e3260",
   "horizon": "#4a5d86"
  },
- "northOffset_deg": 23,
- "_northOffset說明": "真北＝模型 +Y 軸順時針轉幾度（指北針用）",
+ "northOffset_deg": -20.8,
+ "_northOffset說明": "真北＝模型 +Y 軸順時針轉幾度（負值＝逆時針）。指北針、日照方位、極光、OSM 地圖都用這個值。2026-11-01 依 OSM 地圖對位改成 -20.8（原本 23 方向相反）",
  "lift_cm": {
   "_說明": "幾乎重疊的地面圖層會互相閃爍（z-fighting），網頁把它們上下錯開（cm，正值往上）。",
   "^Site_Marking": 5,
