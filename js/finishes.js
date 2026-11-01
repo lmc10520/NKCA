@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { makeMatcher } from './util.js';
 
-// 廳院裝修材質（config/finishes.json）：依物件名稱換成黑牆、原木、木頭漆黑、石紋。
+// 廳院裝修材質（config/finishes.json）：依物件名稱換成灰牆、原木、石紋、地毯。
 // 紋理在 shader 裡依世界座標產生（不需 UV、不需貼圖檔），Fusion 重新匯出只要命名不變就會套用。
 // 朝上的面鋪地板紋（xz 平面），牆面依法線主軸投影，同一個物件裡的地板和牆會各自對齊。
 const PATTERNS = {
@@ -25,6 +25,14 @@ const PATTERNS = {
     float cloud = fnoise(fp * 0.9 + cell * 5.0) * 0.6 + fnoise(fp * 3.1) * 0.4 - 0.5;
     float seam = 1.0 - (1.0 - smoothstep(0.0, 0.012, f.x) * (1.0 - smoothstep(0.988, 1.0, f.x)) * smoothstep(0.0, 0.012, f.y) * (1.0 - smoothstep(0.988, 1.0, f.y))) * 0.3;
     tint = (1.0 + slab * fVar + cloud * fVar * 1.4) * seam;`,
+  // 地毯：細密絨毛雜訊＋方塊地毯（邊長 fLen×fW）每塊些微明暗差，遠處淡出避免雜點
+  carpet: `
+    vec2 q = fp / vec2(fLen, fW);
+    vec2 cell = floor(q);
+    float tile = fhash(cell) - 0.5;
+    float aa = clamp(1.5 - length(fwidth(fp)) * 12.0, 0.0, 1.0);
+    float pile = (fnoise(fp * 60.0) * 0.6 + fnoise(fp * 9.0) * 0.4 - 0.5) * aa;
+    tint = 1.0 + tile * fVar + pile * fVar * 1.6;`,
   plain: `tint = 1.0;`,
 };
 

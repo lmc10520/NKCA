@@ -69,11 +69,11 @@
   "intensity": 0.6,
   "rules": [
    {
-    "_說明": "樹冠大廳 3F：L3_ 開頭、材質 L3_Floor 的地板（L3_Floor (n)、L3_Floor_OH_Band、露臺等）",
+    "_說明": "樹冠大廳 3F：L3_ 開頭、材質 L3_Floor 的地板（L3_Floor (n)、L3_Floor_OH_Band、露臺等）；樓地板換成地毯後材質名稱為 Finish_Carpet（finishes.json）",
     "match": [
      "^L3_"
     ],
-    "material": "^L3_Floor$"
+    "material": "^(L3_Floor|Finish_Carpet)$"
    },
    {
     "_說明": "歌劇院觀眾席與樓梯平台",
