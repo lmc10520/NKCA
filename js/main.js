@@ -213,6 +213,8 @@ for (const m of model.meshes) if (isCut(m)) section.register(m.userData.origMate
 // 地平線：基地外延伸的地坪＋地平線霧帶（site.json 的 horizon）
 const rect = site.horizon?.enabled === false ? null : siteRect(model);
 const horizon = rect ? new Horizon(scene, rect, site.horizon) : null;
+// 地坪外的 OpenStreetMap 地圖（site.json 的 map）：圖磚在背景慢慢載入，不擋開場
+horizon?.setMap(site.map, site.northOffset_deg ?? 23, renderer.capabilities.getMaxAnisotropy());
 section.addBase(scene, rect || siteRect(model), site.section?.baseColor);   // 屋頂投射燈、廣場面光源都開
 for (const m of model.meshes) { const mt = m.userData.origMaterial; if (mt?.isMeshStandardMaterial) envMats.add(mt); }
 let envKNow = -1, nightNow = -1;

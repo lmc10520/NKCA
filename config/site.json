@@ -34,6 +34,17 @@
   "Roof_White_Aluminum": "#d9dcdf"
  },
  "seamColor": "#7d848c",
+ "map": {
+  "_說明": "地坪外的 OpenStreetMap 地圖：貼在 horizon 地坪上（基地範圍內不顯示），由近到遠淡出成地平線色。anchor＝對位點：模型平面座標 at_cm [x, y]（cm）對應的經緯度；方向用 northOffset_deg。位置不準時，網址加 ?mapcal 用鍵盤微調（方向鍵移動、Q／E 旋轉、－／＝ 比例），把面板上的 rotate_deg、scale、shift_m 貼回這裡。layers＝兩層圖磚（z 縮放等級、tiles 每邊幾張），第一層近處細、第二層遠處粗；fadeStart_m／fadeEnd_m＝離基地中心多遠開始淡出到全部消失；saturation＝彩度（0 灰階、1 原色）；lighten＝往地坪淺色提亮的比例；night＝夜晚轉成夜色的程度。url 可換其他圖磚（{z}{x}{y}，{s} 子網域、{r} 高解析）；換了要同時改 attribution。enabled:false 可關閉。",
+  "enabled": true,
+  "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  "attribution": "© OpenStreetMap 貢獻者",
+  "attributionUrl": "https://www.openstreetmap.org/copyright",
+  "anchor": { "lat": 22.6236, "lon": 120.3407, "at_cm": [13700, 15300] },
+  "rotate_deg": 0, "scale": 1, "shift_m": [0, 0],
+  "layers": [ { "z": 16, "tiles": 8 }, { "z": 14, "tiles": 6 } ],
+  "fadeStart_m": 1500, "fadeEnd_m": 4500, "saturation": 0.55, "lighten": 0.2, "night": 0.75
+ },
  "horizon": { "dayNear": "#eeeeeb", "dayFar": "#d9e2e8", "nightNear": "#5a647b", "nightFar": "#2c3854", "fadeStart_m": 250, "fadeEnd_m": 2600, "nightFadeStart_m": 420, "nightFadeEnd_m": 1100 },
  "section": { "capFill": false, "keep": "^Site_(?!Ramp_|Parking_|Dock_)", "baseColor": "#b9b3a8", "capColors": { "normal": "#7a7e84", "colorline": "#7a7e84", "contrast": "#8d9196", "wire": "#2a2c30", "tone": "#2a2c30" }, "_說明": "剖面（設定 → 剖面）：只切建築。keep＝不切的物件名稱規則，預設只保留基地外圍的 Site_ 道路、草地、鋪面；榕樹廣場地坪、戶外劇場、停車場坡道與卸貨碼頭的牆、之後的地下樓層都會切。baseColor＝剖面開啟時鋪在所有建築最低點下方的底板（土層）顏色，加入地下樓層後高度會自動往下。capFill＝切口填色預設開或關（使用者可在設定切換）；capColors＝各模型樣式的切口顏色。" },
  "studioLight": { "az_deg": 300, "alt_deg": 46, "sun": 2.6, "ambient": 2.0 },
