@@ -1,0 +1,19 @@
+{
+  "_說明": "逃生狀態（設定 → 逃生狀態）：開啟時 stairs、doors 的物件換成紅色（全部共用同一個材質，不增加 shader），hide 的物件（遮住逃生梯的牆、天花、梯間方塊）隱藏。名稱規則同 modes.json：'=' 完整名稱、其他為正規表示式、'@' 引用 modes.json 的 groups。",
+  "color": "#e0261b",
+  "emissive": "#4a0703",
+  "stairs": [
+    "^EmergencyStair_\\d+_Stair",
+    "=SW_Core_1F_EscapeStair",
+    "^RH\\dF_EscapeStair$"
+  ],
+  "doors": [
+    "^SW_Core_1F_EscapeDoor"
+  ],
+  "hide": [
+    "=SW_Core_1F_EscapeStair_Wall",
+    "=SW_Core_1F_Ceiling",
+    "^EmergencyStair_\\d+$",
+    "^EmergencyStair_\\d+_Wall_"
+  ]
+}
