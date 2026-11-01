@@ -11,6 +11,17 @@
    ],
    "radius_cm": 4800,
    "default": "1F",
+   "_toggles說明": "toggles：面板上的開關按鈕，按下（on）時隱藏 hide 裡的物件。歌劇院 2F 樓梯外側牆面會擋住樓梯，Fusion 拆成 OH_Aud_Wall_2F_StairOuter*（2026-10-30 James 第 6 點），按「露出樓梯」隱藏。",
+   "toggles": [
+    {
+     "id": "stairWall",
+     "label": "露出樓梯",
+     "title": "隱藏 2F 樓梯外側牆面，看樓梯外露的樣貌",
+     "hide": [
+      "^OH_Aud_Wall_2F_StairOuter"
+     ]
+    }
+   ],
    "modes": [
     "plaza"
    ],
