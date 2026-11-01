@@ -41,7 +41,7 @@
   "attribution": "© OpenStreetMap 貢獻者",
   "attributionUrl": "https://www.openstreetmap.org/copyright",
   "anchor": { "lat": 22.6236, "lon": 120.3407, "at_cm": [13700, 15300] },
-  "rotate_deg": 0, "scale": 1, "shift_m": [0, 0],
+  "rotate_deg": -43.8, "scale": 1.0829, "shift_m": [-163, 93],
   "layers": [ { "z": 16, "tiles": 8 }, { "z": 14, "tiles": 6 } ],
   "fadeStart_m": 1500, "fadeEnd_m": 4500, "saturation": 0.55, "lighten": 0.2, "night": 0.75
  },
