@@ -256,8 +256,46 @@ let parkingKey = '';
 plan.onError = (src) => toast(`讀不到圖層 ${decodeURIComponent(src.split('/').pop())}`);
 const screenLayer = new ScreenOverlay($('screenLayers'));
 screenLayer.onError = plan.onError;
+// 預先編譯 shader：材質、燈光一多，第一次畫出來時要編譯幾十支 shader，畫面會凍住好幾秒（晚上燈多更久）。
+// shader 會因「夜間光源開／關」與「直接畫到畫面／經過後製（夜間光暈）」而不同，共三種組合：
+// 白天（光源關、直接畫）、黃昏與熄燈後（光源關、後製）、夜晚（光源開、後製）。
+// 載入畫面先編好目前要用的那一種（包含目前模式隱藏的物件，切換模式時不必再編），其他兩種在畫面出現後於背景編好，
+// 黃昏轉夜間、23:00 熄燈、拖動時間時就不會卡住
+function precompile(lightsOn, post) {
+  const prev = night.setLightsOn(lightsOn), rt = renderer.getRenderTarget();
+  if (post) renderer.setRenderTarget(composer.readBuffer);
+  const p = renderer.compileAsync(scene, camera).catch((e) => console.warn('[precompile]', e));
+  renderer.setRenderTarget(rt);
+  night.setLightsOn(prev);
+  return p;
+}
+// 建築燈光營運時間（config/lights.json 的 buildingHours）
+const hm = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const BH = lightsCfg.buildingHours || {};
+function buildingOpen(d) {
+  if (!BH.off) return true;
+  const tp = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Taipei' })), m = tp.getHours() * 60 + tp.getMinutes();
+  const on = hm(BH.on ?? '05:00'), off = hm(BH.off);
+  return on < off ? m >= on && m < off : m >= on || m < off;
+}
+setLoad(96, '準備畫面…'); await paint();
+env.update(0);
+// 開場的日夜狀態要和第一個畫面完全一致（23:00 熄燈後：夜間光暈有、建築光源關），否則第一個畫面又要重新編譯
+const venueAtStart = buildingOpen(env.now()) ? 1 : 0;
+const startLights = env.night * venueAtStart > 0.05;
+const startPost = useBloom && env.night * (BL.strength ?? 0.75) > 0.01;
+const VARIANTS = (useBloom ? [[false, false], [false, true], [true, true]] : [[false, false], [true, false]])
+  .filter(([l, p]) => l !== startLights || p !== startPost);
+await precompile(startLights, startPost);
+night.setLightsOn(startLights);
+// 在載入畫面後面先畫一次：模型的頂點資料傳到顯示卡、後製光暈的 shader 也在這時編好，畫面出現後第一格就不會卡
+if (startPost) composer.render(); else renderer.render(scene, camera);
 setLoad(100, '完成'); await paint(); await new Promise((r) => setTimeout(r, 250));
 $('loading').classList.add('hidden');
+// 其他日夜組合等畫面穩定後再一種一種編（每種之間讓出幾格畫面）
+setTimeout(async () => {
+  for (const v of VARIANTS) { await precompile(...v); await new Promise((r) => setTimeout(r, 500)); }
+}, 3000);
 
 // ---------- 可見性：模式 + 廳院樓層 ----------
 const state = {
@@ -268,8 +306,10 @@ const state = {
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
-const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups), revealM: makeMatcher(f.reveal, modesCfg.groups) })) }));
+const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups), revealM: makeMatcher(f.reveal, modesCfg.groups) })),
+  togglesM: (h.toggles || []).map((t) => ({ ...t, hideM: makeMatcher(t.hide, modesCfg.groups) })) }));
 halls.forEach((h) => (state.halls[h.id] = h.default));
+state.hallToggles = {};   // 廳院面板的開關（halls.json toggles）：key 為「廳院:開關」，true＝隱藏該開關的物件
 
 function meshVisible(n) {
   let v = !modeHide[state.mode]?.(n);
@@ -278,6 +318,7 @@ function meshVisible(n) {
     const f = h.floorsM.find((x) => x.id === state.halls[h.id]);
     if (f?.revealM(n)) v = true;   // 模式藏起來的樓層（如歌劇院 3F／4F 在榕樹廣場的隱藏清單內）由樓層按鈕叫回來
     if (f?.hideM(n)) return false;
+    for (const t of h.togglesM) if (state.hallToggles[h.id + ':' + t.id] && t.hideM(n)) return false;
   }
   return v;
 }
@@ -320,29 +361,9 @@ function showParkingPlan() {
   parkingPlan.show(L ? [{ ...L, depth: true }] : []);
 }
 
-// 廳院樓層升起／降下動畫：切到有 lift_m 的樓層時，新出現的物件從下方升起；離開該樓層時，要收起的物件先降下再隱藏
-const lifts = [];
-function liftTo(m, to, hideEnd) {
-  m.userData.y0 ??= m.position.y;
-  const i = lifts.findIndex((L) => L.m === m); if (i >= 0) lifts.splice(i, 1);
-  lifts.push({ m, from: m.position.y - m.userData.y0, to, hideEnd, t: 0 });
-}
 function setHallFloor(h, fid) {
-  const prev = h.floorsM.find((x) => x.id === state.halls[h.id]);
-  const was = new Set(model.meshes.filter((m) => m.visible));
   state.halls[h.id] = fid;
   if (h.modes && !h.modes.includes(state.mode)) setMode(h.modes[0], true); else applyVisibility();
-  const f = h.floorsM.find((x) => x.id === fid);
-  if (f?.lift_m) {
-    for (const m of model.meshes) {
-      if (!f.showM(m.userData.fname) || !m.visible) continue;
-      if (!was.has(m)) { m.userData.y0 ??= m.position.y; m.position.y = m.userData.y0 - f.lift_m; m.updateMatrix(); liftTo(m, 0); }
-      else if (lifts.some((L) => L.m === m && L.hideEnd)) liftTo(m, 0);   // 降到一半又切回來：從目前位置升回去
-    }
-  }
-  if (prev?.lift_m && prev !== f) {
-    for (const m of was) if (!m.visible && prev.showM(m.userData.fname)) { m.visible = true; liftTo(m, -prev.lift_m, true); }
-  }
   renderLiftPanel(true);
 }
 
@@ -384,7 +405,7 @@ function nearest() {
 }
 function renderLiftPanel(force) {
   const n = state.presenting ? null : nearest();
-  const key = n ? n.type + n.c.id + state.mode + JSON.stringify(state.halls) : '';
+  const key = n ? n.type + n.c.id + state.mode + JSON.stringify(state.halls) + JSON.stringify(state.hallToggles) : '';
   if (!force && key === liftCtx) return;
   liftCtx = key;
   $('liftPanel').classList.toggle('hidden', !n);
@@ -395,6 +416,13 @@ function renderLiftPanel(force) {
   for (const f of n.c.floors) {
     const b = document.createElement('button'); b.textContent = f.id; b.classList.toggle('on', f.id === cur);
     b.onclick = () => (n.type === 'hall' && f.action !== 'mode' ? setHallFloor(n.c, f.id) : coreAction(n.c, f));
+    box.appendChild(b);
+  }
+  // 廳院開關：例如歌劇院「露出樓梯」，隱藏擋住樓梯的牆面
+  for (const t of n.type === 'hall' ? n.c.togglesM : []) {
+    const k = n.c.id + ':' + t.id, b = document.createElement('button');
+    b.className = 'toggle'; b.textContent = t.label; b.title = t.title || t.label; b.classList.toggle('on', !!state.hallToggles[k]);
+    b.onclick = () => { state.hallToggles[k] = !state.hallToggles[k]; if (n.c.modes && !n.c.modes.includes(state.mode)) setMode(n.c.modes[0], true); else applyVisibility(); renderLiftPanel(true); };
     box.appendChild(b);
   }
 }
@@ -1271,15 +1299,7 @@ function studioLight() {
 }
 
 const clock = new THREE.Clock();
-const hm = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
-const BH = lightsCfg.buildingHours || {};
-function buildingOpen(d) {
-  if (!BH.off) return true;
-  const tp = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Taipei' })), m = tp.getHours() * 60 + tp.getMinutes();
-  const on = hm(BH.on ?? '05:00'), off = hm(BH.off);
-  return on < off ? m >= on && m < off : m >= on || m < off;
-}
-let venueK = 1, simDt = 0, frameNo = 0;
+let venueK = venueAtStart, simDt = 0, frameNo = 0;
 let lastUI = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), t = clock.elapsedTime;
@@ -1328,15 +1348,6 @@ renderer.setAnimationLoop(() => {
   simDt += dt;
   if (!isMobile || (frameNo & 1)) { vehicles.update(simDt, n); people.update(simDt); simDt = 0; }
   frameNo++;
-  for (let i = lifts.length - 1; i >= 0; i--) {
-    const L = lifts[i]; L.t = Math.min(1, L.t + dt / 1.2);
-    L.m.position.y = L.m.userData.y0 + L.from + (L.to - L.from) * ease(L.t);
-    if (L.t >= 1) {
-      lifts.splice(i, 1);
-      if (L.hideEnd) { L.m.visible = meshVisible(L.m.userData.fname); L.m.position.y = L.m.userData.y0; }
-    }
-    L.m.updateMatrix();
-  }
   // 需要後製（夜間光暈、線稿＋網點）才走 composer；否則直接畫，畫面有原生反鋸齒
   const tone = state.style === 'tone', bloomOn = useBloom && !plain && bloom.strength > 0.01;
   if (bloomOn || tone) {

@@ -235,9 +235,22 @@ export class NightLights {
     this.ceilUniform.value = venue;
     // 白天把燈關掉（visible=false），燈不進 shader，白天效能不受影響
     const on = venue > 0.05;
-    if (this.area) { this.area.light.visible = on; this.area.light.intensity = venue * this.area.k; }
-    // 屋頂隱藏（樹冠大廳、榕樹廣場模式）時投射燈一起關掉，不然光會照進室內
-    for (const s of this.spots) { s.light.visible = on && this.roofOn !== false; s.light.intensity = venue * s.k; }
+    if (on !== this.lightsOn) this.setLightsOn(on);
+    if (this.area) this.area.light.intensity = venue * this.area.k;
+    // 屋頂隱藏（樹冠大廳、榕樹廣場模式）時投射燈一起關掉，不然光會照進室內。
+    // 只把亮度調成 0、不改 visible：燈的數量一變，所有 shader 都要重新編譯，切換模式時畫面會凍住
+    const roofK = this.roofOn !== false ? venue : 0;
+    for (const s of this.spots) s.light.intensity = roofK * s.k;
     if (this.ringMat) { this.ringMat.opacity = venue; this.rings.forEach((r) => (r.visible = venue > 0.02)); }
+  }
+
+  // 夜間真實光源（廣場面光源、屋頂投射燈）開或關，回傳原本的狀態。只在日夜交替時切換；
+  // 兩種狀態的 shader 在載入時預先編譯（main.js 的 precompile），切換時直接取用、不會卡住
+  setLightsOn(on) {
+    const prev = this.lightsOn !== false;
+    this.lightsOn = !!on;
+    if (this.area) this.area.light.visible = !!on;
+    for (const s of this.spots) s.light.visible = !!on;
+    return prev;
   }
 }
