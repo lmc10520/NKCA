@@ -69,10 +69,14 @@ function finishMaterial(base, spec) {
   const pat = PATTERNS[spec.pattern] || PATTERNS.plain;
   const f = (v) => Number(v).toFixed(3);
   const [len, w] = spec.size_m || [1.2, 0.15];
+  // 原材質顏色（except_cm 範圍內用）用 uniform 傳入：同一種裝修材質不論原本是哪個材質，都共用同一支 shader，
+  // 不必各自編譯（之前把顏色寫死在 shader 裡，每個原材質各編一支，載入時第一個畫面會卡很久）
+  const uOrig = { value: orig };
   mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uFinOrig = uOrig;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFinWP; varying vec3 vFinWN;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvFinWP=(modelMatrix*vec4(transformed,1.0)).xyz; vFinWN=mat3(modelMatrix)*objectNormal;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + COMMON + exceptGLSL(spec.except_cm))
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uFinOrig;' + COMMON + exceptGLSL(spec.except_cm))
       .replace('#include <color_fragment>', `#include <color_fragment>
       {
         vec3 an = abs(normalize(vFinWN));
@@ -82,10 +86,10 @@ function finishMaterial(base, spec) {
         float fLen = ${f(len)}, fW = ${f(w)}, fVar = ${f(spec.variation ?? 0.25)}, tint = 1.0;
         ${pat}
         diffuseColor.rgb *= clamp(tint, 0.0, 2.0);
-        if (finExcept(vFinWP.xz)) diffuseColor.rgb = vec3(${f(orig.r)}, ${f(orig.g)}, ${f(orig.b)});
+        if (finExcept(vFinWP.xz)) diffuseColor.rgb = uFinOrig;
       }`);
   };
-  mat.customProgramCacheKey = () => 'finish_' + spec.id + orig.getHexString();
+  mat.customProgramCacheKey = () => 'finish_' + spec.id;
   return mat;
 }
 
