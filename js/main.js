@@ -41,8 +41,8 @@ const paint = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r,
 setLoad(2, '讀取設定…');
 
 // ---------- 設定 ----------
-const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg, pianoCfg, soundCfg, finishesCfg] =
-  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview', 'piano', 'soundscape', 'finishes']
+const [site, modesCfg, lightsCfg, coresCfg, hallsCfg, labelsCfg, screensCfg, roadsCfg, fountainCfg, lawnsCfg, peopleCfg, streetCfg, poisCfg, festCfg, overviewCfg, pianoCfg, soundCfg, finishesCfg, escapeCfg] =
+  await Promise.all(['site', 'modes', 'lights', 'cores', 'halls', 'labels', 'screens', 'roads', 'fountain', 'lawns', 'walk', 'streetlights', 'pois', 'festivals', 'overview', 'piano', 'soundscape', 'finishes', 'escape']
     .map((n) => loadJSON(`config/${n}.json`, {})));
 document.title = site.title || document.title;
 
@@ -224,6 +224,13 @@ function setEnvK(k) {
 }
 // 夜間降低彩度：月光下顏色會變淡（原本 ACES 色調映射會順便做到，Neutral 不會），草地才不會晚上還是鮮綠色
 const baseCol = new Map([...envMats].map((mt) => [mt, mt.color.clone()]));
+// 逃生狀態（config/escape.json）：逃生梯與逃生門共用一個紅色材質。一般的 MeshStandardMaterial、也登記剖面，
+// 和模型其他沒有特殊紋理的材質是同一支 shader，不會多編譯。不加入夜間降低彩度（晚上仍是紅色），微弱自發光讓夜間也看得到
+const escMat = new THREE.MeshStandardMaterial({ name: 'Escape_Red', color: escapeCfg.color || '#e0261b', emissive: escapeCfg.emissive || '#4a0703', roughness: 0.7, side: THREE.DoubleSide });
+section.register(escMat); envMats.add(escMat);
+const escRed = makeMatcher([...(escapeCfg.stairs || []), ...(escapeCfg.doors || [])], modesCfg.groups);
+const escHide = makeMatcher(escapeCfg.hide, modesCfg.groups);
+for (const m of model.meshes) m.userData.escRed = escRed(m.userData.fname);
 const NIGHT_DESAT = site.nightDesaturate ?? 0.6;
 function setNightTint(n) {
   if (Math.abs(n - nightNow) < 0.01) return; nightNow = n;
@@ -305,6 +312,7 @@ const state = {
   style: 'normal', contrast: false, wire: false, ortho: false, lineW: 2,
   venue: null,   // 場館燈光：null＝依營運時間自動，true／false＝手動開／關
   festival: true,   // 節慶物件（檔期內才有）
+  escape: false,   // 逃生狀態：逃生梯、逃生門變紅，遮住逃生梯的牆隱藏
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
@@ -314,6 +322,7 @@ halls.forEach((h) => (state.halls[h.id] = h.default));
 state.hallToggles = {};   // 廳院面板的開關（halls.json toggles）：key 為「廳院:開關」，true＝隱藏該開關的物件
 
 function meshVisible(n) {
+  if (state.escape && escHide(n)) return false;
   let v = !modeHide[state.mode]?.(n);
   for (const h of halls) {
     if (h.modes && !h.modes.includes(state.mode)) continue;
@@ -681,7 +690,8 @@ function setStyle(style) {
   }
   for (const m of model.meshes) {
     const g = m.userData.isGround, gl = m.userData.isGlass;
-    m.material = isColor(style) ? m.userData.origMaterial
+    m.material = state.escape && m.userData.escRed && style !== 'wire' ? escMat
+      : isColor(style) ? m.userData.origMaterial
       : style === 'wire' ? (isCut(m) ? hiddenFaceMat : hiddenFaceGroundMat)
       : gl ? glassMat : g ? (isCut(m) ? groundCutMat : groundMat) : whiteMat;
     if (m.userData.edges) m.userData.edges.visible =
@@ -748,6 +758,7 @@ function setToggle(k, v) {
   if (k === 'weather') env.weatherOn = v;
   if (k === 'traffic') applyTraffic();
   if (k === 'festival') festival.setOn(v);
+  if (k === 'escape') { setStyle(state.style); applyVisibility(); }
 }
 document.querySelectorAll('[data-tg]').forEach((cb) => (cb.onchange = () => setToggle(cb.dataset.tg, cb.checked)));
 // 場館燈光：預設依 lights.json 的營運時間自動開關；手動切換後維持，按「自動」回到排程
@@ -958,7 +969,7 @@ function flyTo(pos, target, ms = 1600) {
 function snapshotCode() {
   const s = {
     v: 2, c: w2cm(camera.position), t: w2cm(controls.target), m: state.mode, h: state.halls,
-    ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic, festival: state.festival },
+    ui: { labels: state.labels, clock: state.clock, weather: state.weather, traffic: state.traffic, festival: state.festival, ...(state.escape ? { escape: true } : {}) },
     ...(section.on ? { sec: section.toCode() } : {}),
     style: state.style, lw: state.lineW, proj: state.ortho ? 'ortho' : 'persp', ...(state.style === 'tone' ? { ts: state.toneSize } : {}),
     tod: env.override, card: labels.openId(),
@@ -1087,6 +1098,7 @@ function goCue(i) {
   if (s.h) for (const h of halls) if (s.h[h.id]) setHallFloor(h, s.h[h.id]);
   for (const [k, v] of Object.entries(s.ui || {})) if (k in state) setToggle(k, v);
   if (s.ui?.festival == null) setToggle('festival', false);   // 舊代碼沒有記錄：教材預設不顯示節慶物件
+  if (s.ui?.escape == null && state.escape) setToggle('escape', false);   // 沒記錄逃生狀態的代碼＝一般狀態
   setStyle(s.style || (s.ui?.wire ? 'wire' : s.ui?.contrast ? 'contrast' : 'normal'));
   if (s.lw) setLineW(s.lw);
   if (s.ts) setToneSize(s.ts);
