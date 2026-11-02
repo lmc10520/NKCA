@@ -308,7 +308,7 @@ const state = {
 };
 const modeHide = {};
 for (const m of modesCfg.modes || []) modeHide[m.id] = makeMatcher(m.hide, modesCfg.groups);
-const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups), revealM: makeMatcher(f.reveal, modesCfg.groups) })),
+const halls = (hallsCfg.halls || []).map((h) => ({ ...h, panelModes: h.panelModes || h.modes, floorsM: h.floors.filter((f) => f.action !== 'mode').map((f) => ({ ...f, hideM: makeMatcher(f.hide, modesCfg.groups), showM: makeMatcher(f.show, modesCfg.groups), revealM: makeMatcher(f.reveal, modesCfg.groups), keepM: makeMatcher(f.keep, modesCfg.groups) })),
   togglesM: (h.toggles || []).map((t) => ({ ...t, hideM: makeMatcher(t.hide, modesCfg.groups) })) }));
 halls.forEach((h) => (state.halls[h.id] = h.default));
 state.hallToggles = {};   // 廳院面板的開關（halls.json toggles）：key 為「廳院:開關」，true＝隱藏該開關的物件
@@ -319,7 +319,7 @@ function meshVisible(n) {
     if (h.modes && !h.modes.includes(state.mode)) continue;
     const f = h.floorsM.find((x) => x.id === state.halls[h.id]);
     if (f?.revealM(n)) v = true;   // 模式藏起來的樓層（如歌劇院 3F／4F 在榕樹廣場的隱藏清單內）由樓層按鈕叫回來
-    if (f?.hideM(n)) return false;
+    if (f?.hideM(n) && !f.keepM(n)) return false;   // keep：從 hide 群組中保留（如歌劇院 2F 保留 3F 樓座，它在 @oh3F 裡但高度在 2F）
     for (const t of h.togglesM) if (state.hallToggles[h.id + ':' + t.id] && t.hideM(n)) return false;
   }
   return v;
