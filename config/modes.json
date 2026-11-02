@@ -1241,6 +1241,7 @@
    "=SK30_Frame",
    "=SK30_Glass",
    "=SW_Core_1F_Ceiling",
+   "=SW_Core_1F_EscapeDoor",
    "=SW_Core_1F_EscapeStair",
    "=SW_Core_1F_EscapeStair_Wall",
    "=SW_Core_1F_Floor",
