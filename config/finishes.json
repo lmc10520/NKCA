@@ -125,7 +125,7 @@
   },
   {
    "id": "Stone",
-   "_說明": "石紋：只鋪觀眾廳外的大廳地板（表演廳 1F／2F、歌劇院 1F／2F 大廳與 2F 樓梯平台；3F／4F 迴廊改地毯，見 Carpet）。except_cm 為觀眾廳範圍（Fusion 平面 cm 多邊形），範圍內維持原本顏色。",
+   "_說明": "石紋：只鋪觀眾廳外的大廳地板（表演廳 1F／2F、歌劇院 1F／2F 大廳與 2F 樓梯平台；3F／4F 迴廊改地毯，見 Carpet）。except_cm 為觀眾廳範圍（Fusion 平面 cm 多邊形），範圍內維持原本顏色。歌劇院 2F 大廳樓板 OH_2F_Floor_W／E／Mid 名稱不是 OH_Aud_ 開頭，另外列出（2026-11-02 James）。",
    "pattern": "stone",
    "color": "#d8d2c6",
    "roughness": 0.4,
@@ -134,7 +134,7 @@
     0.8
    ],
    "variation": 0.1,
-   "match": ["=RH1F_Floor", "=RH2F_Floor", "^OH_Aud_.*Floor", "^OH_Stair_Landing_", "=L3_Opera_2F_Floor_Ext"],
+   "match": ["=RH1F_Floor", "=RH2F_Floor", "^OH_Aud_.*Floor", "^OH_Stair_Landing_", "=L3_Opera_2F_Floor_Ext", "^OH_2F_Floor_"],
    "except_cm": [
     [
      [12200, 18700],

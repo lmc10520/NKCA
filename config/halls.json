@@ -11,14 +11,23 @@
    ],
    "radius_cm": 4800,
    "default": "1F",
-   "_toggles說明": "toggles：面板上的開關按鈕，按下（on）時隱藏 hide 裡的物件。歌劇院 2F 樓梯外側牆面會擋住樓梯，Fusion 拆成 OH_Aud_Wall_2F_StairOuter*（2026-10-30 James 第 6 點），按「露出樓梯」隱藏。",
+   "_toggles說明": "toggles：面板上的開關按鈕，按下（on）時隱藏 hide 裡的物件。歌劇院 2F 樓梯外側牆面會擋住樓梯，Fusion 拆成 OH_Aud_Wall_2F_StairOuter*（2026-10-30 James 第 6 點），按「露出樓梯」隱藏。 2026-11-02 James：露出樓梯時連同樓梯上方 3F／4F 的牆（OH_Aud_Wall_3F_1/2/7/8、4F_4/5、Outer_3F/4F）與 L3_Floor_OH_Band 一起隱藏。",
    "toggles": [
     {
      "id": "stairWall",
      "label": "露出樓梯",
      "title": "隱藏 2F 樓梯外側牆面，看樓梯外露的樣貌",
      "hide": [
-      "^OH_Aud_Wall_2F_StairOuter"
+      "^OH_Aud_Wall_2F_StairOuter",
+      "=OH_Aud_Wall_3F_1",
+      "=OH_Aud_Wall_3F_2",
+      "=OH_Aud_Wall_3F_7",
+      "=OH_Aud_Wall_3F_8",
+      "=OH_Aud_Wall_4F_4",
+      "=OH_Aud_Wall_4F_5",
+      "=OH_Aud_Wall_Outer_3F",
+      "=OH_Aud_Wall_Outer_4F",
+      "^L3_Floor_OH_Band"
      ]
     }
    ],
@@ -36,6 +45,9 @@
      "reveal": [
       "@oh3F",
       "@oh4F"
+     ],
+     "hide": [
+      "^L3_Floor_OH_Band"
      ]
     },
     {
@@ -44,7 +56,8 @@
       "@oh3F"
      ],
      "hide": [
-      "@oh4F"
+      "@oh4F",
+      "^L3_Floor_OH_Band"
      ]
     },
     {
@@ -72,7 +85,8 @@
      "action": "mode",
      "mode": "b2"
     }
-   ]
+   ],
+   "_floors說明": "榕樹廣場模式下 3F／4F 叫回 @oh3F 時，L3_Floor_OH_Band*（樹冠大廳 3F 樓板）仍隱藏（2026-11-02 James）。"
   },
   {
    "id": "CH",
