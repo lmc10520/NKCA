@@ -5,7 +5,8 @@
   "stairs": [
     "^EmergencyStair_\\d+_Stair",
     "=SW_Core_1F_EscapeStair",
-    "^RH\\dF_EscapeStair$"
+    "^RH\\dF_EscapeStair$",
+    "^EmergencyStair_\\d+_Floor"
   ],
   "doors": [
     "^SW_Core_1F_EscapeDoor",
