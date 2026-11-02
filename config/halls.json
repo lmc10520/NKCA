@@ -74,16 +74,6 @@
      "hide": [
       "@oh3F",
       "@oh4F"
-     ],
-     "reveal": [
-      "=OH_Aud_3F_Balcony",
-      "=OH_Aud_3F_PonyWall_Front",
-      "=OH_Aud_3F_HalfSteps"
-     ],
-     "keep": [
-      "=OH_Aud_3F_Balcony",
-      "=OH_Aud_3F_PonyWall_Front",
-      "=OH_Aud_3F_HalfSteps"
      ]
     },
     {
@@ -105,7 +95,7 @@
      "mode": "b2"
     }
    ],
-   "_floors說明": "榕樹廣場模式下 3F／4F 叫回 @oh3F 時，L3_Floor_OH_Band*（樹冠大廳 3F 樓板）仍隱藏（2026-11-02 James）。 2F：OH_Aud_3F_Balcony、PonyWall_Front、3F_HalfSteps 從 2F 後方往上，屬於 2F 看得到的觀眾席，用 reveal＋keep（keep＝從 hide 群組中保留）在 2F 顯示（2026-11-02 James 紅框）。 歌劇院東側沙丘樓梯（L3_Stair_OH_E_A/B、L3_DwarfWall_OH_E_A/PB、L3_Wall_OH_E_Under）在 @oh3F 裡，但屬於樹冠大廳，分樓層檢視時不顯示（2026-11-02 James）。"
+   "_floors說明": "榕樹廣場模式下 3F／4F 叫回 @oh3F 時，L3_Floor_OH_Band*（樹冠大廳 3F 樓板）仍隱藏（2026-11-02 James）。 2F 不顯示 OH_Aud_3F_Balcony（3F 觀眾席，2026-11-02 James 更正）。 歌劇院東側沙丘樓梯（L3_Stair_OH_E_A/B、L3_DwarfWall_OH_E_A/PB、L3_Wall_OH_E_Under）在 @oh3F 裡，但屬於樹冠大廳，分樓層檢視時不顯示（2026-11-02 James）。"
   },
   {
    "id": "CH",
