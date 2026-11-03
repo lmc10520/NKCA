@@ -4,6 +4,8 @@
  "model": "model/nkca.glb",
  "lat": 22.6236,
  "lon": 120.3407,
+ "weatherRainMin_mm": 0.3,
+ "_天氣": "即時天氣來自 Open-Meteo（模型推算值）。weatherRainMin_mm＝每小時降水量達到這個值才下雨並顯示雨天；不到的微量降水（模型常把它標成毛毛雨）改依雲量顯示多雲／陰。",
  "centerWorld": [
   137,
   0,

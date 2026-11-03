@@ -27,9 +27,14 @@ const WMO = {
   61: '小雨', 63: '雨', 65: '大雨', 80: '陣雨', 81: '陣雨', 82: '強陣雨', 95: '雷雨', 96: '雷雨', 99: '雷雨',
 };
 
+// Open-Meteo 的「現在天氣」是模型推算值，常有零點幾 mm 的微量降水被標成毛毛雨／小雨；
+// 低於門檻（site.json 的 weatherRainMin_mm，預設 0.3 mm／小時）的降水不下雨，文字改依雲量顯示多雲／陰
+const WET = (c) => (c >= 51 && c <= 67) || (c >= 80 && c <= 82);
+
 export class Environment {
   constructor(scene, renderer, site) {
     this.scene = scene; this.renderer = renderer; this.site = site;
+    this.rainMin = site.weatherRainMin_mm ?? 0.3;
     this.lat = site.lat ?? 22.6236; this.lon = site.lon ?? 120.3407;
     this.override = null;          // 手動時間（分鐘，0–1439）；null = 即時
     this.weatherOn = true; this.weather = null;
@@ -146,7 +151,9 @@ export class Environment {
     scene.fog = this.fog;
     this.rain = null;
     // 屋頂高度圖（setRoofMap）：雨、雪在屋頂、樹冠底下不畫
-    this.roof = { map: { value: null }, mat: { value: new THREE.Matrix4() }, on: { value: 0 }, bias: { value: 0.3 } };
+    this.roof = { map: { value: null }, mat: { value: new THREE.Matrix4() }, on: { value: 0 }, bias: { value: 0.3 }, hide: { value: 0 }, high: { value: 6 } };
+    // hide＝屋頂被收起來的模式（樹冠大廳、榕樹廣場、地下停車場）：屋頂範圍（最上層表面高於 high 公尺）內整個高度都不下雨，
+    // 不然鏡頭在屋頂高度以上時，屋頂上方那段雨看起來就像下進建築裡
     this.fetchWeather();
     setInterval(() => this.fetchWeather(), 15 * 60 * 1000);
   }
@@ -174,7 +181,12 @@ export class Environment {
     if (this.wxOverride) return '預覽：' + { clear: '晴', cloudy: '陰', rain: '雨', snow: '雪', storm: '颱風', aurora: '極光' }[this.wxOverride];
     const w = this.weather;
     if (!w) return '';
-    return `${WMO[w.weather_code] ?? ''} ${Math.round(w.temperature_2m)}°C`;
+    return `${WMO[this.wxCode(w)] ?? ''} ${Math.round(w.temperature_2m)}°C`;
+  }
+  // 降水量低於門檻的雨天代碼 → 多雲（2）或陰（3）
+  wxCode(w) {
+    if (WET(w.weather_code) && !(w.precipitation >= this.rainMin)) return w.cloud_cover >= 85 ? 3 : 2;
+    return w.weather_code;
   }
 
   update(dt) {
@@ -188,7 +200,7 @@ export class Environment {
     // 天氣：即時（open-meteo）或預覽（設定中的 晴／陰／雨／雪／颱風／極光）
     const W = this.wxOverride, w = this.weather;
     let cloud = this.weatherOn && w ? w.cloud_cover / 100 : 0.1;
-    let rainy = this.weatherOn && w && w.precipitation > 0;
+    let rainy = this.weatherOn && w && w.precipitation >= this.rainMin;   // 微量降水不下雨（weatherRainMin_mm）
     let snowy = false, aurora = false;
     // 即時：雷雨（WMO 95–99）有閃電；強風（> 50 km/h）雨絲斜飄
     let storm = this.weatherOn && w && w.weather_code >= 95 ? 1 : 0;
@@ -274,16 +286,19 @@ export class Environment {
   // 雨、雪材質：片段在屋頂高度圖的表面底下就丟掉
   roofClip(mat) {
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, { roofMap: this.roof.map, roofMat: this.roof.mat, roofOn: this.roof.on, roofBias: this.roof.bias });
+      Object.assign(sh.uniforms, { roofMap: this.roof.map, roofMat: this.roof.mat, roofOn: this.roof.on, roofBias: this.roof.bias, roofHide: this.roof.hide, roofHigh: this.roof.high });
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW;')
         .replace('#include <project_vertex>', '#include <project_vertex>\nvRoofW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW; uniform sampler2D roofMap; uniform mat4 roofMat; uniform float roofOn, roofBias;')
+        .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW; uniform sampler2D roofMap; uniform mat4 roofMat; uniform float roofOn, roofBias, roofHide, roofHigh;')
         .replace('void main() {', `void main() {
   if (roofOn > 0.5) {
     vec4 q = roofMat * vec4(vRoofW, 1.0); vec3 rc = q.xyz / q.w * 0.5 + 0.5;
-    if (rc.x > 0.0 && rc.x < 1.0 && rc.y > 0.0 && rc.y < 1.0 && vRoofW.y < texture2D(roofMap, rc.xy).r - roofBias) discard;
+    if (rc.x > 0.0 && rc.x < 1.0 && rc.y > 0.0 && rc.y < 1.0) {
+      float ry = texture2D(roofMap, rc.xy).r;
+      if (vRoofW.y < ry - roofBias || (roofHide > 0.5 && ry > roofHigh)) discard;
+    }
   }`);
     };
     return mat;
