@@ -339,6 +339,7 @@ function applyVisibility() {
     m.visible = meshVisible(m.userData.fname);
   }
   night.roofOn = !!model.byName.get('Roof_Main')?.some((m) => m.visible);
+  env.roof.hide.value = night.roofOn ? 0 : 1;   // 屋頂收起來時，屋頂範圍內整個高度都不下雨
   // 地下停車場（B1／B2）：地面上的螢幕／貼紙、公共鋼琴、節慶物件、站在建築上方的行人收起來；車輛換成進出停車場的路線，
   // 地面車輛停在坡道上蓋前、不開到坡道正上方
   const under = !!modesCfg.modes.find((x) => x.id === state.mode)?.underground;

@@ -146,7 +146,9 @@ export class Environment {
     scene.fog = this.fog;
     this.rain = null;
     // 屋頂高度圖（setRoofMap）：雨、雪在屋頂、樹冠底下不畫
-    this.roof = { map: { value: null }, mat: { value: new THREE.Matrix4() }, on: { value: 0 }, bias: { value: 0.3 } };
+    this.roof = { map: { value: null }, mat: { value: new THREE.Matrix4() }, on: { value: 0 }, bias: { value: 0.3 }, hide: { value: 0 }, high: { value: 6 } };
+    // hide＝屋頂被收起來的模式（樹冠大廳、榕樹廣場、地下停車場）：屋頂範圍（最上層表面高於 high 公尺）內整個高度都不下雨，
+    // 不然鏡頭在屋頂高度以上時，屋頂上方那段雨看起來就像下進建築裡
     this.fetchWeather();
     setInterval(() => this.fetchWeather(), 15 * 60 * 1000);
   }
@@ -274,16 +276,19 @@ export class Environment {
   // 雨、雪材質：片段在屋頂高度圖的表面底下就丟掉
   roofClip(mat) {
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, { roofMap: this.roof.map, roofMat: this.roof.mat, roofOn: this.roof.on, roofBias: this.roof.bias });
+      Object.assign(sh.uniforms, { roofMap: this.roof.map, roofMat: this.roof.mat, roofOn: this.roof.on, roofBias: this.roof.bias, roofHide: this.roof.hide, roofHigh: this.roof.high });
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW;')
         .replace('#include <project_vertex>', '#include <project_vertex>\nvRoofW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW; uniform sampler2D roofMap; uniform mat4 roofMat; uniform float roofOn, roofBias;')
+        .replace('#include <common>', '#include <common>\nvarying vec3 vRoofW; uniform sampler2D roofMap; uniform mat4 roofMat; uniform float roofOn, roofBias, roofHide, roofHigh;')
         .replace('void main() {', `void main() {
   if (roofOn > 0.5) {
     vec4 q = roofMat * vec4(vRoofW, 1.0); vec3 rc = q.xyz / q.w * 0.5 + 0.5;
-    if (rc.x > 0.0 && rc.x < 1.0 && rc.y > 0.0 && rc.y < 1.0 && vRoofW.y < texture2D(roofMap, rc.xy).r - roofBias) discard;
+    if (rc.x > 0.0 && rc.x < 1.0 && rc.y > 0.0 && rc.y < 1.0) {
+      float ry = texture2D(roofMap, rc.xy).r;
+      if (vRoofW.y < ry - roofBias || (roofHide > 0.5 && ry > roofHigh)) discard;
+    }
   }`);
     };
     return mat;
