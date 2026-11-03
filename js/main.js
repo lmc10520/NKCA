@@ -432,7 +432,8 @@ function renderLiftPanel(force) {
   // 廳院開關：例如歌劇院「露出樓梯」，隱藏擋住樓梯的牆面
   for (const t of n.type === 'hall' ? n.c.togglesM : []) {
     const k = n.c.id + ':' + t.id, b = document.createElement('button');
-    b.className = 'toggle'; b.textContent = t.label; b.title = t.title || t.label; b.classList.toggle('on', !!state.hallToggles[k]);
+    b.className = 'toggle'; b.title = t.title || t.label; b.classList.toggle('on', !!state.hallToggles[k]); b.setAttribute('aria-pressed', !!state.hallToggles[k]);
+    if (t.icon) { const im = document.createElement('img'); im.src = t.icon; im.alt = t.label; b.classList.add('img'); b.appendChild(im); } else b.textContent = t.label;
     b.onclick = () => { state.hallToggles[k] = !state.hallToggles[k]; if (n.c.modes && !n.c.modes.includes(state.mode)) setMode(n.c.modes[0], true); else applyVisibility(); renderLiftPanel(true); };
     box.appendChild(b);
   }
@@ -758,9 +759,10 @@ function setToggle(k, v) {
   if (k === 'weather') env.weatherOn = v;
   if (k === 'traffic') applyTraffic();
   if (k === 'festival') festival.setOn(v);
-  if (k === 'escape') { setStyle(state.style); applyVisibility(); }
+  if (k === 'escape') { setStyle(state.style); applyVisibility(); $('escBtn').classList.toggle('on', v); $('escBtn').setAttribute('aria-pressed', v); }
 }
 document.querySelectorAll('[data-tg]').forEach((cb) => (cb.onchange = () => setToggle(cb.dataset.tg, cb.checked)));
+$('escBtn').onclick = () => setToggle('escape', !state.escape);   // 逃生狀態：簡報列的奔跑人圖示按鈕（不顯示文字）
 // 場館燈光：預設依 lights.json 的營運時間自動開關；手動切換後維持，按「自動」回到排程
 function setVenue(v) {
   state.venue = v;
