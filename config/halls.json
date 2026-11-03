@@ -11,7 +11,7 @@
    ],
    "radius_cm": 4800,
    "default": "1F",
-   "_toggles說明": "toggles：面板上的開關按鈕，按下（on）時隱藏 hide 裡的物件。歌劇院 2F 樓梯外側牆面會擋住樓梯，Fusion 拆成 OH_Aud_Wall_2F_StairOuter*（2026-10-30 James 第 6 點），按「露出樓梯」隱藏。 2026-11-02 James：露出樓梯時連同樓梯上方 3F／4F 的牆（OH_Aud_Wall_3F_1/2/7/8、4F_4/5、Outer_3F/4F）與 L3_Floor_OH_Band 一起隱藏。 2026-11-02 第二輪：OH_Aud_Wall_4F_4 是整圈 4F 牆（含北側），按露出樓梯不再隱藏。",
+   "_toggles說明": "toggles：面板上的開關按鈕，按下（on）時隱藏 hide 裡的物件。歌劇院 2F 樓梯外側牆面會擋住樓梯，Fusion 拆成 OH_Aud_Wall_2F_StairOuter*（2026-10-30 James 第 6 點），按「露出樓梯」隱藏。 2026-11-02 James：露出樓梯時連同樓梯上方 3F／4F 的牆（OH_Aud_Wall_3F_1/2/7/8、4F_4/5、Outer_3F/4F）與 L3_Floor_OH_Band 一起隱藏。 2026-11-02 第二輪：OH_Aud_Wall_4F_4 是整圈 4F 牆（含北側），按露出樓梯不再隱藏。 2026-11-03：露出樓梯一併隱藏 OH_Columns、OH_Column_Braces。",
    "toggles": [
     {
      "id": "stairWall",
@@ -26,7 +26,9 @@
       "=OH_Aud_Wall_4F_5",
       "=OH_Aud_Wall_Outer_3F",
       "=OH_Aud_Wall_Outer_4F",
-      "^L3_Floor_OH_Band"
+      "^L3_Floor_OH_Band",
+      "=OH_Columns",
+      "=OH_Column_Braces"
      ]
     }
    ],
@@ -51,7 +53,9 @@
       "=L3_Stair_OH_E_B",
       "=L3_DwarfWall_OH_E_A",
       "=L3_DwarfWall_OH_E_PB",
-      "=L3_Wall_OH_E_Under"
+      "=L3_Wall_OH_E_Under",
+      "=L3_Wall (28)",
+      "=L3_Floor (6)"
      ]
     },
     {
@@ -66,7 +70,9 @@
       "=L3_Stair_OH_E_B",
       "=L3_DwarfWall_OH_E_A",
       "=L3_DwarfWall_OH_E_PB",
-      "=L3_Wall_OH_E_Under"
+      "=L3_Wall_OH_E_Under",
+      "=L3_Wall (28)",
+      "=L3_Floor (6)"
      ]
     },
     {
@@ -95,7 +101,7 @@
      "mode": "b2"
     }
    ],
-   "_floors說明": "榕樹廣場模式下 3F／4F 叫回 @oh3F 時，L3_Floor_OH_Band*（樹冠大廳 3F 樓板）仍隱藏（2026-11-02 James）。 2F 不顯示 OH_Aud_3F_Balcony（3F 觀眾席，2026-11-02 James 更正）。 歌劇院東側沙丘樓梯（L3_Stair_OH_E_A/B、L3_DwarfWall_OH_E_A/PB、L3_Wall_OH_E_Under）在 @oh3F 裡，但屬於樹冠大廳，分樓層檢視時不顯示（2026-11-02 James）。"
+   "_floors說明": "榕樹廣場模式下 3F／4F 叫回 @oh3F 時，L3_Floor_OH_Band*（樹冠大廳 3F 樓板）仍隱藏（2026-11-02 James）。 2F 不顯示 OH_Aud_3F_Balcony（3F 觀眾席，2026-11-02 James 更正）。 歌劇院東側沙丘樓梯（L3_Stair_OH_E_A/B、L3_DwarfWall_OH_E_A/PB、L3_Wall_OH_E_Under）在 @oh3F 裡，但屬於樹冠大廳，分樓層檢視時不顯示（2026-11-02 James）。 L3_Wall (28)、L3_Floor (6) 在 @oh3F 裡但飄在歌劇院外，分樓層檢視時隱藏（2026-11-03 James）。"
   },
   {
    "id": "CH",
