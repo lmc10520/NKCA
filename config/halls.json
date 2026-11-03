@@ -16,6 +16,7 @@
     {
      "id": "stairWall",
      "label": "露出樓梯",
+     "icon": "img/icons/stairs.svg",
      "title": "隱藏 2F 樓梯外側牆面，看樓梯外露的樣貌",
      "hide": [
       "^OH_Aud_Wall_2F_StairOuter",

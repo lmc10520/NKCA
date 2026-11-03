@@ -41,14 +41,19 @@ body.night #clock{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #clockDate,#weather{font-size:13px;font-weight:500;opacity:.95}
 
 /* 樓層選擇（Google 地圖室內樓層樣式） */
-#liftPanel{right:16px;top:50%;transform:translateY(-50%);background:var(--surface);border-radius:24px;box-shadow:var(--elev2);
-  padding:8px 6px;width:64px;text-align:center}
+#liftPanel{right:16px;top:50%;transform:translateY(-50%);background:var(--surface);border-radius:32px;box-shadow:var(--elev2);
+  padding:10px 8px;width:64px;text-align:center}
 .liftTitle{font-size:11px;color:var(--on-2);line-height:1.2;margin:2px 0 6px;word-break:keep-all}
 .liftButtons{display:flex;flex-direction:column;gap:2px;align-items:center}
-.liftButtons button{width:48px;height:40px;border-radius:12px;font-weight:500;font-size:15px;color:var(--on)}
+.liftButtons button{width:48px;height:40px;border-radius:999px;font-weight:500;font-size:15px;color:var(--on)}
 .liftButtons button:hover{background:var(--surface-2)}
 .liftButtons button.on{background:var(--primary);color:var(--on-primary)}
 .liftButtons button.toggle{height:auto;min-height:40px;padding:4px 2px;margin-top:6px;font-size:11px;line-height:1.25;word-break:keep-all;border:1px solid var(--outline)}
+.liftButtons button.toggle.img{width:44px;height:44px;min-height:0;padding:0;border:none;border-radius:12px;background:none;display:flex;align-items:center;justify-content:center}
+.liftButtons button.toggle.img img{width:40px;height:40px;border-radius:10px;display:block;opacity:.55;transition:opacity .15s}
+.liftButtons button.toggle.img:hover img{opacity:.8}
+.liftButtons button.toggle.img.on{background:none;box-shadow:0 0 0 2px var(--primary)}
+.liftButtons button.toggle.img.on img{opacity:1}
 
 
 .sheet{background:var(--surface);border-radius:20px;box-shadow:var(--elev2)}
@@ -281,6 +286,7 @@ body.welcome #soundHint{display:none!important}
 .presRow{display:flex;align-items:center;gap:8px;margin-top:4px}
 .iconBtn{width:40px;height:40px;border-radius:12px;background:var(--surface-2);color:var(--on-2);display:flex;align-items:center;justify-content:center;flex:none}
 .iconBtn:hover{background:var(--tonal);color:var(--on-tonal)}
+.iconBtn.on{background:var(--primary);color:var(--on-primary)}
 .lessonBox{flex:1;display:flex;align-items:center;background:var(--surface-2);border-radius:999px;height:40px;padding:0 4px 0 14px;min-width:0}
 .lessonBox input{flex:1;border:none;background:none;font:inherit;font-size:14px;color:var(--on);outline:none;min-width:0}
 .lessonBox button{width:32px;height:32px;border-radius:50%;color:var(--primary)}
