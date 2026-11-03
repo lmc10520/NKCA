@@ -27,9 +27,14 @@ const WMO = {
   61: '小雨', 63: '雨', 65: '大雨', 80: '陣雨', 81: '陣雨', 82: '強陣雨', 95: '雷雨', 96: '雷雨', 99: '雷雨',
 };
 
+// Open-Meteo 的「現在天氣」是模型推算值，常有零點幾 mm 的微量降水被標成毛毛雨／小雨；
+// 低於門檻（site.json 的 weatherRainMin_mm，預設 0.3 mm／小時）的降水不下雨，文字改依雲量顯示多雲／陰
+const WET = (c) => (c >= 51 && c <= 67) || (c >= 80 && c <= 82);
+
 export class Environment {
   constructor(scene, renderer, site) {
     this.scene = scene; this.renderer = renderer; this.site = site;
+    this.rainMin = site.weatherRainMin_mm ?? 0.3;
     this.lat = site.lat ?? 22.6236; this.lon = site.lon ?? 120.3407;
     this.override = null;          // 手動時間（分鐘，0–1439）；null = 即時
     this.weatherOn = true; this.weather = null;
@@ -176,7 +181,12 @@ export class Environment {
     if (this.wxOverride) return '預覽：' + { clear: '晴', cloudy: '陰', rain: '雨', snow: '雪', storm: '颱風', aurora: '極光' }[this.wxOverride];
     const w = this.weather;
     if (!w) return '';
-    return `${WMO[w.weather_code] ?? ''} ${Math.round(w.temperature_2m)}°C`;
+    return `${WMO[this.wxCode(w)] ?? ''} ${Math.round(w.temperature_2m)}°C`;
+  }
+  // 降水量低於門檻的雨天代碼 → 多雲（2）或陰（3）
+  wxCode(w) {
+    if (WET(w.weather_code) && !(w.precipitation >= this.rainMin)) return w.cloud_cover >= 85 ? 3 : 2;
+    return w.weather_code;
   }
 
   update(dt) {
@@ -190,7 +200,7 @@ export class Environment {
     // 天氣：即時（open-meteo）或預覽（設定中的 晴／陰／雨／雪／颱風／極光）
     const W = this.wxOverride, w = this.weather;
     let cloud = this.weatherOn && w ? w.cloud_cover / 100 : 0.1;
-    let rainy = this.weatherOn && w && w.precipitation > 0;
+    let rainy = this.weatherOn && w && w.precipitation >= this.rainMin;   // 微量降水不下雨（weatherRainMin_mm）
     let snowy = false, aurora = false;
     // 即時：雷雨（WMO 95–99）有閃電；強風（> 50 km/h）雨絲斜飄
     let storm = this.weatherOn && w && w.weather_code >= 95 ? 1 : 0;
