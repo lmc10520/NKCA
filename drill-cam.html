@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>滅火器攝影機測試</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --surface:#fff; --surface-2:#f1f3f4; --on:#1f1f1f; --on-2:#5f6368; --outline:#dadce0;
+  --primary:#0b57d0; --tonal:#c2e7ff; --on-tonal:#001d35; --ok:#188038; --warn:#e37400; --bad:#d93025;
+  --font:Roboto,"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#e8eaed;color:var(--on);font-family:var(--font);font-size:14px}
+button,select,input{font:inherit;color:inherit}
+button{border:1px solid var(--outline);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer}
+button:hover{background:var(--surface-2)}
+button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+button.on{background:var(--tonal);border-color:var(--tonal);color:var(--on-tonal)}
+#wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;padding:16px;min-height:100vh}
+@media (max-width:1000px){#wrap{grid-template-columns:1fr}}
+#stage{position:relative;background:#000;border-radius:12px;overflow:hidden;align-self:start}
+#view{display:block;width:100%;height:auto;cursor:crosshair}
+#banner{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);color:#fff;font-size:64px;font-weight:700;
+  text-shadow:0 2px 12px rgba(0,0,0,.8);pointer-events:none;text-align:center;white-space:pre-line}
+#banner small{display:block;font-size:20px;font-weight:500}
+#hint{position:absolute;left:12px;bottom:12px;right:12px;color:#fff;background:rgba(0,0,0,.55);border-radius:8px;padding:6px 10px;font-size:13px}
+#hint:empty{display:none}
+.card{background:var(--surface);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(60,64,67,.3),0 1px 3px 1px rgba(60,64,67,.15)}
+.card h2{font-size:14px;margin:0 0 8px;color:var(--on-2);font-weight:500}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+.row label{color:var(--on-2)}
+select{max-width:100%;border:1px solid var(--outline);border-radius:8px;padding:4px 6px;background:#fff}
+input[type=number]{width:64px;border:1px solid var(--outline);border-radius:8px;padding:4px 6px}
+input[type=range]{flex:1}
+.mk{display:grid;grid-template-columns:22px 1fr auto auto;align-items:center;gap:8px;margin:6px 0}
+.sw{width:22px;height:22px;border-radius:6px;border:1px solid var(--outline)}
+.mk .n{font-variant-numeric:tabular-nums;color:var(--on-2);min-width:52px;text-align:right}
+#pass{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.lamp{border-radius:10px;background:var(--surface-2);text-align:center;padding:8px 4px;color:var(--on-2);transition:background .15s,color .15s}
+.lamp b{display:block;font-size:22px}
+.lamp.on{background:#ceead6;color:#0d652d}
+.lamp.bad{background:#fce8e6;color:#a50e0e}
+#target{width:100%;height:auto;background:#202124;border-radius:8px;display:block}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-variant-numeric:tabular-nums}
+.kv span:nth-child(odd){color:var(--on-2)}
+#agent{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+#agent i{display:block;height:100%;width:100%;background:var(--primary);transition:width .1s}
+#log{max-height:180px;overflow:auto;font-size:13px;margin:0;padding-left:18px}
+#log li.bad{color:var(--bad)} #log li.ok{color:var(--ok)}
+details summary{cursor:pointer;color:var(--on-2)}
+details p,details li{color:var(--on-2);line-height:1.6}
+.muted{color:var(--on-2);font-size:12px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div>
+    <div id="stage">
+      <canvas id="view" width="1280" height="720"></canvas>
+      <div id="banner">按右側「開啟攝影機」</div>
+      <div id="hint"></div>
+    </div>
+    <p class="muted">非官方模型，僅供教育訓練使用。影像只在這台電腦的瀏覽器裡分析，不會上傳。</p>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>攝影機</h2>
+      <div class="row"><select id="camSel"><option value="">（預設攝影機）</option></select><button id="camBtn" class="primary">開啟攝影機</button></div>
+      <div class="row">
+        <label>擺放位置</label>
+        <button id="roleFront" class="on">正面</button><button id="roleSide">側面</button>
+        <label><input type="checkbox" id="mirror" checked> 鏡像</label>
+      </div>
+      <div class="row muted" id="perf">—</div>
+    </div>
+
+    <div class="card">
+      <h2>標記顏色（按「取色」再點畫面上的貼紙）</h2>
+      <div id="markers"></div>
+      <div class="row muted">取色後如果抓到背景，按「取色」重點一次，或換一個跟衣服、牆面不一樣的螢光色。</div>
+    </div>
+
+    <div class="card">
+      <h2>校正</h2>
+      <div class="row"><label>站在離螢幕</label><input type="number" id="calD" value="2.0" step="0.1" min="0.5" max="6"><label>m 的線上，噴嘴對準螢幕中央</label></div>
+      <div class="row"><button id="calBtn" class="primary">開始校正（3 秒倒數）</button><button id="resetBtn">重新開始</button></div>
+      <div class="row"><label>瞄準靈敏度</label><input type="range" id="gain" min="0.4" max="2.5" step="0.1" value="1"><span id="gainV">1.0</span></div>
+      <div class="row"><label>建議距離</label><input type="number" id="dMin" value="2" step="0.5"><label>–</label><input type="number" id="dMax" value="3" step="0.5"><label>m</label></div>
+    </div>
+
+    <div class="card">
+      <h2>PASS</h2>
+      <div id="pass">
+        <div class="lamp" id="lP"><b>拉</b>插銷</div>
+        <div class="lamp" id="lA"><b>準</b>根部</div>
+        <div class="lamp" id="lS1"><b>壓</b>握把</div>
+        <div class="lamp" id="lS2"><b>掃</b>左右</div>
+      </div>
+      <div class="row" style="margin-top:10px"><span class="muted" style="min-width:64px">藥劑</span><div id="agent" style="flex:1"><i></i></div></div>
+      <canvas id="target" width="360" height="240"></canvas>
+      <div class="kv" id="stats" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h2>紀錄</h2>
+      <ol id="log"></ol>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>架設與道具說明</summary>
+        <ul>
+          <li><b>正面攝影機</b>：放在投影幕下緣中央，離地約 100–120 cm，鏡頭略微朝上，能拍到學員頭頂到膝蓋。</li>
+          <li><b>側面攝影機</b>（選用，判斷噴嘴上下角度）：學員左側或右側 2 m、離地約 100 cm，鏡頭垂直對著學員側面。</li>
+          <li><b>投影機</b>：吊在天花板，或用短焦機放在投影幕前方，避免學員的影子擋住畫面；投影機也不要直射攝影機。</li>
+          <li><b>筆電</b>：放在學員側後方給教官操作，USB 線直接接攝影機，太遠時用延長線。</li>
+          <li><b>地面</b>：貼 3 m、2 m 兩條線，校正時站在 2 m。學員背後不要是窗戶（逆光）。</li>
+          <li><b>噴嘴</b>：前端貼桃紅色貼紙、皮管根部貼螢光綠（2–3 cm 圓點或包一圈膠帶）。</li>
+          <li><b>插銷</b>：綁一片 A6 大小的螢光橘牌子，拔掉後牌子跟著離開瓶頭。拔下後不要舉在胸前，丟進旁邊的籃子。</li>
+          <li><b>壓把</b>：壓把下方的瓶頭貼螢光藍，平常被壓把蓋住，壓下時露出來（也可以做一片彈簧翻出來的色片）。</li>
+          <li>測試用鍵盤：<b>P</b> 切換插銷、按住<b>空白鍵</b>＝壓握把。</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/drillcam.js"></script>
+</body>
+</html>
