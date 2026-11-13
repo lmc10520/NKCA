@@ -1,0 +1,134 @@
+# 周邊地景（建築量體＋樹）→ model/context_buildings.bin、model/context_trees.bin
+#
+# 建築：Overture Maps 建築（theme=buildings/type=building，含 OpenStreetMap 與 Microsoft 衛星影像判釋的外框，ODbL），
+#   用 pyarrow 依 bbox 從 s3://overturemaps-us-west-2/release/<版本>/ 讀出這一塊，存成 parquet（geometry 為 WKB）。
+#   高度：height → 直接用；num_floors → 層數 × 3.3 m＋1 m；都沒有時依面積估算（見 est_height）。
+# 樹：ESA WorldCover 10 m（2021 v200，Sentinel 衛星影像分類）的 Tree cover（類別 10）格子，每格 1～2 棵、位置隨機偏移。
+#   讀取方式見 README 段落（rasterio 讀 COG 的一小塊，存成 wc.npy＋wc_tf.txt）。
+# 座標：與 js/horizon.js 的 OSM 地圖對位相同（site.json 的 map.anchor／rotate_deg／scale／shift_m 與 northOffset_deg），
+#   輸出為網頁座標（m，x 東西、z 南北），以 0.25 m 為單位存成 int16。
+# 範圍：最遠縮放時畫面看得到的範圍（以基地中心為準 ±1150 m × ±650 m）；基地（模型地坪）範圍內不放，避免蓋到模型。
+#
+# 用法：python3 tools/context_to_data.py <overture_buildings.parquet> <wc.npy> <wc_tf.txt>
+import json, math, os, random, struct, sys, glob
+import numpy as np, pyarrow.parquet as pq, shapely
+
+ROOT = os.path.join(os.path.dirname(__file__), '..')
+site = json.load(open(os.path.join(ROOT, 'config/site.json'), encoding='utf-8'))
+M = site['map']
+LAT0, LON0 = M['anchor']['lat'], M['anchor']['lon']
+AX, AZ = M['anchor']['at_cm'][0] / 100, -M['anchor']['at_cm'][1] / 100
+A = math.radians(site.get('northOffset_deg', 0) + M.get('rotate_deg', 0))
+S = M.get('scale', 1); SE, SN = M.get('shift_m', [0, 0])
+R = 6378137
+C, SNA = math.cos(A), math.sin(A)
+CX, CZ, HX, HZ = 137, -153, 1150, 650                    # 顯示範圍（網頁座標 m）
+SITE = (-108.7, 408.3, -418.1, 18.1)                     # 基地地坪範圍（horizon.js 的 siteRect）
+Q = 0.25                                                 # 座標單位（m）
+
+
+def ll2w(lat, lon):
+    """經緯度 → 網頁座標 (x, z)（horizon.js worldToLL 的反函數）"""
+    e = math.radians(lon - LON0) * R * math.cos(math.radians(LAT0))
+    n = math.radians(lat - LAT0) * R
+    u, v = (e + SE) / S, (n + SN) / S
+    return AX + u * C + v * SNA, AZ + u * SNA - v * C
+
+
+def in_view(x, z): return abs(x - CX) < HX and abs(z - CZ) < HZ
+def in_site(x, z, pad=0): return SITE[0] - pad < x < SITE[1] + pad and SITE[2] - pad < z < SITE[3] + pad
+
+
+def area(P):
+    return 0.5 * sum(P[i][0] * P[i - 1][1] - P[i - 1][0] * P[i][1] for i in range(len(P)))
+
+
+def est_height(tags, a):
+    h = tags.get('height', '').replace('m', '').strip()
+    try:
+        if h: return max(3, min(200, float(h)))
+    except ValueError: pass
+    lv = tags.get('building:levels', '').strip()
+    try:
+        if lv: return max(3, min(200, float(lv) * 3.3 + 1))
+    except ValueError: pass
+    if tags.get('building') in ('roof', 'carport', 'kiosk', 'shed', 'hut', 'garage', 'toilets'): return 3.5
+    # 依面積估算（高雄常見：小屋 2F、透天 4F、公寓 5F、大樓 7～11F）
+    for lim, hh in ((40, 6), (150, 13), (400, 16), (1200, 22), (3000, 30)):
+        if a < lim: return hh
+    return 36
+
+
+def simplify(P, tol=0.3):
+    """去掉重複點與幾乎共線的點"""
+    out = []
+    for p in P:
+        if out and math.dist(out[-1], p) < 0.2: continue
+        out.append(p)
+    if len(out) > 1 and math.dist(out[0], out[-1]) < 0.2: out.pop()
+    ch = True
+    while ch and len(out) > 3:
+        ch = False
+        for i in range(len(out)):
+            a, b, c = out[i - 1], out[i], out[(i + 1) % len(out)]
+            L = math.dist(a, c)
+            d = abs((c[0] - a[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (c[1] - a[1])) / L if L > 1e-6 else 0
+            if d < tol: out.pop(i); ch = True; break
+    return out
+
+
+# ---------- 建築 ----------
+tb = pq.read_table(sys.argv[1]).to_pydict()
+blds = []
+for g, hh, nf, cl in zip(tb['geometry'], tb['height'], tb['num_floors'], tb['class']):
+    geom = shapely.from_wkb(g)
+    for poly in getattr(geom, 'geoms', [geom]):
+        P = simplify([ll2w(y, x) for x, y in list(poly.exterior.coords)[:-1]])
+        if len(P) < 3: continue
+        cx, cz = sum(p[0] for p in P) / len(P), sum(p[1] for p in P) / len(P)
+        if not in_view(cx, cz) or in_site(cx, cz): continue
+        a = area(P)
+        if abs(a) < 8: continue
+        if a < 0: P = P[::-1]
+        tags = {'building': cl or ''}
+        if hh: tags['height'] = str(hh)
+        if nf: tags['building:levels'] = str(nf)
+        blds.append((est_height(tags, abs(a)), P))
+print('buildings', len(blds), 'verts', sum(len(p) for _, p in blds))
+
+out = bytearray(b'NKCB') + struct.pack('<I', len(blds))
+for h, P in blds:
+    out += struct.pack('<HH', round(h * 10), len(P))
+    for x, z in P: out += struct.pack('<hh', round(x / Q), round(z / Q))
+open(os.path.join(ROOT, 'model/context_buildings.bin'), 'wb').write(out)
+print('context_buildings.bin', len(out), 'bytes')
+
+# ---------- 樹 ----------
+wc = np.load(sys.argv[2])
+ta, tb, tc, td, te, tf = map(float, open(sys.argv[3]).read().split())
+# 建築佔用格（2 m 格）：樹不要長在建築裡
+occ = set()
+for h, P in blds:
+    xs, zs = [p[0] for p in P], [p[1] for p in P]
+    for gx in range(int(min(xs) // 2), int(max(xs) // 2) + 1):
+        for gz in range(int(min(zs) // 2), int(max(zs) // 2) + 1):
+            x, z = gx * 2 + 1, gz * 2 + 1
+            ins = False
+            for i in range(len(P)):
+                (x1, z1), (x2, z2) = P[i - 1], P[i]
+                if (z1 > z) != (z2 > z) and x < (x2 - x1) * (z - z1) / (z2 - z1) + x1: ins = not ins
+            if ins: occ.add((gx, gz))
+rnd = random.Random(7)
+trees = []
+for r, c in zip(*np.nonzero(wc == 10)):
+    for k in range(1 if rnd.random() < 0.55 else 2):
+        lon = tc + (c + rnd.random()) * ta; lat = tf + (r + rnd.random()) * te
+        x, z = ll2w(lat, lon)
+        if not in_view(x, z) or in_site(x, z, 2) or (int(x // 2), int(z // 2)) in occ: continue
+        size = rnd.uniform(2.2, 4.4)                       # 樹冠半徑（m）
+        trees.append((x, z, size, rnd.randrange(4)))
+print('trees', len(trees))
+out = bytearray(b'NKCT') + struct.pack('<I', len(trees))
+for x, z, s, v in trees: out += struct.pack('<hhBB', round(x / Q), round(z / Q), round(s * 20), v)
+open(os.path.join(ROOT, 'model/context_trees.bin'), 'wb').write(out)
+print('context_trees.bin', len(out), 'bytes')
