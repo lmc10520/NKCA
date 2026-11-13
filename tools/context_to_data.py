@@ -9,8 +9,10 @@
 #   輸出為網頁座標（m，x 東西、z 南北），以 0.25 m 為單位存成 int16。
 # 範圍：最遠縮放時畫面看得到的範圍（以基地中心為準 ±1150 m × ±650 m）；基地（模型地坪）範圍內不放，避免蓋到模型。
 #
-# 用法：python3 tools/context_to_data.py <overture_buildings.parquet> <wc.npy> <wc_tf.txt>
+# 行道樹：另外給 OSM XML 資料夾（api.openstreetmap.org/api/0.6/map 下載）時，natural=tree_row 沿線每 7 m 加一棵、natural=tree 單棵。
+# 用法：python3 tools/context_to_data.py <overture_buildings.parquet> <wc.npy> <wc_tf.txt> [osm xml 資料夾]
 import json, math, os, random, struct, sys, glob
+import xml.etree.ElementTree as ET
 import numpy as np, pyarrow.parquet as pq, shapely
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -127,6 +129,28 @@ for r, c in zip(*np.nonzero(wc == 10)):
         if not in_view(x, z) or in_site(x, z, 2) or (int(x // 2), int(z // 2)) in occ: continue
         size = rnd.uniform(2.2, 4.4)                       # 樹冠半徑（m）
         trees.append((x, z, size, rnd.randrange(4)))
+# 行道樹（OSM）
+if len(sys.argv) > 4:
+    done = set()                                       # 同一條行道樹／同一棵樹會出現在相鄰的幾個圖塊裡
+    for f in sorted(glob.glob(os.path.join(sys.argv[4], '*.xml'))):
+        root = ET.parse(f).getroot(); nodes = {}
+        pts = []
+        for el in root:
+            if el.tag == 'node':
+                nodes[el.get('id')] = (float(el.get('lat')), float(el.get('lon')))
+                if el.get('id') not in done and any(t.get('k') == 'natural' and t.get('v') == 'tree' for t in el.findall('tag')):
+                    done.add(el.get('id')); pts.append(ll2w(*nodes[el.get('id')]))
+            elif el.tag == 'way' and 'w' + el.get('id') not in done and any(t.get('k') == 'natural' and t.get('v') == 'tree_row' for t in el.findall('tag')):
+                done.add('w' + el.get('id'))
+                P = [ll2w(*nodes[nd.get('ref')]) for nd in el.findall('nd') if nd.get('ref') in nodes]
+                for (x1, z1), (x2, z2) in zip(P, P[1:]):
+                    L = math.dist((x1, z1), (x2, z2))
+                    for i in range(int(L // 7) + 1):
+                        t = (i * 7 + 3.5) / max(L, 1e-6)
+                        if t <= 1: pts.append((x1 + (x2 - x1) * t, z1 + (z2 - z1) * t))
+        for x, z in pts:
+            if in_view(x, z) and not in_site(x, z, 2) and (int(x // 2), int(z // 2)) not in occ:
+                trees.append((x, z, rnd.uniform(1.8, 2.8), rnd.randrange(4)))
 print('trees', len(trees))
 out = bytearray(b'NKCT') + struct.pack('<I', len(trees))
 for x, z, s, v in trees: out += struct.pack('<hhBB', round(x / Q), round(z / Q), round(s * 20), v)
