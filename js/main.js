@@ -20,6 +20,7 @@ import { Festival } from './festival.js';
 import { Piano } from './piano.js';
 import { Soundscape } from './soundscape.js';
 import { Horizon, siteRect } from './horizon.js';
+import { Context } from './context.js';
 import { Section } from './section.js';
 import { HIGH, quality, qualityPref, setQualityPref, TONE, FinalPass, AdaptiveRes } from './look.js';
 import { applyFinishes } from './finishes.js';
@@ -215,6 +216,8 @@ const rect = site.horizon?.enabled === false ? null : siteRect(model);
 const horizon = rect ? new Horizon(scene, rect, site.horizon) : null;
 // 地坪外的 OpenStreetMap 地圖（site.json 的 map）：圖磚在背景慢慢載入，不擋開場
 horizon?.setMap(site.map, site.northOffset_deg ?? 23, renderer.capabilities.getMaxAnisotropy());
+// 周邊地景：基地外的建築量體與樹（site.json 的 context；資料第一次開啟時才下載）
+const context = new Context(scene, site.context);
 section.addBase(scene, rect || siteRect(model), site.section?.baseColor);   // 屋頂投射燈、廣場面光源都開
 for (const m of model.meshes) { const mt = m.userData.origMaterial; if (mt?.isMeshStandardMaterial) envMats.add(mt); }
 let envKNow = -1, nightNow = -1;
@@ -309,6 +312,7 @@ setTimeout(async () => {
 // ---------- 可見性：模式 + 廳院樓層 ----------
 const state = {
   mode: modesCfg.default || 'exterior', halls: {}, clock: true, weather: true, labels: true, traffic: true,
+  context: !isMobile,   // 周邊地景：電腦預設開、手機預設關（設定裡切換）
   style: 'normal', contrast: false, wire: false, ortho: false, lineW: 2,
   venue: null,   // 場館燈光：null＝依營運時間自動，true／false＝手動開／關
   festival: true,   // 節慶物件（檔期內才有）
@@ -760,9 +764,11 @@ function setToggle(k, v) {
   if (k === 'weather') env.weatherOn = v;
   if (k === 'traffic') applyTraffic();
   if (k === 'festival') festival.setOn(v);
+  if (k === 'context') { context.setOn(v); const at = $('mapAttrib'); if (at) at.textContent = (site.map?.attribution || '© OpenStreetMap 貢獻者') + (v ? (site.context?.attribution || ' · Overture Maps · ESA WorldCover') : ''); }
   if (k === 'escape') { setStyle(state.style); applyVisibility(); $('escBtn').classList.toggle('on', v); $('escBtn').setAttribute('aria-pressed', v); }
 }
 document.querySelectorAll('[data-tg]').forEach((cb) => (cb.onchange = () => setToggle(cb.dataset.tg, cb.checked)));
+setToggle('context', state.context);
 $('escBtn').onclick = () => setToggle('escape', !state.escape);   // 逃生狀態：簡報列的奔跑人圖示按鈕（不顯示文字）
 // 場館燈光：預設依 lights.json 的營運時間自動開關；手動切換後維持，按「自動」回到排程
 function setVenue(v) {

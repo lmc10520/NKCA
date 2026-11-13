@@ -135,7 +135,10 @@ export class Environment {
     this.stars.renderOrder = -0.8;   // 在夜空之後、地平線地坪之前畫：地坪遠處變透明時，星星從底下透出來
     scene.add(this.dome, this.stars);
 
-    this.hemi = new THREE.HemisphereLight(0xdfe9f2, 0x5d6062, 0.9);   // 地面反光用中性灰（原本偏棕，整體會「土」）
+    // 色調（site.json 的 palette）：日光色相／彩度、天空光與地面反光的顏色；改這裡就能整體調暖、調柔
+    const pal = site.palette || {};
+    this.pal = { sunHue: pal.sunHue ?? 0.09, sunSat: pal.sunSat ?? 0.6, sky: new THREE.Color(pal.hemiSky || '#dfe9f2'), ground: new THREE.Color(pal.hemiGround || '#5d6062') };
+    this.hemi = new THREE.HemisphereLight(this.pal.sky, this.pal.ground, 0.9);   // 地面反光用中性灰（原本偏棕，整體會「土」）
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xfff3e0, 3);
     this.sun.castShadow = !!site.shadows;
@@ -238,10 +241,10 @@ export class Environment {
     // 白天：太陽＋環境反射（main.js 的 envIntensity）＋少量半球光；明暗比例約 2.3:1，立體感比較清楚
     this.sun.intensity = (moon ? night * this.moonI * (1 - cloud * 0.6) : (1 - night) * (2.7 - cloud * 1.5)) * (1 - dark);
     if (moon) this.sun.color.set(0xaec0e6);
-    else this.sun.color.setHSL(0.09, 0.6, 0.5 + 0.45 * Math.min(1, Math.max(0, alt * 3)));
+    else this.sun.color.setHSL(this.pal.sunHue, this.pal.sunSat, 0.5 + 0.45 * Math.min(1, Math.max(0, alt * 3)));
     this.hemi.intensity = (0.48 * night + (1 - night) * (0.45 + cloud * 0.55)) * (1 - dark);
-    this.hemi.color.lerpColors(new THREE.Color(0xdfe9f2), new THREE.Color(0x8296c4), night);
-    this.hemi.groundColor.lerpColors(new THREE.Color(0x5d6062), new THREE.Color(0x30364a), night);
+    this.hemi.color.lerpColors(this.pal.sky, new THREE.Color(0x8296c4), night);
+    this.hemi.groundColor.lerpColors(this.pal.ground, new THREE.Color(0x30364a), night);
     this.renderer.toneMappingExposure = 0.85 + (1 - night) * 0.15;
 
     this.fog.density = wxOn ? (storm ? 0.0032 : rainy ? 0.0016 : snowy ? 0.0024 : cloud * 0.0006) : 0;
