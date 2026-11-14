@@ -240,6 +240,12 @@ function setNightTint(n) {
   const k = n * NIGHT_DESAT, g = new THREE.Color();
   for (const [mt, c] of baseCol) { const l = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722; mt.color.copy(c).lerp(g.setRGB(l, l, l), k); }
 }
+// 周邊地景、基地內的樹是之後才載入的：材質一樣套用晝夜的環境反射與夜間降彩度
+context.onMaterials = (mats) => {
+  for (const mt of mats) { envMats.add(mt); baseCol.set(mt, mt.color.clone()); }
+  envKNow = -1; nightNow = -1;
+};
+context.loadSite(scene);   // 基地內的樹（草地、土丘、人行道）
 night.addStreetLights(streetCfg);
 setLoad(93, '加入人車與噴泉…'); await paint();
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
@@ -1361,6 +1367,7 @@ renderer.setAnimationLoop(() => {
   if (env.flashK) renderer.toneMappingExposure += env.flashK * 0.9;   // 閃電瞬間整個畫面亮一下
   fountain?.update(t, env.now(), n);
   festival.update(dt, n);
+  context.update(n);
   piano.update(dt);
   section.tick(dt);
   updatePianoHint(t);

@@ -26,18 +26,18 @@
  "shadows": true,
  "bloom": { "strength": 0.75, "radius": 0.4, "threshold": 1.0, "_說明": "夜間光暈：比 threshold 亮的地方（燈具、車燈、號誌、亮星）向外暈開。strength 強度、radius 擴散範圍 0–1、threshold 門檻（1＝比白色更亮才發光，調低會讓白色牆面、車身也發光）；整段改成 false 可關閉" },
  "envIntensity": 0.25,
- "skyBrightness": 0.68,
+ "skyBrightness": 0.64,
  "_畫面說明": "envIntensity＝環境反射強度（玻璃反光、白牆柔光，夜間自動調低）；skyBrightness＝天空亮度；materialColor＝覆蓋 Fusion 材質顏色（材質名稱 → 顏色），刪掉就恢復原色；studioLight＝白模／線稿／網點樣式的固定光源（az_deg 方位角由北順時針、alt_deg 仰角、sun 主光、ambient 環境光）；toneSize＝網點預設大小（px）；Roof_White_Aluminum＝屋面顏色，seamColor＝屋頂直立縫顏色（越深線條越明顯）；horizon＝基地外延伸地坪與地平線霧帶的顏色（白天近／遠、夜晚近／遠），fadeStart_m／fadeEnd_m＝從基地中心多遠開始漸變到地平線色，nightFadeStart_m／nightFadeEnd_m＝夜晚地坪從多遠開始變透明（露出星空），enabled:false 可關閉；modelLite＝預設畫質載入的減面模型（高畫質用 model）。",
- "palette": { "_說明": "整體色調（甜美柔和）：sunHue／sunSat＝白天日光的色相（0.05 偏桃、0.09 偏黃）與彩度；hemiSky＝天空散射光顏色、hemiGround＝地面反光顏色。", "sunHue": 0.065, "sunSat": 0.5, "hemiSky": "#f2ecf6", "hemiGround": "#6d6569" },
- "context": { "_說明": "周邊地景（設定的「周邊地景」開關；電腦預設開、手機預設關）。資料：tools/context_to_data.py 產生 model/context_buildings.bin、context_trees.bin。buildings＝建築量體顏色、opacity 不透明度、glow 自發光（讓量體偏亮白）；trees.colors＝樹冠的幾種綠、trunk＝樹幹色。", "attribution": " · Overture Maps · ESA WorldCover", "buildings": { "color": "#f8f0ef", "opacity": 0.82, "glow": 0.14 }, "trees": { "colors": ["#9ccfa4", "#addba6", "#8ec9a6", "#bfdcab"], "trunk": "#b9a197" } },
+ "palette": { "_說明": "整體色調（2026-11 依衛武營 360 導覽的 3D 模型材質調回寫實：屋面中性白、草地偏黃綠、鋪面中性灰）：sunHue／sunSat＝白天日光的色相（0.05 偏桃、0.09 偏黃）與彩度；hemiSky＝天空散射光顏色、hemiGround＝地面反光顏色。", "sunHue": 0.09, "sunSat": 0.5, "hemiSky": "#e3eaf1", "hemiGround": "#62625f" },
+ "context": { "_說明": "周邊地景（設定的「周邊地景」開關；電腦預設開、手機預設關）。資料：tools/context_to_data.py 產生 model/context_buildings.bin、context_trees.bin。buildings＝建築量體顏色、opacity 不透明度、glow 自發光（讓量體偏亮白）；trees.colors＝樹冠的幾種綠、trunk＝樹幹色。", "attribution": " · Overture Maps · ESA WorldCover", "buildings": { "color": "#f0f0ee", "opacity": 0.82, "glow": 0.12 }, "trees": { "colors": ["#6f9a4e", "#82a858", "#5f8c4a", "#93b064"], "trunk": "#8a7868" } },
  "materialColor": {
-  "Site_Grass": "#9fd38a",
-  "Planting_Green": "#80bb70",
-  "Site_Asphalt": "#67636f",
+  "Site_Grass": "#88a658",
+  "Planting_Green": "#6b9448",
+  "Site_Asphalt": "#5f6164",
   "Site_Fountain_Stone": "#4d5b6e",
-  "Roof_White_Aluminum": "#e8e3e4"
+  "Roof_White_Aluminum": "#dcdcdb"
  },
- "seamColor": "#8b8590",
+ "seamColor": "#868a8e",
  "map": {
   "_說明": "地坪外的 OpenStreetMap 地圖：貼在 horizon 地坪上（基地範圍內不顯示），由近到遠淡出成地平線色。anchor＝對位點：模型平面座標 at_cm [x, y]（cm）對應的經緯度；方向用 northOffset_deg。位置不準時，網址加 ?mapcal 用鍵盤微調（方向鍵移動、Q／E 旋轉、－／＝ 比例），把面板上的 rotate_deg、scale、shift_m 貼回這裡。layers＝兩層圖磚（z 縮放等級、tiles 每邊幾張），第一層近處細、第二層遠處粗；fadeStart_m／fadeEnd_m＝離基地中心多遠開始淡出到全部消失；saturation＝彩度（0 灰階、1 原色）；lighten＝往地坪淺色提亮的比例；night＝夜晚轉成夜色的程度。url 可換其他圖磚（{z}{x}{y}，{s} 子網域、{r} 高解析）；換了要同時改 attribution。enabled:false 可關閉。",
   "enabled": true,
@@ -49,7 +49,7 @@
   "layers": [ { "z": 16, "tiles": 8 }, { "z": 14, "tiles": 6 } ],
   "fadeStart_m": 1500, "fadeEnd_m": 4500, "saturation": 0.72, "lighten": 0.28, "night": 0.75
  },
- "horizon": { "dayNear": "#f6f0ec", "dayFar": "#e4e2f1", "nightNear": "#5a647b", "nightFar": "#2c3854", "fadeStart_m": 250, "fadeEnd_m": 2600, "nightFadeStart_m": 420, "nightFadeEnd_m": 1100 },
+ "horizon": { "dayNear": "#eeeeeb", "dayFar": "#d9e2e8", "nightNear": "#5a647b", "nightFar": "#2c3854", "fadeStart_m": 250, "fadeEnd_m": 2600, "nightFadeStart_m": 420, "nightFadeEnd_m": 1100 },
  "section": { "capFill": false, "keep": "^Site_(?!Ramp_|Parking_|Dock_)", "baseColor": "#b9b3a8", "capColors": { "normal": "#7a7e84", "colorline": "#7a7e84", "contrast": "#8d9196", "wire": "#2a2c30", "tone": "#2a2c30" }, "_說明": "剖面（設定 → 剖面）：只切建築。keep＝不切的物件名稱規則，預設只保留基地外圍的 Site_ 道路、草地、鋪面；榕樹廣場地坪、戶外劇場、停車場坡道與卸貨碼頭的牆、之後的地下樓層都會切。baseColor＝剖面開啟時鋪在所有建築最低點下方的底板（土層）顏色，加入地下樓層後高度會自動往下。capFill＝切口填色預設開或關（使用者可在設定切換）；capColors＝各模型樣式的切口顏色。" },
  "studioLight": { "az_deg": 300, "alt_deg": 46, "sun": 2.6, "ambient": 2.0 },
  "toneSize": 5,

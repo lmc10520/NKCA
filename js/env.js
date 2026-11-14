@@ -176,8 +176,13 @@ export class Environment {
       const u = `https://api.open-meteo.com/v1/forecast?latitude=${this.lat}&longitude=${this.lon}` +
         '&current=temperature_2m,weather_code,cloud_cover,precipitation,wind_speed_10m&timezone=Asia%2FTaipei';
       const j = await (await fetch(u)).json();
-      this.weather = j.current;
-    } catch (e) { this.weather = null; }
+      if (!j.current) throw new Error('no data');
+      this.weather = j.current; this.weatherAt = Date.now();
+    } catch (e) {
+      // 抓不到（網路不穩、服務暫時沒回應）：一小時內沿用上一次的資料，1 分鐘後再試，不要讓天氣資訊整個消失
+      if (!(Date.now() - (this.weatherAt || 0) < 3600e3)) this.weather = null;
+      clearTimeout(this.wxRetry); this.wxRetry = setTimeout(() => this.fetchWeather(), 60e3);
+    }
   }
 
   weatherText() {
@@ -243,11 +248,15 @@ export class Environment {
     if (moon) this.sun.color.set(0xaec0e6);
     else this.sun.color.setHSL(this.pal.sunHue, this.pal.sunSat, 0.5 + 0.45 * Math.min(1, Math.max(0, alt * 3)));
     this.hemi.intensity = (0.48 * night + (1 - night) * (0.45 + cloud * 0.55)) * (1 - dark);
+    // 夜晚從遠處看：基地（受光的模型）會比周圍不受光的地坪暗很多，像一塊黑；鏡頭拉遠時把環境光補亮
+    if (this.focus) this.hemi.intensity *= 1 + night * 1.6 * smooth(250, 1100, this.focus.distanceTo(this.center));
     this.hemi.color.lerpColors(this.pal.sky, new THREE.Color(0x8296c4), night);
     this.hemi.groundColor.lerpColors(this.pal.ground, new THREE.Color(0x30364a), night);
     this.renderer.toneMappingExposure = 0.85 + (1 - night) * 0.15;
 
     this.fog.density = wxOn ? (storm ? 0.0032 : rainy ? 0.0016 : snowy ? 0.0024 : cloud * 0.0006) : 0;
+    // 鏡頭拉遠時霧不能把建築整個吃掉（雨天＋夜晚從遠處看會變成一片霧色的黑）：建築至少保留約六成
+    if (this.focus) this.fog.density = Math.min(this.fog.density, 0.7 / Math.max(60, this.focus.distanceTo(this.center)));
     this.fog.color.lerpColors(new THREE.Color(snowy ? 0xe4e8ec : storm ? 0x9aa3ab : 0xbfc8cf), new THREE.Color(0x1e2a48), night);
     this.updatePrecip(rainy ? 'rain' : snowy ? 'snow' : null, dt, wind, storm);
     this.updateLightning(dt, storm && wxOn);

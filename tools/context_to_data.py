@@ -9,8 +9,10 @@
 #   輸出為網頁座標（m，x 東西、z 南北），以 0.25 m 為單位存成 int16。
 # 範圍：最遠縮放時畫面看得到的範圍（以基地中心為準 ±1150 m × ±650 m）；基地（模型地坪）範圍內不放，避免蓋到模型。
 #
-# 用法：python3 tools/context_to_data.py <overture_buildings.parquet> <wc.npy> <wc_tf.txt>
+# 行道樹：另外給 OSM XML 資料夾（api.openstreetmap.org/api/0.6/map 下載）時，natural=tree_row 沿線每 7 m 加一棵、natural=tree 單棵。
+# 用法：python3 tools/context_to_data.py <overture_buildings.parquet> <wc.npy> <wc_tf.txt> [osm xml 資料夾]
 import json, math, os, random, struct, sys, glob
+import xml.etree.ElementTree as ET
 import numpy as np, pyarrow.parquet as pq, shapely
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -94,6 +96,38 @@ for g, hh, nf, cl in zip(tb['geometry'], tb['height'], tb['num_floors'], tb['cla
         if hh: tags['height'] = str(hh)
         if nf: tags['building:levels'] = str(nf)
         blds.append((est_height(tags, abs(a)), P))
+# ---------- 指標建築（資料庫裡沒有或只有工地範圍；依照片與衛星空拍粗略建構，網頁座標 m） ----------
+def rect(cx, cz, w, d, deg):
+    a = math.radians(deg); ca, sa = math.cos(a), math.sin(a)
+    return [(cx + u * ca - v * sa, cz + u * sa + v * ca) for u, v in ((-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2))]
+def inside(x, z, P):
+    c = False
+    for i in range(len(P)):
+        (x1, z1), (x2, z2) = P[i - 1], P[i]
+        if (z1 > z) != (z2 > z) and x < (x2 - x1) * (z - z1) / (z2 - z1) + x1: c = not c
+    return c
+# 基地範圍（OSM）：範圍內原有的量體先移除
+O10 = [(28.9, -460.3), (189.1, -520.0), (216.8, -443.2), (217.4, -439.4), (214.2, -435.3), (107.1, -378.7), (98.9, -395.4), (90.9, -400.6), (59.3, -385.2)]
+TZUCHI = [(297, -339), (263, -409), (346, -454), (401, -354), (391, -342)]
+LALA = [(339, -469), (484, -546), (502, -511), (544, -533), (562, -487), (568, -464), (570, -452), (569, -435), (539, -325), (439, -285), (414, -334), (391, -342), (401, -354), (346, -454)]
+TZUCHI_HALL = [(279.1, -413.0), (336.6, -441.7), (365.2, -384.5), (361.6, -382.7), (363.7, -378.5), (311.0, -352.2), (298.4, -377.4), (305.3, -380.8), (308.4, -374.5), (314.0, -377.2), (315.5, -374.2), (324.0, -378.4), (321.8, -382.8), (336.1, -389.9), (338.0, -386.2), (345.7, -390.0), (331.7, -418.2), (324.3, -414.5), (326.4, -410.3), (311.4, -402.8), (309.5, -406.5), (302.5, -403.0), (304.4, -399.2), (300.8, -397.3), (303.5, -392.0), (292.3, -386.4)]
+F = 3.45                                                  # 住宅大樓層高（m）
+LANDMARKS = [
+    # 衛武營藝術之丘（捷運 O10／Y18 衛武營站土地開發案）：四棟 38～52 層（由西到東 52、42、38、46）＋西南角旅館棟＋低層裙樓
+    (8, [(44, -452), (182, -503), (203, -447), (112, -398), (100, -410), (88, -413), (64, -402)]),
+    (52 * F, rect(84, -436, 30, 40, -22)), (42 * F, rect(118, -449, 28, 38, -22)),
+    (38 * F, rect(150, -461, 28, 38, -22)), (46 * F, rect(182, -472, 28, 40, -22)),
+    (48, rect(80, -410, 22, 20, -22)),
+    # 慈濟鳳山靜思堂：OSM 外框 4 層＋中央挑高的講堂
+    (20, TZUCHI_HALL), (27, rect(322, -397, 44, 26, 26.5)),
+    # LaLaport 高雄（鳳山）：商場主量體＋中央較高的影城／機房量體＋西北側立體停車場
+    (27, [(352, -458), (480, -528), (497, -496), (538, -517), (553, -480), (556, -440), (530, -338), (445, -303), (424, -345), (400, -360)]),
+    (38, rect(478, -420, 70, 50, -20)), (33, rect(392, -452, 60, 34, 28)),
+]
+blds = [(h, P) for h, P in blds if not any(inside(sum(p[0] for p in P) / len(P), sum(p[1] for p in P) / len(P), S_) for S_ in (O10, TZUCHI, LALA))]
+for h, P in LANDMARKS:
+    if area(P) < 0: P = P[::-1]
+    blds.append((h, P))
 print('buildings', len(blds), 'verts', sum(len(p) for _, p in blds))
 
 out = bytearray(b'NKCB') + struct.pack('<I', len(blds))
@@ -127,6 +161,28 @@ for r, c in zip(*np.nonzero(wc == 10)):
         if not in_view(x, z) or in_site(x, z, 2) or (int(x // 2), int(z // 2)) in occ: continue
         size = rnd.uniform(2.2, 4.4)                       # 樹冠半徑（m）
         trees.append((x, z, size, rnd.randrange(4)))
+# 行道樹（OSM）
+if len(sys.argv) > 4:
+    done = set()                                       # 同一條行道樹／同一棵樹會出現在相鄰的幾個圖塊裡
+    for f in sorted(glob.glob(os.path.join(sys.argv[4], '*.xml'))):
+        root = ET.parse(f).getroot(); nodes = {}
+        pts = []
+        for el in root:
+            if el.tag == 'node':
+                nodes[el.get('id')] = (float(el.get('lat')), float(el.get('lon')))
+                if el.get('id') not in done and any(t.get('k') == 'natural' and t.get('v') == 'tree' for t in el.findall('tag')):
+                    done.add(el.get('id')); pts.append(ll2w(*nodes[el.get('id')]))
+            elif el.tag == 'way' and 'w' + el.get('id') not in done and any(t.get('k') == 'natural' and t.get('v') == 'tree_row' for t in el.findall('tag')):
+                done.add('w' + el.get('id'))
+                P = [ll2w(*nodes[nd.get('ref')]) for nd in el.findall('nd') if nd.get('ref') in nodes]
+                for (x1, z1), (x2, z2) in zip(P, P[1:]):
+                    L = math.dist((x1, z1), (x2, z2))
+                    for i in range(int(L // 7) + 1):
+                        t = (i * 7 + 3.5) / max(L, 1e-6)
+                        if t <= 1: pts.append((x1 + (x2 - x1) * t, z1 + (z2 - z1) * t))
+        for x, z in pts:
+            if in_view(x, z) and not in_site(x, z, 2) and (int(x // 2), int(z // 2)) not in occ:
+                trees.append((x, z, rnd.uniform(1.8, 2.8), rnd.randrange(4)))
 print('trees', len(trees))
 out = bytearray(b'NKCT') + struct.pack('<I', len(trees))
 for x, z, s, v in trees: out += struct.pack('<hhBB', round(x / Q), round(z / Q), round(s * 20), v)
