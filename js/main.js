@@ -246,6 +246,24 @@ context.onMaterials = (mats) => {
   envKNow = -1; nightNow = -1;
 };
 context.loadSite(scene);   // 基地內的樹（草地、土丘、人行道）
+// 配色切換（設定「模型樣式」的寫實／甜美；site.json 的 palettes.sweet 蓋過寫實的值）
+function applyPalette(name) {
+  const sw = name === 'sweet' && site.palettes?.sweet ? site.palettes.sweet : {};
+  const mc = { ...site.materialColor, ...sw.materialColor, Seam_Color: sw.seamColor || site.seamColor };
+  for (const [mt, c] of baseCol) {
+    const v = mc[mt.name]; if (!v || mt.name.startsWith('_')) continue;
+    c.set(v); mt.color.set(v);
+    const bc = mt.userData.base?.color; if (bc?.isColor) bc.set(v);   // 夜間燈光用的原色備份
+  }
+  env.setPalette({ ...site.palette, ...sw.palette }, sw.skyBrightness ?? site.skyBrightness);
+  horizon?.setPalette({ ...site.horizon, ...sw.horizon }, { ...site.map, ...sw.map });
+  const cc = site.context || {}, sc = sw.context || {};
+  for (const mt of context.setPalette({ buildings: { ...cc.buildings, ...sc.buildings }, trees: { ...cc.trees, ...sc.trees } })) baseCol.set(mt, mt.color.clone());
+  envKNow = -1; nightNow = -1;
+  if (typeof state !== 'undefined') state.palette = name;
+  try { localStorage.setItem('nkca.palette', name); } catch {}
+  document.querySelectorAll('#palSeg button').forEach((b) => b.classList.toggle('on', b.dataset.pal === name));
+}
 night.addStreetLights(streetCfg);
 setLoad(93, '加入人車與噴泉…'); await paint();
 const fountain = fountainCfg?.nozzles ? new Fountain(scene, fountainCfg) : null;
@@ -774,6 +792,8 @@ function setToggle(k, v) {
   if (k === 'escape') { setStyle(state.style); applyVisibility(); $('escBtn').classList.toggle('on', v); $('escBtn').setAttribute('aria-pressed', v); }
 }
 document.querySelectorAll('[data-tg]').forEach((cb) => (cb.onchange = () => setToggle(cb.dataset.tg, cb.checked)));
+document.querySelectorAll('#palSeg button').forEach((b) => (b.onclick = () => applyPalette(b.dataset.pal)));
+{ let p = 'real'; try { p = localStorage.getItem('nkca.palette') || 'real'; } catch {} if (p !== 'real') applyPalette(p); }
 setToggle('context', state.context);
 $('escBtn').onclick = () => setToggle('escape', !state.escape);   // 逃生狀態：簡報列的奔跑人圖示按鈕（不顯示文字）
 // 場館燈光：預設依 lights.json 的營運時間自動開關；手動切換後維持，按「自動」回到排程
