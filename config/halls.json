@@ -128,7 +128,8 @@
     {
      "id": "2F",
      "hide": [
-      "=Hall_Concert_3F"
+      "=Hall_Concert_3F",
+      "@ch3F"
      ]
     },
     {
@@ -136,7 +137,11 @@
      "hide": [
       "=Hall_Concert_3F",
       "=Hall_Concert_Balcony",
-      "^Hall_Concert_CtrlGlass_"
+      "^Hall_Concert_CtrlGlass_",
+      "^CH2F_",
+      "=Hall_Concert_2F_Corridor",
+      "=Hall_Concert_Organ_2F",
+      "@ch3F"
      ]
     },
     {
@@ -198,10 +203,17 @@
      "id": "3F"
     },
     {
-     "id": "2F"
+     "id": "2F",
+     "hide": [
+      "@ph3F"
+     ]
     },
     {
-     "id": "1F"
+     "id": "1F",
+     "hide": [
+      "@ph2F",
+      "@ph3F"
+     ]
     },
     {
      "id": "B1",

@@ -9,6 +9,7 @@
   AboveGround_hide         → groups.aboveGround（B1／B2 地下停車場模式要隱藏的物件）
   B1_hide                  → groups.b1Level（B1 樓層物件，B2 模式時隱藏）
   OH_2F/3F/4F_hide         → groups.oh2F／oh3F／oh4F（歌劇院樓層：看較低樓層時隱藏上方樓層）
+  CH_2F/3F_hide、PH_2F/3F_hide → groups.ch2F／ch3F、ph2F／ph3F（音樂廳、戲劇院樓層）
 選取集 ARCHIVE 的物件不會匯出（見 fusion_export_glb.py）。
 在 Fusion 裡把新畫的室內物件加入（或移出）這兩個選取集，重新匯出後跑這支就好。
 modes.json 其他內容（模式名稱、exclude、說明）不動。會列出新增／移除的物件名稱。
@@ -18,7 +19,9 @@ import json, sys, os
 MAP = {'MODE_A_CanopyHall_hide': 'canopyHide', 'MODE_B_BanyanPlaza_hide': 'plazaHide',
        'AboveGround_hide': 'aboveGround',   # 地下停車場模式（B1、B2）隱藏的地面以上物件
        'B1_hide': 'b1Level',                # B1 樓層本身（B2 模式時隱藏）
-       'OH_2F_hide': 'oh2F', 'OH_3F_hide': 'oh3F', 'OH_4F_hide': 'oh4F'}   # 歌劇院各樓層
+       'OH_2F_hide': 'oh2F', 'OH_3F_hide': 'oh3F', 'OH_4F_hide': 'oh4F',   # 歌劇院各樓層
+       'CH_2F_hide': 'ch2F', 'CH_3F_hide': 'ch3F',                        # 音樂廳各樓層
+       'PH_2F_hide': 'ph2F', 'PH_3F_hide': 'ph3F'}                        # 戲劇院各樓層
 src = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser('~/Documents/NKCA_data/nkca_sets.json')
 dst = os.path.join(os.path.dirname(__file__), '..', 'config', 'modes.json')
 
