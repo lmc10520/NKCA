@@ -9,7 +9,7 @@
 #   輸出為網頁座標（m，x 東西、z 南北），以 0.25 m 為單位存成 int16。
 # 範圍：最遠縮放時畫面看得到的範圍（以基地中心為準 ±1150 m × ±650 m）；基地（模型地坪）範圍內不放，避免蓋到模型。
 #
-# 行道樹：另外給 OSM XML 資料夾（api.openstreetmap.org/api/0.6/map 下載）時，natural=tree_row 沿線每 7 m 加一棵、natural=tree 單棵。
+# 行道樹與道路：另外給 OSM XML 資料夾（api.openstreetmap.org/api/0.6/map 下載）時，natural=tree_row 沿線每 7 m 加一棵、natural=tree 單棵。
 # 用法：python3 tools/context_to_data.py <overture_buildings.parquet> <wc.npy> <wc_tf.txt> [osm xml 資料夾]
 import json, math, os, random, struct, sys, glob
 import xml.etree.ElementTree as ET
@@ -96,6 +96,42 @@ for g, hh, nf, cl in zip(tb['geometry'], tb['height'], tb['num_floors'], tb['cla
         if hh: tags['height'] = str(hh)
         if nf: tags['building:levels'] = str(nf)
         blds.append((est_height(tags, abs(a)), P))
+# ---------- 道路（OSM，第 4 個參數）：跨在道路上的量體、長在路面上的樹都拿掉 ----------
+# 半寬（m）：中心線往兩側多少算路面（含一點餘裕，WorldCover 10 m 格子常把路邊行道樹的樹冠延伸到路面上）
+HALF = {'motorway': 15, 'trunk': 13, 'primary': 12, 'secondary': 10, 'tertiary': 9, 'motorway_link': 6, 'primary_link': 6,
+        'secondary_link': 6, 'tertiary_link': 5, 'residential': 5, 'unclassified': 5}
+from shapely.geometry import LineString, Polygon, Point
+from shapely.strtree import STRtree
+roads = []
+if len(sys.argv) > 4:
+    seen = set()
+    for f in sorted(glob.glob(os.path.join(sys.argv[4], '*.xml'))):
+        nodes = {}
+        for el in ET.parse(f).getroot():
+            if el.tag == 'node': nodes[el.get('id')] = (float(el.get('lat')), float(el.get('lon')))
+            elif el.tag == 'way' and el.get('id') not in seen:
+                t = {x.get('k'): x.get('v') for x in el.findall('tag')}
+                if t.get('highway') in HALF and t.get('tunnel') != 'yes' and t.get('bridge') != 'yes' and t.get('layer', '0') == '0':
+                    seen.add(el.get('id'))
+                    P = [ll2w(*nodes[r.get('ref')]) for r in el.findall('nd') if r.get('ref') in nodes]
+                    # 有路名、不是巷弄的一般道路（輜汽路、國興街等，OSM 標成 residential）實際約 9～14 m 寬
+                    h = t['highway']
+                    w = HALF[h] if not (h in ('residential', 'unclassified') and t.get('name') and not any(k in t['name'] for k in '巷弄')) else 8
+                    if len(P) > 1: roads.append((w, LineString(P)))
+road_area = STRtree([L.buffer(w, cap_style=2) for w, L in roads]) if roads else None
+road_lines = STRtree([L for _, L in roads]) if roads else None
+def on_road(x, z):
+    return road_area is not None and any(g.contains(Point(x, z)) for g in road_area.geometries.take(road_area.query(Point(x, z))))
+def crosses_road(P):
+    """量體被道路中心線穿過（超過 8 m）＝資料錯誤（例如捷運站體、施工圍籬的範圍）"""
+    if road_lines is None: return False
+    poly = Polygon(P).buffer(-1.5)
+    if poly.is_empty: return False
+    return any(L.intersection(poly).length > 8 for L in road_lines.geometries.take(road_lines.query(poly)))
+n0 = len(blds)
+blds = [(h, P) for h, P in blds if not crosses_road(P)]
+print('removed buildings crossing roads', n0 - len(blds))
+
 # ---------- 指標建築（資料庫裡沒有或只有工地範圍；依照片與衛星空拍粗略建構，網頁座標 m） ----------
 def rect(cx, cz, w, d, deg):
     a = math.radians(deg); ca, sa = math.cos(a), math.sin(a)
@@ -119,10 +155,10 @@ LANDMARKS = [
     (38 * F, rect(150, -461, 28, 38, -22)), (46 * F, rect(182, -472, 28, 40, -22)),
     (48, rect(80, -410, 22, 20, -22)),
     # 慈濟鳳山靜思堂：OSM 外框 4 層＋中央挑高的講堂
-    (20, TZUCHI_HALL), (27, rect(322, -397, 44, 26, 26.5)),
-    # LaLaport 高雄（鳳山）：商場主量體＋中央較高的影城／機房量體＋西北側立體停車場
+    (20, TZUCHI_HALL), (27, rect(322, -397, 44, 26, -26.5)),       # 講堂方向與外框相同（外框長邊約 -26.5°）
+    # LaLaport 高雄（鳳山）：商場主量體＋中央較高的影城／機房量體（方向與主量體南緣相同，約 -28.7°）
     (27, [(352, -458), (480, -528), (497, -496), (538, -517), (553, -480), (556, -440), (530, -338), (445, -303), (424, -345), (400, -360)]),
-    (38, rect(478, -420, 70, 50, -20)), (33, rect(392, -452, 60, 34, 28)),
+    (38, rect(478, -420, 70, 50, -28.7)),
 ]
 blds = [(h, P) for h, P in blds if not any(inside(sum(p[0] for p in P) / len(P), sum(p[1] for p in P) / len(P), S_) for S_ in (O10, TZUCHI, LALA))]
 for h, P in LANDMARKS:
@@ -158,7 +194,7 @@ for r, c in zip(*np.nonzero(wc == 10)):
     for k in range(1 if rnd.random() < 0.55 else 2):
         lon = tc + (c + rnd.random()) * ta; lat = tf + (r + rnd.random()) * te
         x, z = ll2w(lat, lon)
-        if not in_view(x, z) or in_site(x, z, 2) or (int(x // 2), int(z // 2)) in occ: continue
+        if not in_view(x, z) or in_site(x, z, 2) or (int(x // 2), int(z // 2)) in occ or on_road(x, z): continue
         size = rnd.uniform(2.2, 4.4)                       # 樹冠半徑（m）
         trees.append((x, z, size, rnd.randrange(4)))
 # 行道樹（OSM）
@@ -181,7 +217,7 @@ if len(sys.argv) > 4:
                         t = (i * 7 + 3.5) / max(L, 1e-6)
                         if t <= 1: pts.append((x1 + (x2 - x1) * t, z1 + (z2 - z1) * t))
         for x, z in pts:
-            if in_view(x, z) and not in_site(x, z, 2) and (int(x // 2), int(z // 2)) not in occ:
+            if in_view(x, z) and not in_site(x, z, 2) and (int(x // 2), int(z // 2)) not in occ and not on_road(x, z):
                 trees.append((x, z, rnd.uniform(1.8, 2.8), rnd.randrange(4)))
 print('trees', len(trees))
 out = bytearray(b'NKCT') + struct.pack('<I', len(trees))

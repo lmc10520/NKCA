@@ -161,6 +161,13 @@ export class Environment {
     setInterval(() => this.fetchWeather(), 15 * 60 * 1000);
   }
 
+  // 配色切換（設定「模型樣式」的寫實／甜美）：日光色相、彩度、天空光、地面反光、天空亮度
+  setPalette(pal = {}, skyK) {
+    this.pal.sunHue = pal.sunHue ?? 0.09; this.pal.sunSat = pal.sunSat ?? 0.6;
+    this.pal.sky.set(pal.hemiSky || '#dfe9f2'); this.pal.ground.set(pal.hemiGround || '#5d6062');
+    if (skyK != null) this.sky.material.uniforms.uSkyK.value = skyK;
+  }
+
   now() {
     const d = new Date();
     if (this.override == null) return d;

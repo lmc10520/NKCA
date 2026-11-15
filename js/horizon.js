@@ -129,6 +129,12 @@ export class Horizon {
     this.skirt.position.set(camPos.x, 0, camPos.z);
   }
 
+  // 配色切換：白天地坪顏色、OSM 地圖彩度與提亮
+  setPalette(h = {}, m = {}) {
+    this.col.dayNear.set(h.dayNear || '#eeeeeb'); this.col.dayFar.set(h.dayFar || '#d9e2e8');
+    this.u.uSat.value = m.saturation ?? 0.55; this.u.uLight.value = m.lighten ?? 0.2;
+  }
+
   // ---------- OpenStreetMap 地圖 ----------
   // m：site.json 的 map；northDeg：site.json 的 northOffset_deg；maxAniso：renderer 的最大異向過濾
   setMap(m, northDeg, maxAniso = 8) {

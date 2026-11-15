@@ -15,6 +15,7 @@ export class Context {
     this.group = new THREE.Group(); this.group.name = 'Context'; this.group.visible = false;
     scene.add(this.group);
     this.on = false; this.loading = null;
+    this.crowns = []; this.trunks = [];   // 配色切換時重新上色
     this.onMaterials = null;   // (材質[]) => void：載入後交給主程式，套用晝夜的環境反射與夜間降彩度
   }
   // 基地內的樹：一直顯示
@@ -30,6 +31,16 @@ export class Context {
   update(night) {
     if (!this.bMat) return;
     this.bMat.emissiveIntensity = this.glow * Math.max(0, 1 - night * 1.5);
+  }
+  // 配色切換：建築量體顏色、樹冠的幾種綠、樹幹色（已載入的立刻換，之後載入的也用新的）；回傳要重新記錄原色的材質
+  setPalette(cfg) {
+    this.cfg = { ...this.cfg, ...cfg };
+    const b = this.cfg.buildings || {}, t = this.cfg.trees || {};
+    if (this.bMat) { this.bMat.color.set(b.color || '#f6efec'); this.bMat.emissive.set(b.color || '#f6efec'); this.bMat.opacity = b.opacity ?? 0.82; this.glow = b.glow ?? 0.12; }
+    const greens = (t.colors || ['#9fd3a0']).map((x) => new THREE.Color(x));
+    for (const { mesh, vs } of this.crowns) { vs.forEach((v, i) => mesh.setColorAt(i, greens[v % greens.length])); mesh.instanceColor.needsUpdate = true; }
+    for (const m of this.trunks) m.material.color.set(t.trunk || '#b39b8e');
+    return [this.bMat, ...this.trunks.map((m) => m.material)].filter(Boolean);
   }
   setOn(v) {
     this.on = v;
@@ -97,10 +108,10 @@ export class Context {
       new THREE.MeshStandardMaterial({ color: c.trunk || '#b39b8e', roughness: 0.9 }), n);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler();
     let o = 8;
-    const step = withY ? 8 : 6;
+    const step = withY ? 8 : 6, vs = new Uint8Array(n);
     for (let i = 0; i < n; i++, o += step) {
       const x = dv.getInt16(o, true) * Q, z = dv.getInt16(o + 2, true) * Q, y = withY ? dv.getInt16(o + 4, true) / 100 : 0;
-      const r = dv.getUint8(o + step - 2) / 20, v = dv.getUint8(o + step - 1);
+      const r = dv.getUint8(o + step - 2) / 20, v = dv.getUint8(o + step - 1); vs[i] = v;
       const th = r * 0.9;                                    // 樹幹高度
       q.setFromEuler(e.set(0, (i * 2.399) % (Math.PI * 2), 0));
       crown.setMatrixAt(i, m.compose(p.set(x, y + th + r * 0.75, z), q, s.set(r, r * 0.9, r)));
@@ -109,6 +120,7 @@ export class Context {
     }
     for (const im of [crown, trunk]) { im.castShadow = true; im.instanceMatrix.needsUpdate = true; }
     crown.name = 'Context_Trees'; trunk.name = 'Context_Trunks';
+    this.crowns.push({ mesh: crown, vs }); this.trunks.push(trunk);
     return [crown, trunk];
   }
 }
