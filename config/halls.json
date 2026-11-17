@@ -200,7 +200,13 @@
    ],
    "floors": [
     {
-     "id": "3F"
+     "id": "3F",
+     "reveal": [
+      "@ph3F"
+     ],
+     "hide": [
+      "=Hall_Play_Top"
+     ]
     },
     {
      "id": "2F",
