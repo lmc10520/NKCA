@@ -144,6 +144,7 @@
      "id": "2F",
      "hide": [
       "=Hall_Concert_3F",
+      "=Hall_Concert_1F_Wall",
       "@ch3F"
      ]
     },
