@@ -96,8 +96,8 @@
   {
    "id": "purple",
    "name": "紫色點燈（範例）",
-   "enabled": false,
-   "from": "2026-11-20",
+   "enabled": true,
+   "from": "2026-11-16",
    "to": "2026-11-30",
    "plazaLight": {
     "color": "#7b3cff",
