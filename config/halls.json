@@ -169,6 +169,10 @@
      "id": "2F",
      "show": [
       "^RH2F_"
+     ],
+     "_hide說明": "2F 打開 2F 天花板（RH2F_BackstageCeiling*，z815–825），看得到南側走道與廁所（2026-11-17 James）。1F 仍保留。",
+     "hide": [
+      "^RH2F_BackstageCeiling"
      ]
     },
     {
