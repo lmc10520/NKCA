@@ -1,6 +1,7 @@
 {
  "_說明": "節慶物件。每個活動：id、name、檔期 from／to（\"2026-11-07\" 只限那一年；\"12-01\" 每年）、objects。以台灣時間判斷檔期，到期自動出現、過期自動消失；enabled:false 可先關掉。網址加 ?festival=活動id 可以不管檔期直接預覽（例如 ?festival=xmas）。設定選單的「節慶物件」開關可以隨時關閉；簡報（教材）預設不顯示節慶物件。",
  "_物件說明": "pos_cm 為 Fusion 平面座標 [x, y]（cm），高度自動貼齊地面。pumpkin：height_cm、face_deg（笑臉朝向，0＝北、90＝東、180＝南）。ghosts：projectors 為地面投影機，from_cm 投影機位置、to_cm 投影中心（建築表面上的點），angle_deg 投影範圍、intensity 亮度、drift_m 飄動幅度，只有夜間看得到。ball：diameter_cm、color、texture（可放自己的 2:1 貼圖，例如 img/festival/ball.jpg）。xmasTree：height_cm。",
+ "_榕樹廣場特殊色說明": "plazaLight：檔期內榕樹廣場夜間改打特殊色（天花崁燈、天花整片染色、地面頂光）。color＝色號（例如 #7b3cff 紫色）；intensity＝亮度倍數（預設 1）；wash＝天花整片染色的程度（0～1，預設 0.2）。可以單獨建一個只有 plazaLight、沒有 objects 的活動（例如特定節日的點燈）。和節慶物件一樣受設定的「節慶物件」開關控制。",
  "events": [
   {
    "id": "halloween",
@@ -10,7 +11,10 @@
    "objects": [
     {
      "type": "pumpkin",
-     "pos_cm": [9780, 2610],
+     "pos_cm": [
+      9780,
+      2610
+     ],
      "height_cm": 1200,
      "face_deg": 205
     },
@@ -18,26 +22,55 @@
      "type": "ghosts",
      "projectors": [
       {
-       "from_cm": [8000, 1500, 400],
-       "to_cm": [9800, 9200, 700],
+       "from_cm": [
+        8000,
+        1500,
+        400
+       ],
+       "to_cm": [
+        9800,
+        9200,
+        700
+       ],
        "angle_deg": 10,
        "intensity": 1.6
       },
       {
-       "from_cm": [11500, 1200, 400],
-       "to_cm": [11800, 9600, 1100],
+       "from_cm": [
+        11500,
+        1200,
+        400
+       ],
+       "to_cm": [
+        11800,
+        9600,
+        1100
+       ],
        "angle_deg": 10,
        "intensity": 1.6
       },
       {
-       "from_cm": [14500, 1500, 400],
-       "to_cm": [13700, 9300, 900],
+       "from_cm": [
+        14500,
+        1500,
+        400
+       ],
+       "to_cm": [
+        13700,
+        9300,
+        900
+       ],
        "angle_deg": 10,
        "intensity": 1.6
       }
      ]
     }
-   ]
+   ],
+   "plazaLight": {
+    "color": "#ff7a1a",
+    "intensity": 1,
+    "wash": 0.2
+   }
   },
   {
    "id": "xmas",
@@ -47,10 +80,30 @@
    "objects": [
     {
      "type": "xmasTree",
-     "pos_cm": [13770, 25090],
+     "pos_cm": [
+      13770,
+      25090
+     ],
      "height_cm": 1500
     }
-   ]
+   ],
+   "plazaLight": {
+    "color": "#e0263a",
+    "intensity": 1,
+    "wash": 0.2
+   }
+  },
+  {
+   "id": "purple",
+   "name": "紫色點燈（範例）",
+   "enabled": false,
+   "from": "2026-11-20",
+   "to": "2026-11-30",
+   "plazaLight": {
+    "color": "#7b3cff",
+    "intensity": 1,
+    "wash": 0.2
+   }
   }
  ]
 }

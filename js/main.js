@@ -787,7 +787,7 @@ function setToggle(k, v) {
   if (k === 'clock') $('clock').classList.toggle('hidden', !v && !state.weather);
   if (k === 'weather') env.weatherOn = v;
   if (k === 'traffic') applyTraffic();
-  if (k === 'festival') festival.setOn(v);
+  if (k === 'festival') { festival.setOn(v); night.setPlazaColor(v ? festival.plazaLight : null); }   // 節慶物件與榕樹廣場特殊色一起開關
   if (k === 'context') { context.setOn(v); const at = $('mapAttrib'); if (at) at.textContent = (site.map?.attribution || '© OpenStreetMap 貢獻者') + (v ? (site.context?.attribution || ' · Overture Maps · ESA WorldCover') : ''); }
   if (k === 'escape') { setStyle(state.style); applyVisibility(); $('escBtn').classList.toggle('on', v); $('escBtn').setAttribute('aria-pressed', v); }
 }
@@ -807,6 +807,7 @@ $('venueAuto').onclick = () => { setVenue(null); toast('場館燈光：依營運
 // 節慶物件：只有檔期內（或網址 ?festival=）才出現這一列
 $('festRow').classList.toggle('hidden', !festival.active);
 $('festName').textContent = festival.active ? `節慶物件（${festival.names}）` : '節慶物件';
+night.setPlazaColor(state.festival ? festival.plazaLight : null);
 $('settingsBtn').onclick = () => { $('settings').classList.toggle('hidden'); $('timeSlider').classList.add('hidden'); closeOverview(); };
 $('settingsClose').onclick = () => $('settings').classList.add('hidden');
 $('styleSeg').onclick = (e) => { const s = e.target.dataset.style; if (s) setStyle(s); };
@@ -1386,6 +1387,7 @@ renderer.setAnimationLoop(() => {
   bloom.strength = n * (BL.strength ?? 0.75) + (env.flashK || 0) * 0.6;
   if (env.flashK) renderer.toneMappingExposure += env.flashK * 0.9;   // 閃電瞬間整個畫面亮一下
   fountain?.update(t, env.now(), n);
+  screens.userData.update?.(env.now());   // LED 螢幕依 screens.json 的 hours 開關
   festival.update(dt, n);
   context.update(n);
   piano.update(dt);
