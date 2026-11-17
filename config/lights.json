@@ -399,5 +399,34 @@
   "_說明": "建築燈光（玻璃、天窗、露臺、戶外劇場、榕樹廣場、屋頂投射燈、草坪光環）的開燈時段；off 之後熄燈，on 之後天黑才會亮。路燈、車燈、道路標線不受影響。",
   "on": "05:00",
   "off": "23:00"
+ },
+ "soffit": {
+  "_說明": "屋頂出挑底面（榕樹廣場天花往外彎下來的曲面、劇場簷口底面等朝下的面）夜間整片打亮：越靠邊緣（越低）越亮，做出照片中邊緣那道發光的弧線。節慶特殊色時換成 festivals.json 的 plazaLight 顏色。match＝除了 plaza.ceilingMatch 之外也要打亮的物件；low_m／high_m＝這個高度以下全亮、以上漸暗到 topRatio。",
+  "color": "#fff1dc",
+  "intensity": 0.55,
+  "low_m": 5,
+  "high_m": 14,
+  "topRatio": 0.3,
+  "match": [
+   "^Roof_Main$",
+   "^Theater_Eave_Soffit_",
+   "^Plaza_Skin_",
+   "^Opera_Fascia$",
+   "^Recital_EntryN_Soffit$"
+  ]
+ },
+ "facadeUplight": {
+  "_說明": "立面邊緣帶由下往上的洗牆光：每個物件從自己的底部往上 height_m 公尺漸暗（下亮上暗），只打在側面。節慶特殊色時混入 mix 比例的特殊色。",
+  "color": "#fff1dc",
+  "intensity": 0.5,
+  "height_m": 9,
+  "mix": 0.55,
+  "match": [
+   "^Roof_Main$",
+   "^(North|South|East|West)_Fascia(_[EW])?$",
+   "^Wall_[NSEW]_Metal",
+   "^Facade_Fill_",
+   "^Theater_Eave_Fascia_"
+  ]
  }
 }

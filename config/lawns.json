@@ -1,6 +1,8 @@
 {
- "_說明": "北側、東側圓形草坪的環繞燈帶（由 Fusion 的 Site_Grass 自動擷取，單位 cm）。不要的草坪刪掉那一筆即可。",
- "color": "#fff7e6",
+ "_說明": "北側、東側圓形草坪的環繞燈帶（由 Fusion 的 Site_Grass 自動擷取，單位 cm）。不要的草坪刪掉那一筆即可。color＝燈帶顏色、intensity＝亮度（大於 1 夜間會發出光暈）、radius_cm＝燈帶粗細。",
+ "color": "#ffd08a",
+ "intensity": 1.8,
+ "radius_cm": 8,
  "offset_cm": -40,
  "height_cm": 8,
  "lawns": [

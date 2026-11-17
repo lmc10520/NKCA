@@ -80,6 +80,16 @@ export class NightLights {
     // 崁燈顏色與天花洗牆色（節慶特殊色：setPlazaColor）用 uniform，換色不必重新編譯 shader
     this.plazaCol = { value: new THREE.Color(c.plaza?.color || '#fff6ea') };
     this.plazaWash = { value: new THREE.Color(0, 0, 0) };
+    // 出挑底面（soffit）平常的暖白光；節慶時 setPlazaColor 換色
+    const so = c.soffit || {};
+    this.soffitBase = new THREE.Color(so.color || '#fff1dc').multiplyScalar(so.intensity ?? 0);
+    this.soffitCol = { value: this.soffitBase.clone() };
+    this.soffitY = { value: new THREE.Vector3(so.low_m ?? 5, so.high_m ?? 14, so.topRatio ?? 0.3) };
+    // 立面邊緣帶由下往上的洗牆光
+    const fu = c.facadeUplight || {};
+    this.facadeBase = new THREE.Color(fu.color || '#fff1dc');
+    this.facadeCol = { value: this.facadeBase.clone() };
+    this.facadeMix = fu.mix ?? 0.55;
     if (c.plaza) {
       const cm = makeMatcher(c.plaza.ceilingMatch);
       for (const m of model.meshes.filter((x) => cm(x.userData.fname))) {
@@ -90,16 +100,18 @@ export class NightLights {
         const top = new THREE.Color(c.plaza.topNightColor || '#2a2a2a');
         m.material.onBeforeCompile = (sh) => {
           sh.uniforms.uNight = u; sh.uniforms.uPlazaCol = this.plazaCol; sh.uniforms.uPlazaWash = this.plazaWash;
+          sh.uniforms.uSoffit = this.soffitCol; sh.uniforms.uSoffitY = this.soffitY;
           sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;')
             .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvCWN=mat3(modelMatrix)*objectNormal;')
             .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uPlazaCol;uniform vec3 uPlazaWash;`)
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uPlazaCol;uniform vec3 uPlazaWash;uniform vec3 uSoffit;uniform vec3 uSoffitY;`)
             .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
               float ny=normalize(vCWN).y;
               vec2 cell=fract(vWP.xz/${sp.toFixed(2)})-0.5; float d=length(cell)*${sp.toFixed(2)};
               float dotm=(1.0-smoothstep(${(r * 0.6).toFixed(3)},${r.toFixed(3)},d))*(1.0-smoothstep(-0.6,-0.3,ny));
               float down=1.0-smoothstep(-0.6,-0.3,ny);
-              totalEmissiveRadiance+=uPlazaCol*dotm*uNight*6.0+uPlazaWash*down*uNight;`)
+              float edgeF=mix(1.0,uSoffitY.z,smoothstep(uSoffitY.x,uSoffitY.y,vWP.y));   // 越低（越靠出挑邊緣）越亮
+              totalEmissiveRadiance+=uPlazaCol*dotm*uNight*6.0+(uSoffit*edgeF+uPlazaWash)*down*uNight;`)
             .replace('#include <opaque_fragment>', `outgoingLight=mix(outgoingLight,vec3(${top.r.toFixed(3)},${top.g.toFixed(3)},${top.b.toFixed(3)}),smoothstep(0.3,0.6,ny)*uNight);
               #include <opaque_fragment>`);
         };
@@ -113,6 +125,36 @@ export class NightLights {
         L.lookAt(L.position.clone().add(new THREE.Vector3(0, -1, 0)));
         this.group.add(L);
         this.area = { light: L, k: a.intensity, k0: a.intensity, col0: new THREE.Color(c.plaza.color) };
+      }
+    }
+
+    // 3a. 其他出挑底面（soffit.match）與立面邊緣帶（facadeUplight.match）：每個物件複製自己的材質，
+    // 底面：朝下的面整片打亮（越低越亮）；立面：側面從物件底部往上 height_m 漸暗。顏色用 uniform，節慶換色不必重新編譯
+    {
+      const sm = makeMatcher(c.soffit?.match), fm = makeMatcher(c.facadeUplight?.match);
+      const fk = c.facadeUplight?.intensity ?? 0, fh = c.facadeUplight?.height_m ?? 9;
+      const box = new THREE.Box3();
+      for (const m of model.meshes) {
+        // 同一個物件可以兩種都有（例如屋頂：底面打亮、邊緣側面往上洗牆，頂面不受影響）
+        const n = m.userData.fname, isS = sm(n), isF = fm(n) && fk > 0;
+        if (!isS && !isF || m.userData.isGlass) continue;
+        const y0 = box.setFromObject(m).min.y;
+        const mat = m.material.clone(); m.material = mat; m.userData.origMaterial = mat;
+        const uY = { value: new THREE.Vector3(y0, y0 + fh, isF ? fk : 0) }, uS = { value: isS ? 1 : 0 };
+        mat.onBeforeCompile = (sh) => {
+          Object.assign(sh.uniforms, { uNight: this.ceilUniform, uSoffit: this.soffitCol, uSoffitY: this.soffitY, uPlazaWash: this.plazaWash, uFacade: this.facadeCol, uFY: uY, uSK: uS });
+          sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;')
+            .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvCWN=mat3(modelMatrix)*objectNormal;')
+            .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uSoffit;uniform vec3 uSoffitY;uniform vec3 uPlazaWash;uniform vec3 uFacade;uniform vec3 uFY;uniform float uSK;')
+            .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+              float ny=normalize(vCWN).y, down=1.0-smoothstep(-0.6,-0.3,ny), side=1.0-smoothstep(0.35,0.6,abs(ny));
+              float edgeF=mix(1.0,uSoffitY.z,smoothstep(uSoffitY.x,uSoffitY.y,vWP.y));
+              float g=1.0-smoothstep(uFY.x,uFY.y,vWP.y);
+              totalEmissiveRadiance+=(uSoffit*edgeF+uPlazaWash)*down*uNight*uSK+uFacade*diffuseColor.rgb*(g*g*side*uNight*uFY.z);`);
+        };
+        mat.customProgramCacheKey = () => 'soffitFacade';
+        mat.needsUpdate = true;
       }
     }
 
@@ -136,6 +178,7 @@ export class NightLights {
           mat.onBeforeCompile = (sh, r) => {
             prev?.call(mat, sh, r);
             sh.uniforms.uNight = u; sh.uniforms.uPlazaCol = this.plazaCol; sh.uniforms.uPlazaWash = this.plazaWash;
+          sh.uniforms.uSoffit = this.soffitCol; sh.uniforms.uSoffitY = this.soffitY;
             sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;')
               .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvFWN=mat3(modelMatrix)*objectNormal;');
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;uniform float uNight;')
@@ -179,7 +222,8 @@ export class NightLights {
     // 5. 北側、東側圓形草坪的光環
     this.rings = [];
     if (lawns?.lawns?.length) {
-      const mat = new THREE.MeshBasicMaterial({ color: lawns.color, transparent: true, opacity: 0, toneMapped: false });
+      // intensity 大於 1：顏色超過白色，夜間會被 bloom 暈開成發光的燈帶
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(lawns.color).multiplyScalar(lawns.intensity ?? 1), transparent: true, opacity: 0, toneMapped: false });
       // 光環貼著地面走：每隔約 0.8 m 往下打射線找地面（草坪、鋪面、土丘），再往上抬 height_cm
       const groundM = model.meshes.filter((m) => /^Site_(Grass|Campus_Paving|Park_Paving|North_Mound|Sidewalk)/.test(m.userData.fname));
       bvh(groundM);
@@ -194,7 +238,7 @@ export class NightLights {
           return p.setY((h ? h.point.y : 0) + up);
         });
         const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
-        const g = new THREE.TubeGeometry(curve, n * 2, 0.06, 6, true);
+        const g = new THREE.TubeGeometry(curve, n * 2, (lawns.radius_cm ?? 6) / 100, 6, true);
         const mesh = new THREE.Mesh(g, mat);
         this.group.add(mesh); this.rings.push(mesh);
       }
@@ -255,6 +299,10 @@ export class NightLights {
     this.plazaCol.value.copy(col);
     this.plazaWash.value.copy(spec?.color ? col : new THREE.Color(0, 0, 0)).multiplyScalar(spec?.color ? (spec.wash ?? 0.2) * k : 0);
     // 地面頂光：七成指定色＋三成白光（白色地坪、牆面看起來是淡淡的染色，像實際打燈的照片）
+    // 出挑底面：特殊色時換成指定色（亮度同平常）；立面洗牆混入一部分特殊色
+    const so = this.cfg.soffit || {}, sk = (so.intensity ?? 0) * k;
+    this.soffitCol.value.copy(spec?.color ? col.clone().multiplyScalar(sk * 1.6) : this.soffitBase);
+    this.facadeCol.value.copy(spec?.color ? this.facadeBase.clone().lerp(col, this.facadeMix) : this.facadeBase);
     if (this.area) { this.area.light.color.copy(spec?.color ? col.clone().lerp(new THREE.Color(1, 1, 1), 0.3) : this.area.col0); this.area.k = this.area.k0 * (spec?.color ? 1.25 * k : 1); }
   }
 
