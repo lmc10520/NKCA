@@ -8,11 +8,24 @@ import { cm2w } from './util.js';
 //   rows_cm：弧面（例如貼著傾斜、彎曲的玻璃帷幕），[下緣點列, …, 上緣點列]，每列由左到右、點數相同，每點 [x, y, z]
 // kind："led"（自己發光，沒有圖片時顯示成關機的黑色面板）或 "sticker"（透明貼紙，受光影響，沒有圖片就不顯示）
 // 網址加 ?screens=test 會用 template 指定的範本圖（標出玻璃接縫）檢查位置。
+// hours：["開", "關"]（台北時間），只在這段時間亮，其餘時間是關機的黑色面板；沒寫就一直開。
 export function buildScreens(scene, cfg) {
   const group = new THREE.Group(); group.name = 'Screens'; scene.add(group);
   const loader = new THREE.TextureLoader();
   const bust = '?v=' + Math.floor(Date.now() / 60000);   // 每分鐘換一次，GitHub 換圖後重新整理即可看到
   const test = /[?&]screens=test\b/.test(location.search);
+  const timed = [];   // 有 hours（開關時間）的 LED
+  const hm = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+  // date：網頁的時間（含手動調整的時間）；台北時間在 [on, off) 之間才開，關閉時是黑色面板
+  group.userData.update = (date) => {
+    if (!timed.length) return;
+    const tp = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Taipei' })), now = tp.getHours() * 60 + tp.getMinutes();
+    for (const t of timed) {
+      const on = test || (now >= hm(t.hours[0]) && now < hm(t.hours[1]));
+      if (on === t.on) continue;
+      t.on = on; t.mat.map = on ? t.tex : null; t.mat.color.set(on && t.tex ? 0xffffff : 0x111214); t.mat.needsUpdate = true;
+    }
+  };
   for (const s of cfg?.screens || []) {
     if (!s.enabled) continue;
     const g = s.rows_cm ? rowsGeometry(s.rows_cm) : s.path_cm ? pathGeometry(s.path_cm, s.z_cm) : quadGeometry(s.corners_cm);
@@ -26,7 +39,12 @@ export function buildScreens(scene, cfg) {
     mesh.renderOrder = 3;   // 貼紙與 LED 都在玻璃（renderOrder 2）之後畫
     mesh.visible = !sticker;              // 貼紙等圖片載入後才顯示
     group.add(mesh);
-    const apply = (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true; mesh.visible = true; };
+    const tm = !sticker && Array.isArray(s.hours) ? { hours: s.hours, mat, tex: null, on: null } : null;
+    if (tm) timed.push(tm);
+    const apply = (t) => {
+      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true; mesh.visible = true;
+      if (tm) { tm.tex = t; tm.on = null; }   // 下一次 update 依時間決定開或關
+    };
     const tryTemplate = () => { if (test && s.template) loader.load(s.template + bust, apply); };
     if (test && s.template) tryTemplate();
     else loader.load(s.file + bust, apply, undefined, () => { console.warn('[screen] 找不到圖片', s.file); tryTemplate(); });

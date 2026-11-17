@@ -30,6 +30,8 @@ export class Festival {
   }
 
   get active() { return this.events.length > 0; }
+  // 檔期內第一個有 plazaLight 的活動的榕樹廣場特殊色（沒有則 null）
+  get plazaLight() { return this.events.find((e) => e.plazaLight?.color)?.plazaLight || null; }
   get names() { return this.events.map((e) => e.name).join('、'); }
 
   inRange(e) {

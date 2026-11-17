@@ -77,9 +77,11 @@ export class NightLights {
 
     // 3. 榕樹廣場：天花崁燈點（shader 畫在天花上）+ 一盞大面光打地面
     this.ceilUniform = { value: 0 };
+    // 崁燈顏色與天花洗牆色（節慶特殊色：setPlazaColor）用 uniform，換色不必重新編譯 shader
+    this.plazaCol = { value: new THREE.Color(c.plaza?.color || '#fff6ea') };
+    this.plazaWash = { value: new THREE.Color(0, 0, 0) };
     if (c.plaza) {
       const cm = makeMatcher(c.plaza.ceilingMatch);
-      const col = new THREE.Color(c.plaza.color);
       for (const m of model.meshes.filter((x) => cm(x.userData.fname))) {
         m.material = m.material.clone(); m.userData.origMaterial = m.material;
         const u = this.ceilUniform, sp = c.plaza.dotSpacing_m, r = c.plaza.dotRadius_m;
@@ -87,16 +89,17 @@ export class NightLights {
         // 否則從上面看會像樓板破洞透出下方燈光
         const top = new THREE.Color(c.plaza.topNightColor || '#2a2a2a');
         m.material.onBeforeCompile = (sh) => {
-          sh.uniforms.uNight = u;
+          sh.uniforms.uNight = u; sh.uniforms.uPlazaCol = this.plazaCol; sh.uniforms.uPlazaWash = this.plazaWash;
           sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;')
             .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvCWN=mat3(modelMatrix)*objectNormal;')
             .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;`)
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uPlazaCol;uniform vec3 uPlazaWash;`)
             .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
               float ny=normalize(vCWN).y;
               vec2 cell=fract(vWP.xz/${sp.toFixed(2)})-0.5; float d=length(cell)*${sp.toFixed(2)};
               float dotm=(1.0-smoothstep(${(r * 0.6).toFixed(3)},${r.toFixed(3)},d))*(1.0-smoothstep(-0.6,-0.3,ny));
-              totalEmissiveRadiance+=vec3(${col.r.toFixed(3)},${col.g.toFixed(3)},${col.b.toFixed(3)})*dotm*uNight*6.0;`)
+              float down=1.0-smoothstep(-0.6,-0.3,ny);
+              totalEmissiveRadiance+=uPlazaCol*dotm*uNight*6.0+uPlazaWash*down*uNight;`)
             .replace('#include <opaque_fragment>', `outgoingLight=mix(outgoingLight,vec3(${top.r.toFixed(3)},${top.g.toFixed(3)},${top.b.toFixed(3)}),smoothstep(0.3,0.6,ny)*uNight);
               #include <opaque_fragment>`);
         };
@@ -109,7 +112,7 @@ export class NightLights {
         L.position.copy(cm2w(a.center_cm));
         L.lookAt(L.position.clone().add(new THREE.Vector3(0, -1, 0)));
         this.group.add(L);
-        this.area = { light: L, k: a.intensity };
+        this.area = { light: L, k: a.intensity, k0: a.intensity, col0: new THREE.Color(c.plaza.color) };
       }
     }
 
@@ -132,7 +135,7 @@ export class NightLights {
           mat = m.material.clone();
           mat.onBeforeCompile = (sh, r) => {
             prev?.call(mat, sh, r);
-            sh.uniforms.uNight = u;
+            sh.uniforms.uNight = u; sh.uniforms.uPlazaCol = this.plazaCol; sh.uniforms.uPlazaWash = this.plazaWash;
             sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;')
               .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvFWN=mat3(modelMatrix)*objectNormal;');
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vFWN;uniform float uNight;')
@@ -242,6 +245,17 @@ export class NightLights {
     const roofK = this.roofOn !== false ? venue : 0;
     for (const s of this.spots) s.light.intensity = roofK * s.k;
     if (this.ringMat) { this.ringMat.opacity = venue; this.rings.forEach((r) => (r.visible = venue > 0.02)); }
+  }
+
+  // 榕樹廣場節慶特殊色（festivals.json 的 plazaLight）：崁燈、天花洗牆、地面頂光換成指定顏色；spec＝null 恢復平常的暖白
+  // spec：{ color: '#7b3cff', intensity: 1（整體強度倍數）, wash: 0.2（天花整片染色的程度） }
+  setPlazaColor(spec) {
+    const base = new THREE.Color(this.cfg.plaza?.color || '#fff6ea');
+    const col = spec?.color ? new THREE.Color(spec.color) : base, k = spec?.intensity ?? 1;
+    this.plazaCol.value.copy(col);
+    this.plazaWash.value.copy(spec?.color ? col : new THREE.Color(0, 0, 0)).multiplyScalar(spec?.color ? (spec.wash ?? 0.2) * k : 0);
+    // 地面頂光：七成指定色＋三成白光（白色地坪、牆面看起來是淡淡的染色，像實際打燈的照片）
+    if (this.area) { this.area.light.color.copy(spec?.color ? col.clone().lerp(new THREE.Color(1, 1, 1), 0.3) : this.area.col0); this.area.k = this.area.k0 * (spec?.color ? 1.25 * k : 1); }
   }
 
   // 夜間真實光源（廣場面光源、屋頂投射燈）開或關，回傳原本的狀態。只在日夜交替時切換；
