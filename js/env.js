@@ -2,6 +2,19 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { smooth } from './util.js';
 
+// 恆星時（度）：J2000 起算的格林威治平恆星時＋經度
+function lstDeg(date, lon) {
+  const n = date.getTime() / 86400000 + 2440587.5 - 2451545.0;
+  return ((280.46061837 + 360.98564736629 * n + lon) % 360 + 360) % 360;
+}
+// 赤道座標（赤經、赤緯，度）→ 地平座標（仰角、方位角由北順時針，弧度）
+function eqToHor(raDeg, decDeg, lst, latDeg) {
+  const rad = Math.PI / 180, H = (lst - raDeg) * rad, d = decDeg * rad, phi = latDeg * rad;
+  const alt = Math.asin(Math.sin(phi) * Math.sin(d) + Math.cos(phi) * Math.cos(d) * Math.cos(H));
+  const az = Math.atan2(-Math.sin(H) * Math.cos(d), Math.sin(d) * Math.cos(phi) - Math.sin(phi) * Math.cos(d) * Math.cos(H));
+  return { alt, az };
+}
+
 // 太陽位置（NOAA 簡化公式）。回傳仰角與方位角（弧度，方位角由北順時針）
 function sunPosition(date, lat, lon) {
   const rad = Math.PI / 180;
@@ -142,6 +155,10 @@ export class Environment {
         }`,
     });
     this.stars = new THREE.Points(sg, this.starMat); this.stars.frustumCulled = false;
+    // 真實星空（site.json 的 night.realStars，預設開）：讀 model/stars.bin（Hipparcos 6 等以內 5044 顆），
+    // 換掉上面的隨機星星；每一幀依恆星時轉動整片星空（tools/stars_to_data.py）
+    this.realStars = false; this.starBoost = nightCfg.starBoost ?? 1;
+    if (nightCfg.realStars !== false) this.loadStars().catch((e) => console.warn('[env] 讀不到真實星表，改用隨機星空', e));
     // 流星：細長的發光線，頭亮尾漸淡，平均每 meteorEvery_s 秒一顆（site.json 的 night）
     this.meteorEvery = nightCfg.meteorEvery_s ?? 9;
     this.meteors = []; this.meteorT = 3;
@@ -149,7 +166,7 @@ export class Environment {
     mg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(32 * 3), 3));
     const mt = new Float32Array(32); for (let i = 0; i < 32; i++) mt[i] = i / 31;   // 0＝頭、1＝尾
     mg.setAttribute('aT', new THREE.Float32BufferAttribute(mt, 1));
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 8; k++) {
       const mat = new THREE.ShaderMaterial({
         transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending, toneMapped: false,
         uniforms: { uA: { value: 0 } },
@@ -233,7 +250,8 @@ export class Environment {
     if (this.wxOverride) return '預覽：' + { clear: '晴', cloudy: '陰', rain: '雨', snow: '雪', storm: '颱風', aurora: '極光' }[this.wxOverride];
     const w = this.weather;
     if (!w) return '';
-    return `${WMO[this.wxCode(w)] ?? ''} ${Math.round(w.temperature_2m)}°C`;
+    const sh = this.night > 0.5 && this.shower && this.shower.act > 0.3 && this.radiant?.y > 0 ? `・${this.shower.name}` : '';
+    return `${WMO[this.wxCode(w)] ?? ''} ${Math.round(w.temperature_2m)}°C${sh}`;
   }
   // 降水量低於門檻的雨天代碼 → 多雲（2）或陰（3）
   wxCode(w) {
@@ -282,6 +300,11 @@ export class Environment {
     su.uOp.value = so; su.uTime.value += dt; su.uPR.value = this.renderer.getPixelRatio();
     // 星空、夜空跟著鏡頭（像天球），地平線永遠在鏡頭的水平方向，鳥瞰時也看得到低空的星星
     if (this.focus) { this.stars.position.copy(this.focus); this.dome.position.copy(this.focus); }
+    if (so > 0.01) {
+      const date = this.now(), lst = this.updateStarSky(date);
+      this.shower = this.currentShower(date);
+      this.radiant = this.shower ? this.eqDir(this.shower.ra, this.shower.dec, lst, this.radiant || new THREE.Vector3()) : null;
+    }
     this.stars.visible = so > 0.01;
     this.updateMeteors(dt, so);
 
@@ -477,14 +500,84 @@ export class Environment {
   }
 
   // 極光：北方天空的光幕（只在夜間看得到；選「極光」預覽時若是白天，網頁會自動切到夜間）
+  async loadStars() {
+    const r = await fetch('model/stars.bin'); if (!r.ok) throw new Error(r.status);
+    const dv = new DataView(await r.arrayBuffer()), n = dv.getUint32(4, true);
+    const pos = new Float32Array(n * 3), sz = new Float32Array(n), br = new Float32Array(n), ph = new Float32Array(n), spd = new Float32Array(n), col = new Float32Array(n * 3);
+    // B−V 色指數 → 星色（藍白 → 白 → 黃 → 橘紅）
+    const BV = [[-0.3, 0.70, 0.80, 1.0], [0.0, 0.85, 0.90, 1.0], [0.4, 1.0, 1.0, 1.0], [0.8, 1.0, 0.95, 0.82], [1.2, 1.0, 0.85, 0.68], [1.7, 1.0, 0.74, 0.55]];
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0, o = 8; i < n; i++, o += 6) {
+      const ra = dv.getInt16(o, true) / 100 * Math.PI / 180, dec = dv.getInt16(o + 2, true) / 100 * Math.PI / 180;
+      const mag = dv.getUint8(o + 4) / 20 - 2, bv = dv.getInt8(o + 5) / 50;
+      pos.set([Math.cos(dec) * Math.cos(ra) * 3900, Math.cos(dec) * Math.sin(ra) * 3900, Math.sin(dec) * 3900], i * 3);
+      // 2.3 等以上的亮星有柔和光暈（shader 用亮度 ≥ 2.3 判斷）；暗星也調亮一些，星座的形狀才看得出來（site.json 的 night.starBoost）
+      const halo = mag < 2.3, boost = this.starBoost;
+      br[i] = halo ? 2.3 + Math.min(1.2, (2.3 - mag) * 0.35) : (0.45 + 1.75 * Math.pow(Math.max(0, Math.min(1, (6.2 - mag) / 4)), 1.2)) * boost;
+      sz[i] = halo ? 13 + (2.3 - mag) * 5 : (2.0 + (6.2 - mag) * 1.0) * Math.sqrt(boost);
+      ph[i] = rnd() * Math.PI * 2; spd[i] = 1.2 + rnd() * 3.5;
+      let k = 0; while (k < BV.length - 2 && bv > BV[k + 1][0]) k++;
+      const a = BV[k], b = BV[k + 1], t = Math.max(0, Math.min(1, (bv - a[0]) / (b[0] - a[0])));
+      col.set([a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t], i * 3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('aSize', new THREE.BufferAttribute(sz, 1)); g.setAttribute('aBright', new THREE.BufferAttribute(br, 1));
+    g.setAttribute('aPhase', new THREE.BufferAttribute(ph, 1)); g.setAttribute('aSpeed', new THREE.BufferAttribute(spd, 1));
+    g.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+    this.stars.geometry.dispose(); this.stars.geometry = g;
+    this.stars.matrixAutoUpdate = false; this.realStars = true;
+  }
+  // 赤道座標 → 網頁方向：恆星時與緯度決定天球怎麼轉，再套上模型的真北偏角
+  eqDir(raDeg, decDeg, lst, v = new THREE.Vector3()) {
+    const { alt, az } = eqToHor(raDeg, decDeg, lst, this.lat), a = az + THREE.MathUtils.degToRad(this.site.northOffset_deg ?? 23);
+    return v.set(Math.sin(a) * Math.cos(alt), Math.sin(alt), -Math.cos(a) * Math.cos(alt));
+  }
+  // 星空的轉動：赤道座標的 x、y 軸方向轉到網頁座標，z 軸用外積（剛體旋轉）
+  updateStarSky(date) {
+    const lst = lstDeg(date, this.lon);
+    this._ex = this.eqDir(0, 0, lst, this._ex || new THREE.Vector3());
+    this._ey = this.eqDir(90, 0, lst, this._ey || new THREE.Vector3());
+    this._ez = (this._ez || new THREE.Vector3()).crossVectors(this._ex, this._ey);
+    if (this.realStars) this.stars.matrix.makeBasis(this._ex, this._ey, this._ez).setPosition(this.focus || this.center);
+    return lst;
+  }
+
+  // 流星雨（site.json 的 night.showers）：檔期內依離極大期的天數與輻射點高度決定頻率，流星從輻射點往外射出
+  // 主控台 nkca.env.showerOverride = 'geminids' 可以不管日期直接看某個流星雨的極大期
+  currentShower(date) {
+    const list = this.site.night?.showers || [];
+    const tp = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+    const doy = (md, y) => { const [m, d] = md.split('-').map(Number); return (Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 864e5; };
+    const y = tp.getFullYear(), today = (Date.UTC(y, tp.getMonth(), tp.getDate(), tp.getHours()) - Date.UTC(y, 0, 1)) / 864e5;
+    let best = null;
+    for (const s of list) {
+      if (s.enabled === false) continue;
+      let act;
+      if (this.showerOverride) { if (s.id !== this.showerOverride) continue; act = 1; }
+      else {
+        // 跨年的流星雨（象限儀座）：日期換算成離極大期的天數，取 ±183 天內
+        let dp = today - doy(s.peak, y); if (dp > 183) dp -= 365; if (dp < -183) dp += 365;
+        let d0 = doy(s.from, y) - doy(s.peak, y), d1 = doy(s.to, y) - doy(s.peak, y);
+        if (d0 > 0) d0 -= 365; if (d1 < 0) d1 += 365;
+        if (dp < d0 || dp > d1) continue;
+        act = Math.max(0.08, Math.exp(-Math.abs(dp) / (s.width_days ?? 1.5)));
+      }
+      const zhr = (s.zhr ?? 20) * act;
+      if (!best || zhr > best.zhr) best = { ...s, act, zhr };
+    }
+    return best;
+  }
+
   // 放一顆流星；p0＝起點方向（省略＝天空中段隨機），dur＝秒數。主控台 nkca.env.spawnMeteor() 可以手動放
-  spawnMeteor(p0, dur) {
+  spawnMeteor(p0, dur, dirIn) {
     const free = this.meteors.find((m) => m.t >= 1); if (!free) return;
     if (!p0) { const az = Math.random() * Math.PI * 2, el = 0.25 + Math.random() * 0.5; p0 = new THREE.Vector3(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)); }
     p0 = p0.clone().normalize();
     // 沿天球往下斜：切線方向＝往地平線的方向轉一個隨機角度
     const down = new THREE.Vector3(0, -1, 0).projectOnPlane(p0).normalize(), side = new THREE.Vector3().crossVectors(p0, down);
-    const a = (Math.random() - 0.5) * 1.6, dir = down.multiplyScalar(Math.cos(a)).addScaledVector(side, Math.sin(a)).normalize();
+    const a = (Math.random() - 0.5) * 1.6, dir = dirIn ? dirIn.clone().normalize() : down.multiplyScalar(Math.cos(a)).addScaledVector(side, Math.sin(a)).normalize();
     Object.assign(free, { p0, dir, t: 0, dur: dur ?? 0.6 + Math.random() * 0.6, len: 0.09 + Math.random() * 0.08, travel: 0.25 + Math.random() * 0.2 });
   }
   // 流星：天空中段隨機出現，斜斜劃過（約 0.6～1.2 秒），頭亮尾淡；看得到星星時才有
@@ -492,8 +585,20 @@ export class Environment {
     const R = 3500, f = this.focus || this.center;
     if (k > 0.2) {
       this.meteorT -= dt;
-      const free = this.meteors.find((m) => m.t >= 1);
-      if (this.meteorT <= 0 && free) { this.meteorT = this.meteorEvery * (0.4 + Math.random() * 1.2); this.spawnMeteor(); }
+      if (this.meteorT <= 0) { this.meteorT = this.meteorEvery * (0.4 + Math.random() * 1.2); this.spawnMeteor(); }   // 偶發流星
+      // 流星雨：ZHR 100、輻射點在天頂時約每秒 0.8 顆；輻射點在地平線下就沒有
+      const sh = this.shower;
+      if (sh && this.radiant) {
+        const rate = Math.min(1.5, sh.zhr / 100 * 0.8 * Math.max(0, this.radiant.y));
+        this.showerT = (this.showerT ?? 0) - dt * rate;
+        if (this.showerT <= 0) {
+          this.showerT = -Math.log(1 - Math.random());   // 隨機間隔（卜瓦松）
+          // 起點：離輻射點 10～50°，往遠離輻射點的方向劃過
+          const r = this.radiant, ax = new THREE.Vector3().randomDirection().projectOnPlane(r).normalize();
+          const p0 = r.clone().applyAxisAngle(ax, THREE.MathUtils.degToRad(10 + Math.random() * 40));
+          if (p0.y > 0.06) this.spawnMeteor(p0, 0.5 + Math.random() * 0.5, p0.clone().multiplyScalar(p0.dot(r)).sub(r).normalize());
+        }
+      }
     }
     const v = new THREE.Vector3();
     for (const m of this.meteors) {
