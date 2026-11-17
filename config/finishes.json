@@ -64,7 +64,7 @@
     0.8
    ],
    "variation": 0.1,
-   "match": ["=RH1F_Floor", "=RH2F_Floor", "^OH_Aud_.*Floor", "^OH_Stair_Landing_", "=L3_Opera_2F_Floor_Ext", "^OH_2F_Floor_"],
+   "match": ["=RH1F_Floor", "=RH2F_Floor", "=RH2F_Floor_Outer", "=RH2F_N_Floor", "^OH_Aud_.*Floor", "^OH_Stair_Landing_", "=L3_Opera_2F_Floor_Ext", "^OH_2F_Floor_"],
    "except_cm": [
     [
      [12200, 18700],

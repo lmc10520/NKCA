@@ -49,8 +49,11 @@
    "id": "plaza",
    "label": "榕樹廣場",
    "floor": "1F",
+   "_hide說明": "表演廳東北側電梯井在 2F 天花板以上那段（RH2F_Core_ElevatorWall，z825–1440）與它下方的 2F 天花板（RH2F_BackstageCeiling_W1）在榕樹廣場模式一律隱藏，表演廳 1F／2F、東北交通核 2F 都看得到 2F 電梯口（2026-11-15 James）。",
    "hide": [
-    "@plazaHide"
+    "@plazaHide",
+    "=RH2F_Core_ElevatorWall",
+    "=RH2F_BackstageCeiling_W1"
    ]
   },
   {
