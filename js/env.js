@@ -60,19 +60,27 @@ export class Environment {
     this.domeMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, transparent: true, depthWrite: false, fog: false,
       uniforms: { uOp: { value: 0 }, uTop: { value: new THREE.Color(nightCfg.zenith || '#0b1834') },
-        uMid: { value: new THREE.Color(nightCfg.sky || '#1e3260') }, uHor: { value: new THREE.Color(nightCfg.horizon || '#4a5d86') } },
+        uMid: { value: new THREE.Color(nightCfg.sky || '#1e3260') }, uHor: { value: new THREE.Color(nightCfg.horizon || '#4a5d86') },
+        uNeb: { value: new THREE.Color(nightCfg.nebula || '#2a4fb8') }, uNebK: { value: nightCfg.nebulaStrength ?? 0.5 } },
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-      fragmentShader: `varying vec3 vD; uniform float uOp; uniform vec3 uTop, uMid, uHor;
+      fragmentShader: `varying vec3 vD; uniform float uOp, uNebK; uniform vec3 uTop, uMid, uHor, uNeb;
+        // 柔和的星雲光（幾層低頻雜訊疊起來，天頂附近一團團較亮的藍）
+        float hsh(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        float nz(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(hsh(i), hsh(i + vec3(1,0,0)), f.x), mix(hsh(i + vec3(0,1,0)), hsh(i + vec3(1,1,0)), f.x), f.y),
+                     mix(mix(hsh(i + vec3(0,0,1)), hsh(i + vec3(1,0,1)), f.x), mix(hsh(i + vec3(0,1,1)), hsh(i + vec3(1,1,1)), f.x), f.y), f.z); }
         void main(){ float h = clamp(vD.y, -1.0, 1.0);
           vec3 c = h < 0.12 ? mix(uHor, uMid, smoothstep(0.0, 0.12, h)) : mix(uMid, uTop, smoothstep(0.12, 0.75, h));
           // 地平線以下：從地平線光帶漸漸回到深色夜空（鳥瞰時地坪四周也是星空）
           if (h < 0.0) c = mix(uHor, mix(uMid, uTop, 0.5), smoothstep(0.0, -0.18, h));
+          float n = nz(vD * 2.2) * 0.6 + nz(vD * 5.0 + 7.0) * 0.3 + nz(vD * 11.0 + 3.0) * 0.1;
+          c += uNeb * smoothstep(0.45, 0.85, n) * uNebK * smoothstep(-0.1, 0.35, h);
           gl_FragColor = vec4(c, uOp); }`,
     });
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 16), this.domeMat);
     this.dome.renderOrder = -1; this.dome.frustumCulled = false;
     // 星空：每顆星有自己的亮度、大小、色溫與閃爍節奏；靠近地平線閃得比較明顯（大氣擾動）。
-    // 少數亮星有十字星芒，亮度超過 1，夜間光暈（bloom）會帶出柔和光暈。
+    // 少數亮星有柔和的圓形光暈，亮度超過 1，夜間光暈（bloom）會再暈開。
     // 固定亂數種子：每次載入都是同一片星空
     let seed = 20261020;
     const rnd = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -84,8 +92,8 @@ export class Environment {
       // 一路延伸到地平線以下約 30°（鳥瞰時地坪四周看得到星空），靠近地平線的星星多一些
       const y = -0.5 + Math.pow(rnd(), 1.15) * 1.5, t = rnd() * Math.PI * 2, r = Math.sqrt(1 - y * y);
       sp.push(Math.cos(t) * r * 3900, y * 3900, Math.sin(t) * r * 3900);
-      const bright = i < BRIGHT, b = bright ? 2.3 + rnd() * 0.5 : 0.22 + Math.pow(rnd(), 8) * 2.0;
-      br.push(b); sz.push(bright ? 11 : 1.3 + b * 1.5);
+      const bright = i < BRIGHT, b = bright ? 2.3 + rnd() * 0.9 : 0.3 + Math.pow(rnd(), 5) * 2.0;
+      br.push(b); sz.push(bright ? 16 + rnd() * 10 : 1.6 + b * 2.4);
       ph.push(rnd() * Math.PI * 2); spd.push(1.2 + rnd() * 3.5);
       const c = tints[Math.min(4, Math.floor(Math.pow(rnd(), 1.6) * 5))]; col.push(...c);
     }
@@ -122,9 +130,11 @@ export class Environment {
         void main() {
           #include <logdepthbuf_fragment>
           vec2 p = gl_PointCoord * 2.0 - 1.0;
-          float core = exp(-dot(p, p) * (vSpike > 0.0 ? 22.0 : 5.0));
-          float spike = vSpike * (exp(-abs(p.x) * 16.0) * exp(-abs(p.y) * 2.2) + exp(-abs(p.y) * 16.0) * exp(-abs(p.x) * 2.2)) * 0.7;
-          float a = (core + spike) * vA;
+          float d2 = dot(p, p);
+          // 亮星：明亮的核心＋大範圍柔和光暈；一般星星：小小的圓點
+          float core = exp(-d2 * (vSpike > 0.0 ? 40.0 : 5.0));
+          float halo = vSpike * exp(-d2 * 4.5) * 0.28 * (1.0 - smoothstep(0.7, 1.0, d2));
+          float a = (core + halo) * vA;
           if (a < 0.004) discard;
           gl_FragColor = vec4(vCol * a, 1.0);
           #include <tonemapping_fragment>
@@ -132,8 +142,35 @@ export class Environment {
         }`,
     });
     this.stars = new THREE.Points(sg, this.starMat); this.stars.frustumCulled = false;
+    // 流星：細長的發光線，頭亮尾漸淡，平均每 meteorEvery_s 秒一顆（site.json 的 night）
+    this.meteorEvery = nightCfg.meteorEvery_s ?? 9;
+    this.meteors = []; this.meteorT = 3;
+    const mg = new THREE.BufferGeometry();
+    mg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(32 * 3), 3));
+    const mt = new Float32Array(32); for (let i = 0; i < 32; i++) mt[i] = i / 31;   // 0＝頭、1＝尾
+    mg.setAttribute('aT', new THREE.Float32BufferAttribute(mt, 1));
+    for (let k = 0; k < 3; k++) {
+      const mat = new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending, toneMapped: false,
+        uniforms: { uA: { value: 0 } },
+        vertexShader: `#include <common>
+          #include <logdepthbuf_pars_vertex>
+          attribute float aT; varying float vT;
+          void main(){ vT = aT; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          #include <logdepthbuf_vertex>
+          }`,
+        fragmentShader: `#include <common>
+          #include <logdepthbuf_pars_fragment>
+          uniform float uA; varying float vT;
+          void main(){
+          #include <logdepthbuf_fragment>
+          float a = uA * pow(1.0 - vT, 1.6); gl_FragColor = vec4(vec3(0.85, 0.92, 1.0) * a * 2.2, 1.0); }`,
+      });
+      const line = new THREE.Line(mg.clone(), mat); line.frustumCulled = false; line.visible = false; line.renderOrder = -0.7;
+      this.meteors.push({ line, mat, t: 1, dur: 1 });
+    }
     this.stars.renderOrder = -0.8;   // 在夜空之後、地平線地坪之前畫：地坪遠處變透明時，星星從底下透出來
-    scene.add(this.dome, this.stars);
+    scene.add(this.dome, this.stars, ...this.meteors.map((m) => m.line));
 
     // 色調（site.json 的 palette）：日光色相／彩度、天空光與地面反光的顏色；改這裡就能整體調暖、調柔
     const pal = site.palette || {};
@@ -246,6 +283,7 @@ export class Environment {
     // 星空、夜空跟著鏡頭（像天球），地平線永遠在鏡頭的水平方向，鳥瞰時也看得到低空的星星
     if (this.focus) { this.stars.position.copy(this.focus); this.dome.position.copy(this.focus); }
     this.stars.visible = so > 0.01;
+    this.updateMeteors(dt, so);
 
     // 白天是太陽；入夜後同一盞平行光改當月光（冷白、較弱，仍有柔和陰影）
     const moon = night > 0.5, dark = storm * 0.35;   // 颱風天整體再暗一些
@@ -439,6 +477,41 @@ export class Environment {
   }
 
   // 極光：北方天空的光幕（只在夜間看得到；選「極光」預覽時若是白天，網頁會自動切到夜間）
+  // 放一顆流星；p0＝起點方向（省略＝天空中段隨機），dur＝秒數。主控台 nkca.env.spawnMeteor() 可以手動放
+  spawnMeteor(p0, dur) {
+    const free = this.meteors.find((m) => m.t >= 1); if (!free) return;
+    if (!p0) { const az = Math.random() * Math.PI * 2, el = 0.25 + Math.random() * 0.5; p0 = new THREE.Vector3(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)); }
+    p0 = p0.clone().normalize();
+    // 沿天球往下斜：切線方向＝往地平線的方向轉一個隨機角度
+    const down = new THREE.Vector3(0, -1, 0).projectOnPlane(p0).normalize(), side = new THREE.Vector3().crossVectors(p0, down);
+    const a = (Math.random() - 0.5) * 1.6, dir = down.multiplyScalar(Math.cos(a)).addScaledVector(side, Math.sin(a)).normalize();
+    Object.assign(free, { p0, dir, t: 0, dur: dur ?? 0.6 + Math.random() * 0.6, len: 0.09 + Math.random() * 0.08, travel: 0.25 + Math.random() * 0.2 });
+  }
+  // 流星：天空中段隨機出現，斜斜劃過（約 0.6～1.2 秒），頭亮尾淡；看得到星星時才有
+  updateMeteors(dt, k) {
+    const R = 3500, f = this.focus || this.center;
+    if (k > 0.2) {
+      this.meteorT -= dt;
+      const free = this.meteors.find((m) => m.t >= 1);
+      if (this.meteorT <= 0 && free) { this.meteorT = this.meteorEvery * (0.4 + Math.random() * 1.2); this.spawnMeteor(); }
+    }
+    const v = new THREE.Vector3();
+    for (const m of this.meteors) {
+      if (m.t >= 1) { m.line.visible = false; continue; }
+      m.t = Math.min(1, m.t + dt / m.dur);
+      const pos = m.line.geometry.attributes.position, head = m.travel * m.t;
+      for (let i = 0; i < 32; i++) {
+        const s = Math.max(0, head - m.len * (i / 31) * Math.min(1, m.t * 3));   // 剛出現時尾巴還短
+        v.copy(m.p0).addScaledVector(m.dir, s).normalize().multiplyScalar(R);
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+      pos.needsUpdate = true;
+      m.line.position.copy(f);
+      m.mat.uniforms.uA.value = k * Math.sin(Math.PI * m.t);   // 淡入淡出
+      m.line.visible = k > 0.05;
+    }
+  }
+
   updateAurora(dt, k) {
     if (!this.aurora && k <= 0) return;
     if (!this.aurora) {
