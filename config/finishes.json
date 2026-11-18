@@ -20,8 +20,8 @@
    "match": ["=Hall_Concert_LowWall", "=Hall_Concert_3F_LowWall"]
   },
   {
-   "id": "WoodNatural",
-   "_說明": "原木：表演廳觀眾席地板；音樂廳觀眾席地板（牆、矮牆已拆成獨立 body，見上兩項）",
+   "id": "ConcertWood",
+   "_說明": "音樂廳觀眾席木地板（牆、矮牆已拆成獨立 body，見上兩項）。顏色、尺寸同 WoodNatural；radial＝木板長邊朝向舞台：center_cm 為舞台中心（Fusion cm），halfLen_m 為舞台長軸（東西向）半長減掉半寬，兩側觀眾席直鋪向舞台、東西兩端放射狀；ring_m 為每圈寬度（2026-11-18 James：鋪設方向和觀眾席面對舞台的方向相同）",
    "pattern": "wood",
    "color": "#e0b872",
    "roughness": 0.55,
@@ -30,7 +30,21 @@
     0.18
    ],
    "variation": 0.16,
-   "match": ["=Hall_Recital_Stalls", "^Hall_Concert_(Stalls|Balcony|3F)"]
+   "radial": {"center_cm": [20922, 13880], "halfLen_m": 4.3, "ring_m": 4},
+   "match": ["^Hall_Concert_(Stalls|Balcony|3F)"]
+  },
+  {
+   "id": "WoodNatural",
+   "_說明": "原木：表演廳觀眾席地板（音樂廳見 ConcertWood）",
+   "pattern": "wood",
+   "color": "#e0b872",
+   "roughness": 0.55,
+   "size_m": [
+    2.4,
+    0.18
+   ],
+   "variation": 0.16,
+   "match": ["=Hall_Recital_Stalls"]
   },
   {
    "id": "WallGray",

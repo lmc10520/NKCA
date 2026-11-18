@@ -72,24 +72,35 @@ function finishMaterial(base, spec) {
   // 不必各自編譯（之前把顏色寫死在 shader 裡，每個原材質各編一支，載入時第一個畫面會卡很久）
   // 紋理尺寸與明暗差也走 uniform：同一種紋理（木紋、素面…）的不同裝修項目共用同一支 shader
   const uOrig = { value: orig }, uFin = { value: new THREE.Vector3(len, w, spec.variation ?? 0.25) };
+  // spec.radial：地板木紋改成朝向舞台（音樂廳）。也走 uniform（w＝0 表示不用），不另外編 shader
+  const R = spec.radial, uRad = { value: R ? new THREE.Vector4(R.center_cm[0] / 100, -R.center_cm[1] / 100, R.halfLen_m || 0, R.ring_m || 4) : new THREE.Vector4() };
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uFinOrig = uOrig; sh.uniforms.uFin = uFin;
+    sh.uniforms.uFinOrig = uOrig; sh.uniforms.uFin = uFin; sh.uniforms.uFinR = uRad;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFinWP; varying vec3 vFinWN;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvFinWP=(modelMatrix*vec4(transformed,1.0)).xyz; vFinWN=mat3(modelMatrix)*objectNormal;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uFinOrig; uniform vec3 uFin;' + COMMON + exceptGLSL(spec.except_cm))
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uFinOrig; uniform vec3 uFin; uniform vec4 uFinR;' + COMMON + exceptGLSL(spec.except_cm))
       .replace('#include <color_fragment>', `#include <color_fragment>
       {
         vec3 an = abs(normalize(vFinWN));
         // 地板：xz；牆：依法線主軸選投影面，木紋／石縫在牆上沿水平方向延伸
         vec2 fp = an.y > 0.7 ? vFinWP.${spec.along === 'z' ? 'zx' : 'xz'} : (an.x > an.z ? vFinWP.zy : vFinWP.xy);
         ${spec.wallVertical ? 'if (an.y <= 0.7) fp = fp.yx;' : ''}
+        // 朝向舞台：以舞台長軸線段（中心 uFinR.xy、半長 uFinR.z）為準，木板長邊沿著離開舞台的方向；
+        // 兩側直鋪、兩端呈放射狀。橫向座標用每圈（uFinR.w 公尺一圈）中心半徑的弧長，板寬不隨距離放大太多
+        if (uFinR.w > 0.0 && an.y > 0.7) {
+          vec2 rp = vFinWP.xz - uFinR.xy;
+          float rt = clamp(rp.x, -uFinR.z, uFinR.z);
+          vec2 rd = rp - vec2(rt, 0.0);
+          float rr = length(rd), ring = (floor(rr / uFinR.w) + 0.5) * uFinR.w;
+          fp = vec2(rr, rt + atan(rd.x, abs(rd.y)) * ring);
+        }
         float fLen = uFin.x, fW = uFin.y, fVar = uFin.z, tint = 1.0;
         ${pat}
         diffuseColor.rgb *= clamp(tint, 0.0, 2.0);
         if (finExcept(vFinWP.xz)) diffuseColor.rgb = uFinOrig;
       }`);
   };
-  // shader 只隨紋理種類、投影方向與 except_cm 範圍不同；顏色、尺寸都是 uniform
+  // shader 只隨紋理種類、投影方向與 except_cm 範圍不同；顏色、尺寸、朝向舞台的中心都是 uniform
   const key = 'finish_' + [spec.pattern || 'plain', spec.along || '', spec.wallVertical ? 'v' : '', JSON.stringify(spec.except_cm || [])].join('|');
   mat.customProgramCacheKey = () => key;
   return mat;
