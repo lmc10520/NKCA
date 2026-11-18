@@ -61,15 +61,32 @@
   "^Roof_(South|Main_B13|Main_B14|Main_M15|Main_M16)$": "Roof_Main"
  },
  "night": {
-  "_說明": "夜間環境：月光方向與強度、夜空漸層顏色（天頂／天空／地平線）、星星數量（stars 全部、brightStars 其中有十字星芒的亮星）。不模擬周邊街區燈光。",
+  "_說明": "夜間環境：月光方向與強度、夜空漸層顏色（天頂／天空／地平線）、星星數量（stars 全部、brightStars 其中有柔和光暈的亮星）、nebula／nebulaStrength＝夜空中一團團較亮的星雲光顏色與強度、meteorEvery_s＝平均幾秒一顆流星。不模擬周邊街區燈光。",
   "stars": 12800,
-  "brightStars": 70,
+  "brightStars": 160,
   "moonAz_deg": 145,
   "moonAlt_deg": 52,
   "moonlight": 0.9,
-  "zenith": "#0b1834",
-  "sky": "#1e3260",
-  "horizon": "#4a5d86"
+  "zenith": "#050a26",
+  "sky": "#122a78",
+  "horizon": "#2c4aa8",
+  "nebula": "#2a4fc8",
+  "nebulaStrength": 0.5,
+  "meteorEvery_s": 9,
+  "realStars": true,
+  "starBoost": 1,
+  "_realStars說明": "realStars：用真實星表（model/stars.bin，Hipparcos 6 等以內 5044 顆，tools/stars_to_data.py）依高雄經緯度與當下時間排列星空，星空會隨時間轉動；false 改回隨機星空；starBoost＝暗星的亮度倍數（調大星星更明顯）。",
+  "_showers說明": "流星雨（國際流星組織 IMO 年度曆）：from／to 活動期間、peak 極大期（MM-DD，台灣時間），ra／dec 輻射點赤經赤緯（度），zhr 極大期每小時天頂流星數，width_days 極大期前後衰減的天數。檔期內依日期與輻射點高度增加流星，流星從輻射點往外射出，天氣文字後面會標出流星雨名稱。",
+  "showers": [
+   { "id": "quadrantids", "name": "象限儀座流星雨", "from": "12-28", "peak": "01-04", "to": "01-12", "ra": 230, "dec": 49, "zhr": 110, "width_days": 0.6 },
+   { "id": "lyrids", "name": "天琴座流星雨", "from": "04-14", "peak": "04-22", "to": "04-30", "ra": 271, "dec": 34, "zhr": 18, "width_days": 1 },
+   { "id": "eta-aquariids", "name": "寶瓶座η流星雨", "from": "04-19", "peak": "05-06", "to": "05-28", "ra": 338, "dec": -1, "zhr": 50, "width_days": 3 },
+   { "id": "perseids", "name": "英仙座流星雨", "from": "07-17", "peak": "08-12", "to": "08-24", "ra": 48, "dec": 58, "zhr": 100, "width_days": 2 },
+   { "id": "orionids", "name": "獵戶座流星雨", "from": "10-02", "peak": "10-21", "to": "11-07", "ra": 95, "dec": 16, "zhr": 20, "width_days": 3 },
+   { "id": "leonids", "name": "獅子座流星雨", "from": "11-06", "peak": "11-17", "to": "11-30", "ra": 152, "dec": 22, "zhr": 15, "width_days": 1.5 },
+   { "id": "geminids", "name": "雙子座流星雨", "from": "12-04", "peak": "12-14", "to": "12-20", "ra": 112, "dec": 33, "zhr": 150, "width_days": 1 },
+   { "id": "ursids", "name": "小熊座流星雨", "from": "12-17", "peak": "12-22", "to": "12-26", "ra": 217, "dec": 76, "zhr": 10, "width_days": 1 }
+  ]
  },
  "northOffset_deg": -20.8,
  "_northOffset說明": "真北＝模型 +Y 軸順時針轉幾度（負值＝逆時針）。指北針、日照方位、極光、OSM 地圖都用這個值。2026-11-01 依 OSM 地圖對位改成 -20.8（原本 23 方向相反）",
