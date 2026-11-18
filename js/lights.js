@@ -85,6 +85,8 @@ export class NightLights {
     this.soffitBase = new THREE.Color(so.color || '#fff1dc').multiplyScalar(so.intensity ?? 0);
     this.soffitCol = { value: this.soffitBase.clone() };
     this.soffitY = { value: new THREE.Vector3(so.low_m ?? 5, so.high_m ?? 14, so.topRatio ?? 0.3) };
+    // 曲牆：出挑底面往下彎到地面的側面（法線接近水平），亮度為底面的 wall 倍，接到地面的頂光，不會整段斷掉
+    this.soffitWall = so.wall ?? 0;
     // 立面邊緣帶由下往上的洗牆光
     const fu = c.facadeUplight || {};
     this.facadeBase = new THREE.Color(fu.color || '#fff1dc');
@@ -100,16 +102,16 @@ export class NightLights {
         const top = new THREE.Color(c.plaza.topNightColor || '#2a2a2a');
         m.material.onBeforeCompile = (sh) => {
           sh.uniforms.uNight = u; sh.uniforms.uPlazaCol = this.plazaCol; sh.uniforms.uPlazaWash = this.plazaWash;
-          sh.uniforms.uSoffit = this.soffitCol; sh.uniforms.uSoffitY = this.soffitY;
+          sh.uniforms.uSoffit = this.soffitCol; sh.uniforms.uSoffitY = this.soffitY; sh.uniforms.uSoffitW = { value: this.soffitWall };
           sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;')
             .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvCWN=mat3(modelMatrix)*objectNormal;')
             .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uPlazaCol;uniform vec3 uPlazaWash;uniform vec3 uSoffit;uniform vec3 uSoffitY;`)
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uPlazaCol;uniform vec3 uPlazaWash;uniform vec3 uSoffit;uniform vec3 uSoffitY;uniform float uSoffitW;`)
             .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
               float ny=normalize(vCWN).y;
               vec2 cell=fract(vWP.xz/${sp.toFixed(2)})-0.5; float d=length(cell)*${sp.toFixed(2)};
               float dotm=(1.0-smoothstep(${(r * 0.6).toFixed(3)},${r.toFixed(3)},d))*(1.0-smoothstep(-0.6,-0.3,ny));
-              float down=1.0-smoothstep(-0.6,-0.3,ny);
+              float down=max(1.0-smoothstep(-0.6,-0.3,ny),uSoffitW*(1.0-smoothstep(0.0,0.7,ny)));   // 朝下全亮；往下彎成曲牆的側面仍有 wall 比例的亮度
               float edgeF=mix(1.0,uSoffitY.z,smoothstep(uSoffitY.x,uSoffitY.y,vWP.y));   // 越低（越靠出挑邊緣）越亮
               totalEmissiveRadiance+=uPlazaCol*dotm*uNight*6.0+(uSoffit*edgeF+uPlazaWash)*down*uNight;`)
             .replace('#include <opaque_fragment>', `outgoingLight=mix(outgoingLight,vec3(${top.r.toFixed(3)},${top.g.toFixed(3)},${top.b.toFixed(3)}),smoothstep(0.3,0.6,ny)*uNight);
@@ -131,7 +133,7 @@ export class NightLights {
     // 3a. 其他出挑底面（soffit.match）與立面邊緣帶（facadeUplight.match）：每個物件複製自己的材質，
     // 底面：朝下的面整片打亮（越低越亮）；立面：側面從物件底部往上 height_m 漸暗。顏色用 uniform，節慶換色不必重新編譯
     {
-      const sm = makeMatcher(c.soffit?.match), fm = makeMatcher(c.facadeUplight?.match);
+      const sm = makeMatcher(c.soffit?.match), fm = makeMatcher(c.facadeUplight?.match), wm = makeMatcher(c.soffit?.wallMatch);
       const fk = c.facadeUplight?.intensity ?? 0, fh = c.facadeUplight?.height_m ?? 9;
       const box = new THREE.Box3();
       for (const m of model.meshes) {
@@ -140,15 +142,16 @@ export class NightLights {
         if (!isS && !isF || m.userData.isGlass) continue;
         const y0 = box.setFromObject(m).min.y;
         const mat = m.material.clone(); m.material = mat; m.userData.origMaterial = mat;
-        const uY = { value: new THREE.Vector3(y0, y0 + fh, isF ? fk : 0) }, uS = { value: isS ? 1 : 0 };
+        const uY = { value: new THREE.Vector3(y0, y0 + fh, isF ? fk : 0) }, uS = { value: isS ? 1 : 0 }, uW = { value: isS && wm(n) ? this.soffitWall : 0 };
         mat.onBeforeCompile = (sh) => {
-          Object.assign(sh.uniforms, { uNight: this.ceilUniform, uSoffit: this.soffitCol, uSoffitY: this.soffitY, uPlazaWash: this.plazaWash, uFacade: this.facadeCol, uFY: uY, uSK: uS });
+          Object.assign(sh.uniforms, { uNight: this.ceilUniform, uSoffit: this.soffitCol, uSoffitY: this.soffitY, uPlazaWash: this.plazaWash, uFacade: this.facadeCol, uFY: uY, uSK: uS, uSW: uW });
           sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;')
             .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvCWN=mat3(modelMatrix)*objectNormal;')
             .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uSoffit;uniform vec3 uSoffitY;uniform vec3 uPlazaWash;uniform vec3 uFacade;uniform vec3 uFY;uniform float uSK;')
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;varying vec3 vCWN;uniform float uNight;uniform vec3 uSoffit;uniform vec3 uSoffitY;uniform vec3 uPlazaWash;uniform vec3 uFacade;uniform vec3 uFY;uniform float uSK;uniform float uSW;')
             .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-              float ny=normalize(vCWN).y, down=1.0-smoothstep(-0.6,-0.3,ny), side=1.0-smoothstep(0.35,0.6,abs(ny));
+              float ny=normalize(vCWN).y, side=1.0-smoothstep(0.35,0.6,abs(ny));
+              float down=max(1.0-smoothstep(-0.6,-0.3,ny),uSW*(1.0-smoothstep(0.0,0.7,ny)));
               float edgeF=mix(1.0,uSoffitY.z,smoothstep(uSoffitY.x,uSoffitY.y,vWP.y));
               float g=1.0-smoothstep(uFY.x,uFY.y,vWP.y);
               totalEmissiveRadiance+=(uSoffit*edgeF+uPlazaWash)*down*uNight*uSK+uFacade*diffuseColor.rgb*(g*g*side*uNight*uFY.z);`);

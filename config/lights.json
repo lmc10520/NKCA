@@ -407,7 +407,16 @@
   "low_m": 5,
   "high_m": 14,
   "topRatio": 0.3,
+  "wall": 0.6,
+  "_wall說明": "曲牆（出挑底面往下彎到地面、接近垂直的面）的亮度＝底面的 wall 倍；只套用在 wallMatch 的物件（要同時在 match 裡）。0＝只打亮朝下的面。",
+  "wallMatch": [
+   "^Plaza_Ceiling$",
+   "^Plaza_Skin_",
+   "^Plaza_Ground$",
+   "^Opera_Fascia$"
+  ],
   "match": [
+   "^Plaza_Ground$",
    "^Roof_Main$",
    "^Theater_Eave_Soffit_",
    "^Plaza_Skin_",
