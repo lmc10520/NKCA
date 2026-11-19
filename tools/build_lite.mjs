@@ -17,7 +17,8 @@ const IN = process.argv[2] || 'model/nkca.glb', OUT = process.argv[3] || 'model/
 // 規則：依物件名稱（第一個符合的生效）。error＝允許的形狀誤差（相對於物件大小），ratio＝目標面數比例
 const RULES = [
   { match: /^Site_Fountain_(LED|Nozzles)/, ratio: 0.08, error: 0.02 },   // 噴泉細部：遠看不出來
-  { match: /^(Plaza_Ground|Site_|Plaza_Ceiling)/, ratio: 0, error: 0.0006 },   // 平坦的地坪、天花：大量細分三角形
+  { match: /^(Plaza_Ground|Plaza_Ceiling)/, ratio: 0, error: 0.00006 }, // 地坪、天花：與主模型同精度，否則偏差約 16 cm，3F 樓板與牆後的空隙會透出黑洞
+  { match: /^Site_/, ratio: 0, error: 0.0006 },                          // 基地平坦地面：大量細分三角形
   { match: /^Railing/, skip: true },                                      // 欄杆：細柱很多，減面會讓柱子消失，不動
   { match: /^Seam/, ratio: 0, error: 0.001 },                             // 屋頂直立縫：細長物件
   { match: /^Roof_/, ratio: 0, error: 0.00025 },                          // 屋頂曲面：小心減，保留弧度
