@@ -1,4 +1,5 @@
 {
+  "_音樂廳": "音樂廳逃生梯 07／40／41 在 Fusion 分層命名 CH1F／CH2F_EscapeStair{n}（梯段）與 CH1F～3F_EscapeStair{n}_Wall（梯間牆），2026-11-18 James 回報逃生狀態沒變紅，補進 stairs／hide。",
   "_說明": "逃生狀態（設定 → 逃生狀態）：開啟時 stairs、doors 的物件換成紅色（全部共用同一個材質，不增加 shader），hide 的物件（遮住逃生梯的牆、天花、梯間方塊）隱藏。名稱規則同 modes.json：'=' 完整名稱、其他為正規表示式、'@' 引用 modes.json 的 groups。",
   "color": "#e0261b",
   "emissive": "#4a0703",
@@ -6,7 +7,8 @@
     "^EmergencyStair_\\d+_Stair",
     "=SW_Core_1F_EscapeStair",
     "^RH\\dF_EscapeStair$",
-    "^EmergencyStair_\\d+_Floor"
+    "^EmergencyStair_\\d+_Floor",
+    "^CH\\dF_EscapeStair\\d+$"
   ],
   "doors": [
     "^SW_Core_1F_EscapeDoor",
@@ -16,6 +18,7 @@
     "=SW_Core_1F_EscapeStair_Wall",
     "=SW_Core_1F_Ceiling",
     "^EmergencyStair_\\d+$",
-    "^EmergencyStair_\\d+_Wall_"
+    "^EmergencyStair_\\d+_Wall_",
+    "^CH\\dF_EscapeStair\\d+_Wall$"
   ]
 }

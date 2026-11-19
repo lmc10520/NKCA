@@ -1131,7 +1131,8 @@ function goCue(i) {
   const s = pres.cues[pres.i];
   $('presIdx').textContent = `${pres.i + 1}/${pres.cues.length}`;
   if (s.m) setMode(s.m, true);
-  if (s.h) for (const h of halls) if (s.h[h.id]) setHallFloor(h, s.h[h.id]);
+  // 只記下各廳院樓層，不經過 setHallFloor：那會把樹冠大廳等其他模式的教材代碼切回榕樹廣場
+  if (s.h) { for (const h of halls) if (s.h[h.id]) state.halls[h.id] = s.h[h.id]; applyVisibility(); renderLiftPanel(true); }
   for (const [k, v] of Object.entries(s.ui || {})) if (k in state) setToggle(k, v);
   if (s.ui?.festival == null) setToggle('festival', false);   // 舊代碼沒有記錄：教材預設不顯示節慶物件
   if (s.ui?.escape == null && state.escape) setToggle('escape', false);   // 沒記錄逃生狀態的代碼＝一般狀態
