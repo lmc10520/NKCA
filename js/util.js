@@ -91,3 +91,13 @@ export async function listFolder(folder) {
 }
 
 export const isMobile = matchMedia('(pointer:coarse)').matches || /Mobi|Android|iPad|iPhone/.test(navigator.userAgent);
+
+// 圖示按鈕的無障礙名稱：Material Symbols 是用連字（ligature）顯示圖示，按鈕裡的 "tune"、"close" 這類英文字
+// 會被螢幕報讀器唸出來。圖示文字一律對輔助技術隱藏；只剩圖示的按鈕改用 title 當名稱（aria-label）。
+export function iconA11y(root = document) {
+  for (const el of root.querySelectorAll('button .ms, .ovIcon .ms')) el.setAttribute('aria-hidden', 'true');
+  for (const b of root.querySelectorAll('button[title]:not([aria-label])')) {
+    const text = b.classList.contains('ms') ? '' : [...b.childNodes].filter((n) => !(n.classList?.contains('ms'))).map((n) => n.textContent).join('').trim();
+    if (!text) b.setAttribute('aria-label', b.title);
+  }
+}

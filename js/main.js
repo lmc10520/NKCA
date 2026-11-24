@@ -7,7 +7,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { loadJSON, cm2w, w2cm, makeMatcher, toast, ease, isMobile } from './util.js';
+import { loadJSON, cm2w, w2cm, makeMatcher, toast, ease, isMobile, iconA11y } from './util.js';
 import { loadModel } from './model.js';
 import { Environment } from './env.js';
 import { NightLights } from './lights.js';
@@ -130,6 +130,8 @@ setLoad(5, '下載模型…');
 // 預設載入減面模型（site.json 的 modelLite，由 tools/build_lite.mjs 產生）；高畫質或讀不到時用原模型
 const modelURL = !HIGH && site.modelLite ? site.modelLite : site.model || 'model/nkca.glb';
 const modelBytes = !HIGH && site.modelLite ? site.modelLiteBytes : site.modelBytes;
+{ const pre = document.getElementById('modelPreload');   // index.html 提早下載的檔案要和這裡一致，否則白抓一次
+  if (pre && new URL(pre.href).pathname !== new URL(modelURL, location.href).pathname) console.warn('[model] index.html 預先下載的模型和 site.json 不一致', pre.href, modelURL); }
 const onModelProgress = (loaded, total) =>
   setLoad(5 + 75 * Math.min(1, loaded / (total || modelBytes || 9e6)), loaded >= (total || Infinity) ? '解析模型…' : '下載模型…');
 const model = await loadModel(modelURL, onModelProgress).catch((e) => {
@@ -451,7 +453,7 @@ function renderLiftPanel(force) {
   $('liftPanel').classList.toggle('hidden', !n);
   if (!n) return;
   $('liftTitle').textContent = n.c.label;
-  const box = $('liftButtons'); box.innerHTML = '';
+  const box = $('liftButtons'); box.replaceChildren();
   const cur = currentCoreFloor(n.c) ?? (n.type === 'hall' ? state.halls[n.c.id] : null);
   for (const f of n.c.floors) {
     const b = document.createElement('button'); b.textContent = f.id; b.classList.toggle('on', f.id === cur);
@@ -1011,7 +1013,9 @@ function snapshotCode() {
     tod: env.override, card: labels.openId(),
   };
   if (state.venue != null) s.vl = state.venue;
-  return 'NKCA1:' + btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+  // UTF-8 → base64（和舊版 btoa(unescape(encodeURIComponent())) 產生的代碼完全相同）
+  const bytes = new TextEncoder().encode(JSON.stringify(s));
+  return 'NKCA1:' + btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''));
 }
 function snapshot() {
   const code = snapshotCode();
@@ -1019,7 +1023,7 @@ function snapshot() {
   toast('已複製簡報代碼（貼到記事本，一頁一行）：\n' + code, 6000);
 }
 function decode(code) {
-  try { return JSON.parse(decodeURIComponent(escape(atob(code)))); } catch { return null; }
+  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(code), (c) => c.charCodeAt(0)))); } catch { return null; }
 }
 // resolve：把 txt 裡的檔名換成網址（GitHub 上的教材資料夾，或本機一起選取的檔案）
 function parseDeck(txt, resolve = (f) => f) {
@@ -1119,7 +1123,7 @@ function showPresText(s) {
   setTimeout(() => {
     box.querySelector('h1').textContent = s.h1 || '';
     box.querySelector('h2').textContent = s.h2 || '';
-    const pt = box.querySelector('.pt'); pt.innerHTML = '';
+    const pt = box.querySelector('.pt'); pt.replaceChildren();
     for (const t of s.p) { const p = document.createElement('p'); p.textContent = t; pt.appendChild(p); }
     for (const src of s.img) { const im = document.createElement('img'); im.src = src; im.alt = ''; pt.appendChild(im); }
     box.classList.toggle('hidden', !has);
@@ -1274,7 +1278,7 @@ function catPoints(c) {
   return out;
 }
 function renderOverview() {
-  const box = $('ovList'); box.innerHTML = '';
+  const box = $('ovList'); box.replaceChildren();
   for (const c of ovCats) {
     const n = catPoints(c).length, b = document.createElement('button');
     b.className = 'ovItem' + (n || c.course ? '' : ' empty');
@@ -1286,6 +1290,7 @@ function renderOverview() {
     b.onclick = () => startOverview(c);
     box.appendChild(b);
   }
+  iconA11y(box);
 }
 function openOverview() { renderOverview(); $('ovDrawer').classList.add('open'); $('settings').classList.add('hidden'); }
 function closeOverview() { $('ovDrawer').classList.remove('open'); }
@@ -1439,6 +1444,8 @@ renderer.setAnimationLoop(() => {
   const ang = Math.atan2(northDir.dot(r), northDir.dot(f));
   $('compassRose').style.transform = `rotate(${THREE.MathUtils.radToDeg(ang)}deg)`;
 });
+
+iconA11y();   // 介面都建好之後補上圖示按鈕的無障礙名稱
 
 // 開發者用：在主控台 window.nkca 可以查物件
 window.nkca = { festival, pois, startOverview, ovCats, scene, camera, orthoCam, controls, model, env, state, setMode, setStyle, setProj, flyTo, fountain, night, vehicles, people, renderer, labels, viewFromModelDir, piano, soundscape, section, renderSection };

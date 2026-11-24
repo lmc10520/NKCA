@@ -34,7 +34,7 @@ const hsl = (m) => `hsl(${m.h} 90% 55%)`;
 let picking = null;
 let calib = null, calRun = null;   // 校正結果、進行中的校正
 function buildMarkerUI() {
-  $('markers').innerHTML = '';
+  $('markers').replaceChildren();
   for (const m of MARKERS) {
     const row = document.createElement('div'); row.className = 'mk';
     row.innerHTML = `<div class="sw" style="background:${hsl(m)}"></div>
@@ -233,7 +233,7 @@ let run;
 function resetRun() {
   run = { t0: performance.now(), pinIn: true, pinLostAt: 0, leverAt: 0, squeeze: false, agent: 1, sprayMs: 0, baseMs: 0, sweepMs: 0,
     hist: [], errors: 0, warned: {}, firstSpray: null, done: false, keyPin: false, keySq: false };
-  $('log').innerHTML = '';
+  $('log').replaceChildren();
 }
 resetRun();
 $('resetBtn').onclick = () => { resetRun(); log('重新開始', 'ok'); };
