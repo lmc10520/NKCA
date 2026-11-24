@@ -11,6 +11,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#e8eaed;color:var(--on
 #app,#view{position:fixed;inset:0;width:100%;height:100%}
 #view{touch-action:none;display:block}
 .ui{position:fixed;z-index:10}
+/* 允許使用者縮放頁面（無障礙）；介面按鈕關掉雙擊放大，3D 畫面本身的手勢由 #view 的 touch-action:none 交給程式處理 */
+.ui,button{touch-action:manipulation}
 .hidden{display:none!important}
 button{font:inherit;color:inherit;border:none;background:none;cursor:pointer;-webkit-user-select:none;user-select:none}
 .ms{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:20px;line-height:1;
@@ -322,4 +324,9 @@ body.welcome #soundHint{display:none!important}
   #modal{padding:0}
   .modalInner{width:100vw;max-height:100vh;height:100%;border-radius:0;padding:14px 12px}
   #mapView{height:calc(100vh - 80px)}
+}
+
+/* 使用者在系統設定「減少動態效果」時：關掉無限循環的脈動、呼吸動畫，其他轉場縮到幾乎瞬間 */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }

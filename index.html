@@ -2,13 +2,25 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="光影．窗景．曲牆：經過深邃的天窗折射的光線，有層次地灑落，高低落差產生的腔體，孕育最美的建築聲景">
 <title>NKCA 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400,0..1,0&display=block" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<script>
+// 提早開始下載模型：不必等 main.js 和它引用的 40 多支模組、設定檔都載完才開始抓 8 MB 的 glb。
+// 選檔邏輯同 js/look.js 的 qualityPref()（高畫質用原模型，其餘用減面模型）；檔名要和 config/site.json 的 model／modelLite 一致。
+{
+  let q = new URLSearchParams(location.search).get('q');
+  if (q !== 'high' && q !== 'default') { try { q = localStorage.getItem('nkca.quality') === 'high' ? 'high' : 'default'; } catch { q = 'default'; } }
+  const l = document.createElement('link');
+  l.rel = 'preload'; l.as = 'fetch'; l.crossOrigin = 'anonymous'; l.id = 'modelPreload';
+  l.href = q === 'high' ? 'model/nkca.glb' : 'model/nkca_lite.glb';
+  document.head.appendChild(l);
+}
+</script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -126,7 +138,7 @@
   </div>
 
   <!-- 彈出視窗（地下停車場平面圖等） -->
-  <div id="modal" class="hidden"><div class="modalInner"><button class="x ms" id="modalClose">close</button><h3 id="modalTitle"></h3><div id="mapView"><img id="modalImg" alt="" draggable="false"><div id="mapZoom"><button class="ms" id="zIn" title="放大">add</button><button class="ms" id="zOut" title="縮小">remove</button><button class="ms" id="zFit" title="符合畫面">fit_screen</button></div></div><p id="modalNote"></p></div></div>
+  <div id="modal" class="hidden"><div class="modalInner"><button class="x ms" id="modalClose" aria-label="關閉">close</button><h3 id="modalTitle"></h3><div id="mapView"><img id="modalImg" alt="" draggable="false"><div id="mapZoom"><button class="ms" id="zIn" title="放大">add</button><button class="ms" id="zOut" title="縮小">remove</button><button class="ms" id="zFit" title="符合畫面">fit_screen</button></div></div><p id="modalNote"></p></div></div>
 
   <!-- 簡報文字框（只在簡報時顯示，不存在瀏覽器裡） -->
   <div id="presText" class="ui hidden"><h1></h1><h2></h2><div class="pt"></div></div>
